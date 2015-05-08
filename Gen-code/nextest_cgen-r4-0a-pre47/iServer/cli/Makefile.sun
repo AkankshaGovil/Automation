@@ -1,0 +1,75 @@
+
+#################################################################
+#################################################################
+##
+##			Makefile
+##
+#################################################################
+#################################################################
+
+include ../global.mk
+
+CC= cc -mt 
+CFLAGS += -DSUNOS -D_REENTRANT
+
+YACC=yacc -b one
+YACC=bison
+LEX=lex
+LEX=flex
+
+LIBOBJECTS = cli.o clinetoid.o clivpn.o clidb.o cliusage.o cliaux.o parse.o clifaxs.o
+
+LIB=libcli.so
+
+OBJECTS = main.o $(LIBOBJECTS)
+
+ALUI_OBJECTS = ALUI_Commands.o ALUI_AppInit.o 
+
+BINDIR = ../bin
+
+all: cli lib
+##
+## Manager level programs.
+##
+
+cli: $(OBJECTS) $(LIBDB) $(LIBUTILS) $(LIBMEM) $(LIBCOMMON) $(HEADERS)
+	$(CC) $(CFLAGS) -o $@ $(OBJECTS) $(LIBDB) $(LIBMEM) $(LIBSCONFIG) $(LIBCOMMON) $(LIBUTILS) $(LIBCRYPTO) $(LIBSRVR) -lgdbm -lpthread -ll -ly -lxnet
+
+lib: $(LIB) $(LIBOBJECTS) $(LIBDB) $(LIBUTILS) $(LIBMEM) $(LIBSCONFIG) $(LIBCOMMON) $(HEADERS) Makefile
+
+$(LIB): $(LIBOBJECTS) 
+		$(CC) $(CFLAGS) -G -o $@ $(LIBOBJECTS) $(LIBDB) $(LIBMEM) $(LIBSCONFIG) $(LIBCOMMON) $(LIBUTILS) $(LIBCRYPTO) $(LIBSRVR) -lgdbm -lpthread -ll -ly -lxnet -lc
+
+one: parse.o $(LIBDB) $(LIBUTILS) $(HEADERS)
+	$(CC) $(CFLAGS) -o $@ parse.o $(LIBDB) $(LIBUTILS) -lfl
+
+alui: $(ALUI_OBJECTS) $(LIBUTILS) $(LIBDB) $(LIBMEM)
+	$(CC) $(CFLAGS) -o $@ $^ -ldl -lgdbm -ltk8.0 -ltcl8.0 -lX11 -lm -lpthread
+
+parse.o : one.y one.l parse.c
+	$(YACC) -d one.y
+	$(LEX) one.l
+	$(CC) $(CFLAGS) -o $@ -c parse.c
+
+clean:	
+	$(RM) -f $(OBJECTS)
+	$(RM) deps
+	touch deps
+
+depend:
+	-touch deps
+	$(MAKEDEPEND) -f deps $(CFLAGS) *.c
+
+install:	cli 
+	$(CP) cli $(BINDIR)
+
+
+##.BEGIN:
+##	if [ -f deps ]; then \
+##		include deps \
+##	else \
+##		touch deps \
+##		make depend \
+##	fi \
+# DO NOT DELETE
+

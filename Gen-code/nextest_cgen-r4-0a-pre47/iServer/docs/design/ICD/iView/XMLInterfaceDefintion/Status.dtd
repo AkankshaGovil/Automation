@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!ELEMENT NexToneMsg (Status)>
+<!ATTLIST NexToneMsg
+	version CDATA #REQUIRED
+	cmd CDATA #FIXED "Status"
+>
+<!ATTLIST Status
+	status (success | fail) #REQUIRED
+>
+<!ELEMENT Status (#PCDATA)>

@@ -1,0 +1,218 @@
+#!/bin/bash
+
+# Start Defining the functions
+
+UpdateN()
+{
+awk ' NR==1 {print int(c/(u/100))}' c=$ConCall u=$ChanUtil $0 >/tmp/$$
+read n </tmp/$$
+}
+
+UpdateCycleTime()
+{
+awk ' NR==1 {print int(c/r/(u/100))}' r=$CallRate c=$ConCall u=$ChanUtil $0 >/tmp/$$
+read CycleTime </tmp/$$
+}
+
+UpdateConnTime()
+{
+awk ' NR==1 {print int(c/r)}' r=$CallRate c=$ConCall $0 >/tmp/$$
+read ConnTime </tmp/$$
+}
+
+UpdateIdleTime()
+{
+awk ' NR==1 {print int(c/r*(100/u-1))}' r=$CallRate c=$ConCall u=$ChanUtil $0 >/tmp/$$
+read IdleTime </tmp/$$
+}
+
+UpdateBurstInt()
+{
+awk ' NR==1 {print int(p/r*1000)}' r=$CallRate p=$CallPerBurst $0 >/tmp/$$
+read BurstInt </tmp/$$
+}
+
+UpdateArgs()
+{
+# According to peter there is some bug in the gen code
+# so we will not use the ideal nargs which is commented
+# out.
+# nargs="-n $n"
+nargs="-n $ConCall"
+bargs="-b $CallPerBurst $BurstInt"
+iargs="-i $MonTime $SetupTime $[$ConnTime-1] $[$IdleTime-1]"
+}
+
+UpdateAll()
+{
+UpdateN
+UpdateCycleTime
+UpdateConnTime
+UpdateIdleTime
+UpdateBurstInt
+UpdateArgs
+}
+
+# End Defining the functions
+
+# Initialize variables
+declare -ix CallRate=25;
+declare -ix ConCall=1200;
+declare -ix ChanUtil=80;
+declare -ix SetupTime=20;
+declare -ix CallPerBurst=1;
+declare -ix MonTime=1;
+declare -x Mode="Rx";
+
+declare -ix n CycleTime ConnTime IdleTime BurstInt
+declare -x nargs bargs iargs aargs
+
+UpdateAll
+
+# Start the main loop
+
+while [ 0 ] 
+do
+clear
+
+echo " 				Gen Menu"
+echo "				--- ----"
+echo ""
+echo "Option                                    Current Value" 
+echo "[R] - Call Rate (Calls/Sec)                " $CallRate	
+echo "[C] - Concurrent Calls (Number)            " $ConCall
+echo "[U] - Channel Utilization (Percent)        " $ChanUtil
+echo "[S] - Call Setup Time (Sec)                " $SetupTime
+echo "[P] - Number of Calls per burst (Number)   " $CallPerBurst
+echo "[M] - Monitoring Time (Sec)                " $MonTime
+echo "[V] - Mode                                 " $Mode
+echo "[A] - Additional Parameters                " $aargs
+echo "                                           "
+echo "[D] - Done and Run                         "
+echo "[Q] - Quit                                 "
+echo "                                           "
+echo "                                        Resulting Values"
+echo " n                                         " $n
+echo " Cycle Time (Sec)                          " $CycleTime
+echo " Connect Time (Sec)                        " $ConnTime
+echo " Idle Time (Sec)                           " $IdleTime
+echo " Burst Interval (mSec)                     " $BurstInt
+echo ""
+echo " Argument String for gen"
+echo ""
+echo " $nargs"
+echo " $bargs"
+echo " $iargs"
+echo " $aargs"
+echo ""
+echo ""
+printf "%s" " Make a choice:"
+
+read choice
+
+case "$choice" in
+
+	"R"|"r")
+		echo "Current Call Rate is $CallRate Calls per second."
+		printf "%s" "Enter new value for Call Rate - "
+		read CallRate;
+		;;
+	"C"|"c")
+		echo "Current number of Concurrent Calls is $ConCall."
+		printf "%s" "Enter new value for Concurrent Calls - "
+		read ConCall;
+		;;
+	"U"|"u")
+		echo "Current value of Channel Utilixation is $ChanUtil percent."
+		printf "%s" "Enter new value for Channel Utilization - "
+		read ChanUtil;
+		;;
+	"S"|"s")
+		echo "Current value of Call Setup Time is $SetupTime seconds."
+		printf "%s" "Enter new value for Call Setup Time - "
+		read SetupTime;
+		;;
+	"P"|"p")
+		echo "Current Number of Calls Per Burst is $CallPerBurst."
+		printf "%s" "Enter new value for Call Calls Per Burst - "
+		read CallPerBurst;
+		;;
+	"M"|"m")
+		echo "Current value of Monitoring Time is $MonTime milliseconds."
+		printf "%s" "Enter new value for Monitoring Time - "
+		read MonTime;
+		;;
+	"V"|"v")
+		echo "Current Mode is $Mode" 
+		printf "%s" "Enter the Mode [R]x/[T]x- "
+		read Answer;
+		case "$Answer" in 
+			R*|r*)
+				Mode="Rx"
+				;;
+			T*|t*)
+				Mode="Tx"
+				;;
+			*)
+				;;
+		esac
+		;;
+	"A"|"a")
+		echo "Current Additional Parameter string is $aargs"
+		printf "%s" "Enter Additional Parameter string - "
+		read aargs;
+		;;
+	"D"|"d")
+		break;
+		;;
+	"Q"|"q")
+		echo "Quitter..."
+		exit;
+		;;
+	*)
+		echo "What are you pressing?"
+		echo "Choose either one of - R C U S P M D"
+		sleep 2
+		;;
+esac
+UpdateAll
+
+done
+
+OPATH=PATH; PATH=$PATH:. ;
+fullcmdname=`which gen`;
+PATH=OPATH;
+
+cmdname=${fullcmdname/#'no gen in*'/};
+if [ $cmdname == "" ]
+then 
+	echo "gen not found in PATH=$PATH:."
+	echo "Exiting ...."
+	exit;
+fi
+
+if [ $Mode == "Rx" ] 
+then
+	cargs="$nargs";
+else
+	cargs="-t $nargs $bargs $iargs"
+fi
+cmdstring="$cmdname $cargs $aargs";
+
+# Delete All Variable as we had exported them
+unset CallRate ConCall ChanUtil SetupTime CallPerBurst MonTime
+unset n CycleTime ConnTime IdleTime BurstInt nargs bargs iargs aargs
+/bin/rm -rf /tmp/$$
+
+# Starting the gen command
+echo
+echo
+echo "Executing $cmdstring"
+echo ".........." 
+echo
+echo
+
+# Give the User some time to see what cmdstring is being executed
+/bin/sleep 1
+
+${cmdstring}

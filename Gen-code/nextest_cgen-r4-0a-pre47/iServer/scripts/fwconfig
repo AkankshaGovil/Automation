@@ -1,0 +1,223 @@
+#!/usr/bin/perl
+
+use Getopt::Std;
+
+if ( $#ARGV < 1 )
+{
+	usage();
+	exit(0);
+}
+
+my $fw = shift @ARGV;
+my $rc = 1;
+my $ifs = "";
+my $services = "ssh";
+my $IPTABLES = "/usr/sbin/iptables";
+my $INSSERV = "/sbin/insserv";
+my $CUSTOM_FILE = "/etc/sysconfig/scripts/SuSEfirewall2-nextone";
+my $SUSEFW_CONFIG = "/etc/sysconfig/SuSEfirewall2";
+
+our %opt;
+ 
+#print "firewall is $fw, args are @ARGV\n";
+
+getopts('dbis:', \%opt );		# list of possible options
+
+# Temporary hack to get firewall type. 
+# until config is able to tell us which fw to use. 
+my $os = qx/uname -s/;
+chomp $os;
+
+for ($os) {
+	if (/^Linux/) {
+		$fw = "hknife";
+	}
+	elsif (/^SunOS/) {
+		$fw = "nsf";
+	}
+	else {
+		print "unknown os $os\n" && exit 1;
+	}
+}
+
+for ($fw) {
+	if (/^nsf$/i || /^ipfilter$/i) {
+		# print "firewall is nsf\n";
+		$rc = system("/usr/local/bin/nextone/nsfconfig @ARGV");
+		last;
+	}
+	if (/^hknife/i) {
+		# print "firewall is hk\n";
+		iptconfig();
+		last;
+	}
+	print "unknown firewall $fw\n" && exit 2;
+}
+
+exit $rc;
+
+sub iptconfig()
+{
+	# -d     Disable the firewall
+	if ($opt{d}) {
+		system("/etc/init.d/SuSEfirewall2_final stop");
+		system("/etc/init.d/SuSEfirewall2_setup stop");
+		system("/etc/init.d/SuSEfirewall2_init stop");
+		system("$INSSERV -r /etc/init.d/SuSEfirewall2_final");
+		system("$INSSERV -r /etc/init.d/SuSEfirewall2_setup");
+		system("$INSSERV -r /etc/init.d/SuSEfirewall2_init");
+		edit_config_file($SUSEFW_CONFIG, "", "", "");
+	}
+
+	# -s eth1,eth2    Enable firewalling on these interfaces  
+	if ($opt{s}) {
+		($ifs = $opt{s}) =~ s/,/ /g;
+		create_custom_file($CUSTOM_FILE);
+		edit_config_file($SUSEFW_CONFIG, $ifs, $services, $CUSTOM_FILE);
+		system("$INSSERV -d /etc/init.d/SuSEfirewall2_init");
+		system("$INSSERV -d /etc/init.d/SuSEfirewall2_setup");
+		system("$INSSERV -d /etc/init.d/SuSEfirewall2_final");
+		system("/etc/init.d/SuSEfirewall2_init start");
+		system("/etc/init.d/SuSEfirewall2_setup start");
+		system("/etc/init.d/SuSEfirewall2_final start");
+	}
+}
+
+sub edit_config_file() {
+	my $fname = shift;
+	my $devices = shift;
+	my $services = shift;
+	my $custom_file = shift;
+	my $tmpfile = "/tmp/$$";
+	my $orig = 1;
+	my $emptyline = 0;
+
+	open IN, "<$fname";
+	open OUT, ">$tmpfile";
+
+	while ($line = <IN>) {
+
+		chomp($line);
+
+		if ($line =~ /modified by NexTone/) {
+			# This is not the original suse file
+			$orig = 0;	
+		}	
+
+		if (($emptyline == 1) && ($orig)) {
+			($comment = <<END_COMMENT) =~ s/^\s+//gm;
+			# This file is modified by NexTone Communications fwconfig utility
+			#
+END_COMMENT
+			print OUT "$comment\n";
+			$emptyline++;
+		}
+
+		$line =~ s/(^\s*FW_DEV_EXT=)(.*)/$1\"$devices\"/;
+		$line =~ s/(^\s*FW_SERVICES_EXT_TCP=)(.*)/$1\"$services\"/;
+		$line =~ s/(^\s*FW_CUSTOMRULES=)(.*)/$1\"$custom_file\"/;
+
+		print OUT "$line\n";
+
+		$emptyline++ if ($line =~ /^\s*$/);
+	}
+
+	close IN;
+	close OUT;
+
+	if ($orig) {
+		rename($fname, "$fname.orig");
+	}
+
+	rename($tmpfile, $fname);
+}
+
+sub create_custom_file() {
+	my $fname = shift;	
+
+	open OUT, ">$fname";
+
+	($text = <<_END_FILE) =~ s/^	//gm;
+	# This file is created based on /etc/sysconfig/scripts/SuSEfirewall2-custom
+	# NexTone Communications
+
+	fw_custom_before_antispoofing() {
+		true
+	}
+
+	fw_custom_after_antispoofing() {
+		# Create a table sigholes where all the dynamic pinholes will get inserted
+    	iptables -N sigholes
+    	iptables -A INPUT -j sigholes -p tcp -i eth+
+    	true
+	}
+
+	fw_custom_before_port_handling() {
+		true
+	}
+
+	fw_custom_before_masq() {
+		true
+	}
+
+	fw_custom_before_denyall() {
+		true
+	}
+
+_END_FILE
+
+	print OUT $text; 
+
+	close OUT;
+}
+
+sub status()
+{
+	my $rc = shift;
+	my $code = 0;
+
+	if ($rc == 1) {
+		# print "failed to execute: $!\n";
+		$code = 10;
+	}
+	elsif ($rc & 127) {
+		# printf "child died with signal %d, %s coredump\n", ($rc & 127), ($rc & 128) ? ’with’ : ’without’;
+		if ($rc & 128) {
+			$code = 11;
+		}
+		else {
+			$code = 12;
+		}
+	}
+	else {
+		#printf "child exited with value %d\n", $rc >> 8;
+		$code = $rc >> 8;
+	}
+
+	return $code;
+}
+
+#
+#	Subroutine:
+#		usage()
+#
+#	Arguments:
+#		None
+#
+#	Description:
+#		print out usage notes
+#
+sub usage
+{
+	system 'clear';
+printf "FW configuration script.\n\n";
+printf "    Usage:\n\n";
+printf "    fwconfig fwname [options]\n\n";
+printf "Options:\n\n";
+printf "    fwname                <nsf|hknife>\n\n";
+printf "    -d                    disable firewall.\n\n";
+printf "    -s {interface_list}   used to specify a comma-seperated list\n";
+printf "                          of signaling interfaces.\n\n";
+printf "                          For example :\n\n";
+printf "                            fwconfig -s e1000g0,e1000g1\n\n";
+}

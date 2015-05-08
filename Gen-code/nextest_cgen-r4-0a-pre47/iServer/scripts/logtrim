@@ -1,0 +1,117 @@
+#!/usr/bin/perl
+
+
+#####################################################################
+#####################################################################
+## logtrim
+## Trims and sequences iServer log files.
+## Typical usage is to be installed under cron.
+##
+## Copyright 2001, NexTone Communications, Inc.
+#####################################################################
+#####################################################################
+## $LOG:
+##  v0.1: 11/25/01
+##	Created. Monitors only one logfile.
+#####################################################################
+#####################################################################
+
+###############################################
+##
+## Configurables
+##
+###############################################
+## Name of log file.
+$LOG = "/var/log/iserver.log";
+## How many to sequence through.
+$SEQ = 7;
+## When to start a backup
+$LIMIT = 1024;	## blocks
+
+##
+## Internal variable that can be tweaked
+## This may need to be tweaked based on how often this program
+## runs under cron.
+$marker = 100;		## blocks, again
+
+my $filesz;
+
+use Getopt::Std;
+
+getopts "hl:s:f:";
+
+if ($opt_l)
+{
+	$LIMIT = $opt_l;
+}
+
+if (defined $opt_s)
+{
+	$SEQ = $opt_s;
+}
+
+if ($opt_f)
+{
+	$LOG = $opt_f;
+}
+
+if ($opt_h)
+{
+	PrintHelp ();
+	exit 0;
+}
+
+
+##
+## <main>
+##
+if ( -f $LOG)
+{
+	$filesz = `/usr/xpg4/bin/du -a $LOG | cut -f1`;
+	chop $filesz;
+}
+else
+{
+	## Log doesn't exist yet...
+	exit 0;
+}
+
+if ($filesz > ($LIMIT - $marker))
+{
+	my $status;
+	my $i;
+
+	for ($i = $SEQ; $i > 0; $i--) 
+	{
+		my $prev = $i - 1;
+		my $olog = $LOG . $prev;
+		my $oolog = $LOG . $i;
+
+		if ( -f $olog )
+		{
+			print "Copying $olog into $oolog\n";
+			$status = system ("/bin/cp -p $olog $oolog");
+		}
+	}
+
+	## Finally, copy over the main guy.
+
+	my $LOGONE = $LOG . "1";
+	print "Copying $LOG into $LOGONE \n";
+	$status = system ("/bin/cp -p $LOG $LOGONE");
+
+	## Final act of mercy...
+	$status = system ("/bin/cp /dev/null $LOG");
+}
+
+sub PrintHelp ()
+{
+	print <<eEOF
+logtrim -h   - prints help.
+logtrim -f <logfile> -l <limit> -s <seq>
+defaults: logfile = /var/log/iserver.log
+	  limit   = 1024 blocks
+	  seq     = 7
+eEOF
+;
+}

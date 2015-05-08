@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!ELEMENT NexToneMsg (ReadPassword, WritePassword, Request+)>
+<!ATTLIST NexToneMsg
+	version CDATA #REQUIRED
+	cmd CDATA #FIXED "GetCommand"
+>
+<!ELEMENT ReadPassword (#PCDATA)>
+<!ELEMENT WritePassword (#PCDATA)>
+<!ELEMENT Request (#PCDATA)>
+<!ATTLIST Request
+	data (H323 | SIP | SWDownload) #REQUIRED
+>

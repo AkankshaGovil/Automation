@@ -1,0 +1,37 @@
+Changes
+DBI.pm	The Database Interface Module Perl code
+DBI.xs	The Database Interface Module XS code
+DBIXS.h	The DBI XS public interface for Drivers (DBD::...)
+Driver.xst	Template driver xs file
+MANIFEST
+Makefile.PL	The Makefile generator
+Perl.xs	Test harness (currently) for Driver.xst
+README
+ToDo	Occasional random notes about what's missing
+dbd_xsh.h	Prototypes for standard Driver.xst interface
+dbi_sql.h	Definitions based on SQL CLI / ODBC (#inc'd by DBIXS.h)
+dbipport.h	Perl portability macros (from Devel::PPort)
+dbiproxy.PL	Frontend for DBI::ProxyServer
+dbish.PL	Frontend for DBI::Shell
+lib/Bundle/DBI.pm	A bundle for automatic installation via CPAN.
+lib/DBD/ADO.pm		An experimental driver for Win32 ADO
+lib/DBD/ExampleP.pm	A very simple example Driver module
+lib/DBD/Multiplex.pm	A driver for multiplexing other drivers
+lib/DBD/NullP.pm	An empty example Driver module
+lib/DBD/Proxy.pm	Proxy driver
+lib/DBD/Sponge.pm	A driver for fake cursors (precached data)
+lib/DBI/DBD.pm		Some basic help for people writing DBI drivers
+lib/DBI/FAQ.pm		The DBI FAQ in module form for perldoc
+lib/DBI/Format.pm		Class for formatting rows of data
+lib/DBI/ProxyServer.pm	The proxy drivers server
+lib/DBI/Shell.pm	The DBI interactive shell
+lib/DBI/W32ODBC.pm	An experimental DBI emulation layer for Win32::ODBC
+lib/Win32/DBIODBC.pm	An experimental Win32::ODBC emulation layer for DBI
+t/basics.t	Test script for very basic DBI functionality
+t/dbidrv.t	Test script for loading drivers and using DBI vars
+t/examp.t	Test script for the DBI using the ExampleP driver
+t/meta.t	Test script for metadata methods
+t/proxy.t	Test script for the proxy driver
+t/shell.t	Test script for DBI::Shell
+t/subclass.t	Test script for subclassing the DBI
+test.pl	A very simple test harness using ExampleP.pm

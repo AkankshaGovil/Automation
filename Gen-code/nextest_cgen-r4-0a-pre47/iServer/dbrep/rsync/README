@@ -1,0 +1,38 @@
+The following is the list of changes that one has to perform
+when configuring the rsync package. 
+
+### Create /etc/rsyncd.conf e.g. as shown below
+
+#motd file = /etc/motd
+max connections = 5
+log file = /tmp/rsync.log
+syslog facility = local5
+dont compress = * *.*
+
+[nextone]
+    comment = nextone area
+    path = /export/home/test
+    use chroot
+    read only = no
+#   auth users = ptyagi, root
+#   secrets file = /etc/rsyncd.secrets
+    uid = root
+    gid = root
+    timeout = 300
+
+###  If authentication is enabled then need to create
+###  secrets file with username:password entries. 
+###  However, each time we log, this password will be
+###  queried. A better mechanism is to limit the 
+###  hosts by using the following primitive.
+###  chroot limits the access to only that particular
+###  directory
+
+# host allow = host1, host2, host3
+
+###  To configure rsync daemon
+###  Add the following line to the /etc/services
+rsync 		873/tcp
+###  Add the following line to /etc/inetd.conf
+rsync	stream	tcp	nowait	root	/usr/local/bin/rsync rsync --daemon
+

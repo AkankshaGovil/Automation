@@ -1,0 +1,289 @@
+# RADVISION H.323 Stack Configuration File
+#
+# Value encodings:
+#    ''   -  String (and asciiz is not appended)
+#    ""   -  BMP string of ASCII charactes
+#    []   -  Hex octet string
+#    <>   -  IP
+#    {}   -  Object ID
+#   Other -  Integer
+
+
+
+1 h450system = 0
++  maxCalls = 200
+   maxServices = 400
+
+1 h4509 = 0
++  maxServices = 10
+
+1 h45010 = 0
++  tcw = 100
+
+1 system = 0
+2  maxCalls = 10
+2  maxChannels = 2
+#2  maxRasOutTransactions = 3
+#2  maxRasInTransactions = 1
+#2  allocations = 0
+#3   maxBuffSize = 2048
+#2  callPropertyMode = 0
+#3   doNotUseProperty = 0
+
+
+1 RAS = 0
++  responseTimeOut = 4
+   manualRAS=1
+   maxFail = 1
+   allowCallsWhenNonReg = 1
+   maxMulticastTTL = 10
+   manualRegistration = 0
+   manualDiscovery = 0
++   defaultGatekeeper = 0
++    ipAddress = 0
++     ip = [7f000001]
+      port = 1819
+
+2  registrationInfo = 0
++   terminalType = 0
++    vendor = 0
++     vendor = 0
++      t35CountryCode = 11
+       t35Extension = 11
+       manufacturerCode = 11
+-     productId = 'Test application'
+      versionId = 'RADVISION'
+-    terminal = 0
+     mc = 0
+     undefinedNode = 0
+-   terminalAlias = 0
++    * = 0
++     h323-ID = "TEST"
+-    * = 0
++     e164 = '12354'
+
+2  rasMulticastAddress = 0
++   ipAddress = 0
++    ip = <224.0.1.41>
+     port = 1718
+2  rasPort = 0
+   compare15bitRasCrv = 1
+
+
+1 Q931 = 0
++  responseTimeOut = 15
+   connectTimeOut = 20
+   callSignalingPort = 1720
+   maxCalls = 200
+#  autoAnswer = 0
+   earlyH245 = 1
+   h245Tunneling = 1
+   overlappedSending = 1
+   manualAccept = 1
+   manualCallProceeding = 1
+#  notEstablishControl = 1
+
+1 h245 = 0
++  masterSlave = 0
++   terminalType = 50
+    timeout = 100
+-  capabilities = 0
++   terminalCapabilitySet = 0
++    sequenceNumber = 0
+     protocolIdentifier = [00]
+     multiplexCapability = 0
++     h2250Capability = 0
++      maximumAudioDelayJitter = 60
+       receiveMultipointCapability = 0
++       multicastCapability = 0
+        multiUniCastConference = 0
+        mediaDistributionCapability = 0
++        * = 0
++         centralizedControl = 0
+          distributedControl = 0
+          centralizedAudio = 0
+          distributedAudio = 0
+          centralizedVideo = 0
+          distributedVideo = 0
+
+6      transmitMultipointCapability = 0
++       multicastCapability = 0
+        multiUniCastConference = 0
+        mediaDistributionCapability = 0
++        * = 0
++         centralizedControl = 0
+          distributedControl = 0
+          centralizedAudio = 0
+          distributedAudio = 0
+          centralizedVideo = 0
+          distributedVideo = 0
+
+6      receiveAndTransmitMultipointCapability = 0
++       multicastCapability = 0
+        multiUniCastConference = 0
+        mediaDistributionCapability = 0
++        * = 0
++         centralizedControl = 0
+          distributedControl = 0
+          centralizedAudio = 0
+          distributedAudio = 0
+          centralizedVideo = 0
+          distributedVideo = 0
+
+6      mcCapability = 0
++       centralizedConferenceMC = 0
+        decentralizedConferenceMC = 0
+-      rtcpVideoControlCapability = 0
+       mediaPacketizationCapability = 0
++       h261aVideoPacketization = 0
+
+4    capabilityTable = 0
++     * = 0
++      capabilityTableEntryNumber = 7111
+       capability = 0
++       receiveAudioCapability = 0
++        g711Ulaw64k = 60
+
+5     * = 0
++      capabilityTableEntryNumber = 7110
+       capability = 0
++       receiveAudioCapability = 0
++        g711Alaw64k = 60
+
+5     * = 0
++      capabilityTableEntryNumber = 728
+       capability = 0
++       receiveAudioCapability = 0
++        g728 = 60
+
+5     * = 0
++      capabilityTableEntryNumber = 261
+       capability = 0
++       receiveVideoCapability = 0
++        h261VideoCapability = 0
++         qcifMPI = 1
+          cifMPI = 1
+          temporalSpatialTradeOffCapability = 0
+          maxBitRate = 600
+          stillImageTransmission = 0
+
+5     * = 0
++      capabilityTableEntryNumber = 263
+       capability = 0
++       receiveVideoCapability = 0
++        h263VideoCapability = 0
++         sqcifMPI = 1
+          qcifMPI = 1
+          cifMPI = 1
+          maxBitRate = 1000
+          unrestrictedVector = 0
+          arithmeticCoding = 0
+          advancedPrediction = 0
+          pbFrames = 0
+          temporalSpatialTradeOffCapability = 0
+          errorCompensation = 0
+
+5     * = 0
++      capabilityTableEntryNumber = 7231
+       capability = 0
++       receiveAudioCapability = 0
++        g7231 = 0
++         maxAl-sduAudioFrames = 8
+          silenceSuppression = 0
+
+5     * = 0
++      capabilityTableEntryNumber = 120
+       capability = 0
++       receiveAndTransmitDataApplicationCapability = 0
++        application = 0
++         t120 = 0
++          separateLANStack = 0
+8        maxBitRate = 1000
+
+4    capabilityDescriptors = 0
++     * = 0
++      capabilityDescriptorNumber = 0
+       simultaneousCapabilities = 0
++       * = 0
++        * = 7111
+         * = 7110
+         * = 7231
+         * = 728
+-       * = 0
++        * = 261
+         * = 263
+-       * = 0
++        * = 120
+
+3   timeout = 100
+-  channels = 0
++   * = 0
++    name = 'g711Alaw64k'
+     dataType = 0
++     audioData = 0
++      g711Alaw64k = 60
+
+3   * = 0
++    name = 'g711Ulaw64k'
+     dataType = 0
++     audioData = 0
++      g711Ulaw64k = 60
+
+3   * = 0
++    name = 'g728'
+     dataType = 0
++     audioData = 0
++      g728 = 60
+
+3   * = 0
++    name = 'g7231'
+     dataType = 0
++     audioData = 0
++      g7231 = 0
++       maxAl-sduAudioFrames = 8
+        silenceSuppression = 0
+
+3   * = 0
++    name = 'h261VideoCapability'
+     dataType = 0
++     videoData = 0
++      h261VideoCapability = 0
++       qcifMPI = 1
+        cifMPI = 1
+        temporalSpatialTradeOffCapability = 0
+        maxBitRate = 600
+        stillImageTransmission = 0
+
+3   * = 0
++    name = 'h263VideoCapability'
+     dataType = 0
++     videoData = 0
++      h263VideoCapability = 0
++       sqcifMPI = 1
+        qcifMPI = 1
+        cifMPI = 1
+        maxBitRate = 1000
+        unrestrictedVector = 0
+        arithmeticCoding = 0
+        advancedPrediction = 0
+        pbFrames = 0
+        temporalSpatialTradeOffCapability = 0
+        errorCompensation = 0
+
+3   * = 0
++    name = 't120'
+     dataType = 0
++     data = 0
++      application = 0
++       t120 = 0
++        separateLANStack = 0
+6      maxBitRate = 1000
+
+3   * = 0
++    name = 'h224'
+     dataType = 0
++     data = 0
++      application = 0
++       h224 = 0
++        hdlcFrameTunnelingwSAR = 0
+6      maxBitRate = 6400

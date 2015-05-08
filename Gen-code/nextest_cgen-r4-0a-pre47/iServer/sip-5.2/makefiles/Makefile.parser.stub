@@ -1,0 +1,170 @@
+#######################################################################
+# 		This is the Parser  Makefile for the SipStack   	
+########################################################################
+#
+#		Creates libsipcore
+#		
+########################################################################
+include ../../MakeVars
+
+COMMONRPRSRC = rprfree.c \
+	rprinit.c
+@CCP@ COMMONCCPSRC = ccpinit.c \
+@CCP@ 	ccpfree.c
+@DCS@ COMMONDCSSRC = dcsinit.c \
+@DCS@ dcsfree.c
+@TEL@ COMMONTELSRC = telinit.c \
+@TEL@ 	telfree.c
+COMMONSRC = portlayer.c \
+	sipinit.c \
+	sipfree.c \
+@TXN@   txninit.c\
+@TXN@   txnfree.c\
+@TXN@   txnclone.c\
+	siplist.c \
+	siptrace.c \
+	sipstatistics.c \
+ 	siphash.c \
+@IMPP@ 	imppinit.c \
+@IMPP@ 	imppfree.c \
+@PRES@ 	presinit.c \
+@PRES@ 	presfree.c \
+	sipbcptinit.c \
+	sipbcptfree.c
+PARSERSRC = sipdecode.c\
+@NOTXN@			siptimer.c\
+@TXN@			txndecode.c\
+@TXN@			txndecodeintrnl.c\
+@TXN@			txnmidway.c\
+			sipformmessage.c\
+			sipparserclone.c\
+			sipsendmessage.c \
+@TEL@ 		telerror.c \
+			sdpdecode.c
+@TEL@ TELSRC = telapi.c
+LEXSRC = Attrib.l \
+@CCP@ 	AcceptContact.l \
+@CCP@ 	RejectContact.l \
+	Fromto.l \
+	To.l \
+	Pgp.l \
+	Tokencomment.l \
+	Via.l \
+	Contact.l \
+	Reqline.l \
+	Tokens.l \
+	Datetime.l \
+	Key.l \
+	Sdp.l \
+	Tokensltoken.l \
+	Statusline.l \
+	Utf8.l \
+	Mime.l \
+@MWI@	MesgSummary.l\
+	RprTokens.l \
+@DCS@ 	Dcs.l  \
+@TEL@ 	Tel.l  \
+@IMPPPRES@ 	Im.l  \
+	Media.l \
+@3GPP@     3gpp.l\
+@CONGEST@     Congest.l
+
+BISONSRC =	Attrib.y \
+	Fromto.y \
+	To.y \
+	Pgp.y \
+	Tokencomment.y \
+	Via.y \
+	Contact.y \
+	Reqline.y \
+	Tokens.y \
+	Datetime.y \
+	Sdp.y \
+	Tokensltoken.y \
+	Media.y \
+	Statusline.y \
+@MWI@	MesgSummary.y\
+	Utf8.y \
+	Mime.y \
+	RprTokens.y \
+@CCP@ 	AcceptContact.y \
+@CCP@ 	RejectContact.y  \
+@DCS@ 	Dcs.y \
+@TEL@ 	Tel.y \
+@IMPPPRES@ 	Im.y \
+        Key.y \
+@3GPP@     3gpp.y\
+@CONGEST@  Congest.y
+
+@DCS@ DCSPARSESRC = dcsdecode.c \
+@DCS@ 	dcsformmessage.c
+	
+INCLUDES =  -Ih -I../common/h -Ibison/cfiles  \
+@CCP@ 	-I../common/ccp/h/  \
+		-I../common/rpr/h/  \
+		-I../accessor/rpr/h/  \
+@DCS@ 		-I../common/dcs/h/  -Idcs/h    \
+@TEL@ 	-I../common/tel/h -I../parser/tel/h -I../accessor/h -I../accessor/tel/h\
+			-I../parser/h 
+
+
+COMMONOBJS = $(COMMONSRC:%.c=../../obj/common/%.o) 
+@CCP@ COMMONCCPOBJS = $(COMMONCCPSRC:%.c=../../obj/common/ccp/%.o) 
+COMMONRPROBJS = $(COMMONRPRSRC:%.c=../../obj/common/rpr/%.o) 
+@DCS@ COMMONDCSOBJS = $(COMMONDCSSRC:%.c=../../obj/common/dcs/%.o) 
+@TEL@ COMMONTELOBJS = $(COMMONTELSRC:%.c=../../obj/common/tel/%.o)
+@TEL@ TELOBJS = $(TELSRC:%.c=../../obj/parser/tel/%.o)
+PARSEROBJS = $(PARSERSRC:%.c=../../obj/parser/%.o) 
+LEXCFILES = $(LEXSRC:%.l=lex/cfiles/lex.%.c) 
+BISONCFILES = $(BISONSRC:%.y=bison/cfiles/%.tab.c) 
+LEXOBJS = $(LEXSRC:%.l=../../obj/parser/lex/lex.%.o) 
+BISONOBJS = $(BISONSRC:%.y=../../obj/parser/bison/%.tab.o) 
+@DCS@ DCSPARSEOBJS = $(DCSPARSESRC:%.c=../../obj/parser/dcs/%.o)
+
+OBJECTS = $(COMMONOBJS)  $(BISONOBJS) $(LEXOBJS) $(COMMONRPROBJS)  \
+@CCP@ 			$(COMMONCCPOBJS)  \
+@DCS@ 			$(COMMONDCSOBJS) $(DCSPARSEOBJS)  \
+@TEL@ 			$(COMMONTELOBJS) \
+@TEL@ 			$(TELOBJS) \
+		 $(PARSEROBJS)
+
+.PRECIOUS:	$(BISONCFILES) $(LEXCFILES)
+all: libsipcore 
+
+libsipcore: ../../lib/libsipcore.a
+../../lib/libsipcore.a: $(OBJECTS)
+	$(AR)  ../../lib/libsipcore.a $(OBJECTS)
+include .depend
+../../obj/common/%.o: ../common/src/%.c
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+@CCP@ ../../obj/common/ccp/%.o: ../common/ccp/src/%.c
+@CCP@ 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+../../obj/common/rpr/%.o: ../common/rpr/src/%.c
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+@DCS@ ../../obj/common/dcs/%.o: ../common/dcs/src/%.c
+@DCS@ 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+@TEL@ ../../obj/common/tel/%.o: ../common/tel/src/%.c
+@TEL@ 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+@TEL@ ../../obj/parser/tel/%.o: ../parser/tel/src/%.c
+@TEL@ 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+../../obj/parser/%.o: src/%.c
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+../../obj/parser/lex/%.o: lex/cfiles/%.c
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+../../obj/parser/bison/%.tab.o: bison/cfiles/%.tab.c
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+@DCS@ ../../obj/parser/dcs/%.o: dcs/src/%.c
+@DCS@ 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+bison/cfiles/%.tab.c: bison/%.y
+	$(YACC) --debug -d -p`echo $? | awk -F/ '{print $$2}' | awk -F. '{print "glbSipParser"$$1}'` $? -o$@
+	cat $@ | sed "s/malloc(/BISONMALLOC(/g" | sed "s/\<free[ ]*(/BISONFREE(/g" | sed "s/<stdio\.h>/\"portlayer\.h\"/g" | sed "s/fprintf/HSS_FPRINTF/g" | sed "s/strdup/BISONSTRDUP/g" | sed "s/\<realloc(/BISONREALLOC(/g" > $@.tmp
+	mv -f $@.tmp $@
+	cat $@ | sed "s/YYSTACK_ALLOC malloc/YYSTACK_ALLOC BISONMALLOC/g" > $@.tmp
+	mv -f $@.tmp $@
+
+../../obj/parser/bison/%.tab.o: source/parser/bison/cfiles/%.tab.c
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+lex/cfiles/lex.%.c: lex/%.l
+	$(LEX) -t -P`echo $? | awk -F/ '{print $$2}' | awk -F. '{print "glbSipParser"$$1}'` $? | sed "s/malloc(/FLEXMALLOC(/g" | sed "s/free( ptr );/FLEXFREE(ptr);/g" | sed "s/<stdio\.h>/\"portlayer\.h\"/g" | sed "s/fprintf/HSS_FPRINTF/g" | sed "s/ferror/HSS_FERROR/g" | sed "s/fread/HSS_FREAD/g" | sed "s/getc/HSS_GETC/g" | sed "s/strdup/FLEXSTRDUP/g" | sed "s/\<realloc(/FLEXREALLOC(/g" > $@
+../../obj/parser/lex/lex.%.o: lex/cfiles/lex.%.c
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@

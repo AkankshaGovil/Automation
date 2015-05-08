@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Required-Version: 1.0
+Main-Class: com/nextone/JServer/JServerMain
+Class-Path: activation.jar jaxp.jar crimson.jar xalan.jar xerces.jar

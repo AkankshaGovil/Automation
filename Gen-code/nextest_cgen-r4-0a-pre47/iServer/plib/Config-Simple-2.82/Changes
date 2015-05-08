@@ -1,0 +1,60 @@
+
+RCS file: /home/sherzodr/CVS/modules/Config/Simple/Simple.pm,v
+Working file: Simple.pm
+head: 2.6
+branch:
+locks: strict
+access list:
+symbolic names:
+	start: 1.1.1.1
+	UltraCgis: 1.1.1
+keyword substitution: kv
+total revisions: 10;	selected revisions: 10
+description:
+----------------------------
+revision 2.6
+date: 2002/04/07 19:19:01;  author: sherzodr;  state: Exp;  lines: +66 -50
+sysopen and open functions have been replaced
+with IO::File methods...
+----------------------------
+revision 2.5
+date: 2002/03/27 15:33:33;  author: sherzodr;  state: Exp;  lines: +2 -2
+$VERSION variable fixed in Simple.pm
+----------------------------
+revision 2.4
+date: 2002/03/25 23:45:21;  author: sherzodr;  state: Exp;  lines: +194 -6
+Config::Simple::Tie class has been defined, which implements tied hash access mechanism
+----------------------------
+revision 2.3
+date: 2002/03/22 22:04:08;  author: sherzodr;  state: Exp;  lines: +2 -3
+warnings pragma is removed to make it compatible with older versions of Perl
+----------------------------
+revision 2.2
+date: 2002/03/21 20:59:15;  author: sherzodr;  state: Exp;  lines: +3 -1
+Simple.pm
+----------------------------
+revision 2.1
+date: 2002/03/21 19:37:56;  author: sherzodr;  state: Exp;  lines: +69 -17
+c - switch is added to new() constructor which
+    turns on syntax checking. It's turned on by default
+----------------------------
+revision 2.0
+date: 2002/03/21 17:01:23;  author: sherzodr;  state: Exp;  lines: +77 -50
+Added oodles of functionality to param() method;
+Added file locking mechanism
+Checksumming option is turned on if Digest::MD5 is present
+Nice test suite is added
+----------------------------
+revision 1.2
+date: 2002/03/21 06:23:35;  author: sherzodr;  state: Exp;  lines: +485 -108
+Initial working release of version 2.x API
+----------------------------
+revision 1.1
+date: 2002/03/20 18:09:24;  author: sherzodr;  state: Exp;
+branches:  1.1.1;
+Initial revision
+----------------------------
+revision 1.1.1.1
+date: 2002/03/20 18:09:24;  author: sherzodr;  state: Exp;  lines: +0 -0
+Working draft of the Config::Simple has  been imported to CVS
+=============================================================================

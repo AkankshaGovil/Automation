@@ -1,0 +1,585 @@
+H323-MESSAGES-PRIVATE DEFINITIONS AUTOMATIC TAGS ::=
+BEGIN
+
+
+IMPORTS
+        TransportAddress,
+        EndpointType,
+        GatekeeperIdentifier,
+        VendorIdentifier,
+        TimeToLive,
+        AliasAddress,
+        RasMessage,
+        NonStandardParameter,
+        CallReferenceValue,
+        ConferenceIdentifier,
+        CallIdentifier,
+        H323-UserInformation,
+        RequestSeqNum,
+        EndpointIdentifier,
+        H323-UU-PDU,
+        ReleaseCompleteReason,
+        AlternateTransportAddresses,
+        UseSpecifiedTransport,
+        BandWidth
+    FROM H323-MESSAGES
+        ClearToken,
+        NonStandardParameterH235
+    FROM H235-SECURITY-MESSAGES;
+
+
+
+
+PreGrantedARQ   ::= SEQUENCE
+{
+    makeCall                            BOOLEAN,
+    useGKCallSignalAddressToMakeCall    BOOLEAN,
+    answerCall                          BOOLEAN,
+    useGKCallSignalAddressToAnswer      BOOLEAN,
+    ...,
+    irrFrequencyInCall                  INTEGER (1..65535) OPTIONAL,    -- in seconds; not
+                                                                        -- present if GK
+                                                                        -- does not want IRRs
+    totalBandwidthRestriction           BandWidth OPTIONAL, -- total limit for all
+                                                            -- concurrent calls
+    alternateTransportAddresses         AlternateTransportAddresses OPTIONAL,
+    useSpecifiedTransport               UseSpecifiedTransport OPTIONAL
+}
+
+
+-- RAS configuration type
+-- This type holds the configuration of the RAS inside config.val file.
+RASConfiguration ::=       SEQUENCE
+{
+    responseTimeOut             INTEGER(1..200),
+    gatekeeper                  NULL OPTIONAL,
+    manualRAS                   NULL OPTIONAL,
+    maxFail                     INTEGER(1..200) OPTIONAL,
+    allowCallsWhenNonReg        NULL OPTIONAL,
+    manualRegistration          NULL OPTIONAL,
+    manualDiscovery             SEQUENCE
+    {
+        defaultGatekeeper           TransportAddress
+    } OPTIONAL,
+    registrationInfo            SEQUENCE
+    {
+        terminalType                EndpointType,
+        terminalAlias               SEQUENCE OF AliasAddress OPTIONAL,
+        gatekeeperIdentifier        GatekeeperIdentifier  OPTIONAL,
+        endpointVendor              VendorIdentifier OPTIONAL
+        timeToLive                  TimeToLive OPTIONAL
+    } OPTIONAL,
+    rasMulticastAddress         TransportAddress,
+    rasPort                     INTEGER (0..65535) OPTIONAL,
+    ...
+    compare15bitRasCrv          NULL OPTIONAL, --default 16 bit
+    maxRetries                  INTEGER(1..200) OPTIONAL, -- default 3
+    maxMulticastTTL             INTEGER(0..200) OPTIONAL,--default 20
+    overlappedSending           NULL OPTIONAL,   -- default not used
+    preGrantedArqUse            PreGrantedArqUse OPTIONAL,   -- default not used
+    alternateTransportAddresses AlternateTransportAddresses OPTIONAL,
+    dontRegisterOnTimeout       NULL OPTIONAL
+}
+
+
+Q931Configuration ::=       SEQUENCE
+{
+    responseTimeOut         INTEGER (0..200),
+    connectTimeOut          INTEGER (0..20000),
+    callSignalingPort       INTEGER (0..65535),
+    maxCalls                INTEGER (0..65535),
+    manualAccept            NULL OPTIONAL,
+    notEstablishControl     NULL OPTIONAL,
+    h245Tunneling           NULL OPTIONAL,
+    earlyH245               NULL OPTIONAL,
+    autoAnswer              NULL OPTIONAL,
+    ...
+    manualCallProceeding    NULL OPTIONAL,
+    overlappedSending       NULL OPTIONAL,   -- default not used
+    t302                    INTEGER (0..200) OPTIONAL, -- overlapsending timeout on the incoming side
+    t304                    INTEGER (0..200) OPTIONAL, -- overlapsending timeout on the outgoing side
+    busyCause               INTEGER(0..127) OPTIONAL,
+    busyReason              ReleaseCompleteReason OPTIONAL
+    useAnnexE       SEQUENCE
+    {
+        defaultProtocol BOOLEAN OPTIONAL,
+        protocolPreference CHOICE
+        {
+            annexE      NULL,
+            tpkt        NULL,
+            raceAnnexE  NULL,
+            raceTPKT    NULL
+        } OPTIONAL,
+
+        t_R1            INTEGER (1..10000) OPTIONAL, -- timeout for first msg (in millis)
+        t_R2            INTEGER (1..10000) OPTIONAL, -- timeout for second and more msg (in millis)
+        n_R1            INTEGER (1..50) OPTIONAL,    -- retries for msg
+        t_IMA1          INTEGER (1..200) OPTIONAL,   -- timeout for keep-alive (in milliseconds)
+        n_IMA1          INTEGER (1..50) OPTIONAL,    -- retries for keep-alive
+        t_DT            INTEGER (1..200) OPTIONAL    -- percent to add to t_R1 for request/reply interval
+    } OPTIONAL,
+    diffSrcAddressInSetupAndARQ NULL
+    postControlDisconnectionDelay INTEGER (0..65535) -- time to wait for the RELEASE COMPLETE after control was disconnected by remote party
+    keepCallOnQ931Close     NULL -- The call should not be dropped when Q931 connection dropped
+}
+
+
+-- Property DB for a RAS transaction
+-- This is the structure of the txProperty root of a RAS transaction.
+-- It can be accessed by the application to chech values inside the request and
+-- response messages.
+RasApplicationMessage ::= SEQUENCE
+{
+    address                 TransportAddress,       -- RAS Address of other side in transaction
+    request                 RasMessage,             -- Request message
+    response                RasMessage,             -- Response message
+    progress                RasMessage,             -- RIP message
+}
+
+
+PreGrantedArqUse    ::= CHOICE   --marina
+{
+        direct          NULL,
+        routed          NULL,
+}
+
+
+
+Q931ApplicationMessage ::= SEQUENCE
+{
+    setup                   Q931Message,
+    callProceeding          Q931Message,
+    alerting                Q931Message,
+    connect                 Q931Message,
+    releaseComplete         Q931Message,
+    facility                Q931Message,
+    status                  Q931Message,
+    statusEnquiry           Q931Message,
+    setupAck                Q931Message,
+    information             Q931Message,
+    progress                Q931Message,
+    notify                  Q931Message
+}
+
+Q931Message ::= [PRIVATE 1] SEQUENCE
+{
+    protocolDiscriminator   INTEGER (0..255),
+    callReferenceValue      CHOICE
+    {
+        dummy                           [0]     NULL,
+        oneByte                         [1]     INTEGER (0..255),
+        twoBytes                        [2]     INTEGER (0..65535),
+    },
+    message CHOICE
+    {
+        setup                   SetupMessage,
+        callProceeding          CallProceedingMessage,
+        connect                 ConnectMessage,
+        alerting                AlertingMessage,
+        releaseComplete         ReleaseCompleteMessage,
+        status                  StatusMessage,
+        facility                FacilityMessage,
+        statusEnquiry           StatusEnquiryMessage,
+        progress                ProgressMessage,
+        setupAck                SetupAcknowledge,
+        information             InformationMessage,
+        notify                  NotifyMessage,
+        userInformation         UserInformation,
+        ...
+
+    }
+}
+
+
+AlertingMessage ::= [ 1] SET
+{
+    bearerCapability        BearerCapability        OPTIONAL,
+    facility                Facility                OPTIONAL,
+    progressIndicator       ProgressIndicator       OPTIONAL,
+    progressIndicator31     ProgressIndicator31     OPTIONAL,
+    notificationIndicator   NotificationIndicator   OPTIONAL,
+    display                 Display                 OPTIONAL,
+    signal                  Signal                  OPTIONAL,
+    userUser                UserUser,
+    ...
+}
+
+CallProceedingMessage ::= [ 2] SET
+{
+    bearerCapability        BearerCapability        OPTIONAL,
+    facility                Facility                OPTIONAL,
+    progressIndicator       ProgressIndicator       OPTIONAL,
+    progressIndicator31     ProgressIndicator31     OPTIONAL,
+    notificationIndicator   NotificationIndicator   OPTIONAL,
+    display                 Display                 OPTIONAL,
+    userUser                UserUser,
+    ...
+}
+
+ConnectMessage ::= [ 7] SET
+{
+    bearerCapability        BearerCapability        OPTIONAL,
+    facility                Facility                OPTIONAL,
+    progressIndicator       ProgressIndicator       OPTIONAL,
+    progressIndicator31     ProgressIndicator31     OPTIONAL,
+    notificationIndicator   NotificationIndicator   OPTIONAL,
+    display                 Display                 OPTIONAL,
+    dateTime                DateTime                OPTIONAL,
+    connectedNumber         ConnectedNumber         OPTIONAL,
+    connectedSubaddress     ConnectedSubaddress     OPTIONAL,
+    userUser                UserUser,
+    ...
+}
+
+
+InformationMessage ::= [ 123] SET
+{
+    sendingComplete         SendingComplete         OPTIONAL,
+    display                 Display                 OPTIONAL,
+    keypadFacility          KeypadFacility          OPTIONAL,
+    signal                  Signal                  OPTIONAL,
+    calledPartyNumber       CalledPartyNumber       OPTIONAL,
+    userUser                UserUser,
+    ...
+}
+
+NotifyMessage ::= [ 110] SET
+{
+    bearerCapability        BearerCapability        OPTIONAL,
+    notificationIndicator   NotificationIndicator,
+    display                 Display                 OPTIONAL,
+    userUser                UserUser                OPTIONAL,
+    ...
+}
+
+UserInformation ::= [32] SET
+{
+    moreData                MoreData                OPTIONAL,
+    userUser                UserUser,
+    ...
+}
+
+ProgressMessage ::= [3] SET
+{
+    bearerCapability        BearerCapability        OPTIONAL,
+    cause                   Cause                   OPTIONAL,
+    facility                Facility                OPTIONAL,
+    progressIndicator       ProgressIndicator       OPTIONAL,
+    progressIndicator31     ProgressIndicator31     OPTIONAL,
+    notificationIndicator   NotificationIndicator   OPTIONAL,
+    display                 Display                 OPTIONAL,
+    userUser                UserUser,
+    ...
+
+}
+
+ReleaseCompleteMessage ::= [90] SET
+{
+    cause                   Cause                   OPTIONAL,
+    facility                Facility                OPTIONAL,
+    notificationIndicator   NotificationIndicator   OPTIONAL,
+    display                 Display                 OPTIONAL,
+    signal                  Signal                  OPTIONAL,
+    userUser                UserUser,
+    ...
+}
+
+SetupMessage ::= [ 5] SET
+{
+    sendingComplete         SendingComplete         OPTIONAL,
+    bearerCapability        BearerCapability,
+    facility                Facility                OPTIONAL,
+    notificationIndicator   NotificationIndicator   OPTIONAL,
+    display                 Display                 OPTIONAL,
+    keypadFacility          KeypadFacility          OPTIONAL,
+    signal                  Signal                  OPTIONAL,
+    callingPartyNumber      CallingPartyNumber      OPTIONAL,
+    callingPartySubaddress  CallingPartySubaddress  OPTIONAL,
+    calledPartyNumber       CalledPartyNumber       OPTIONAL,
+    calledPartySubaddress   CalledPartySubaddress   OPTIONAL,
+    redirectingNumber       RedirectingNumber       OPTIONAL,
+    userUser                UserUser,
+    ...
+}
+
+SetupAcknowledge ::= [13] SET
+{
+    display                 Display                 OPTIONAL,
+    signal                  Signal                  OPTIONAL,
+    progressIndicator       ProgressIndicator       OPTIONAL,
+    progressIndicator31     ProgressIndicator31     OPTIONAL,
+    userUser                UserUser                OPTIONAL,
+    ...
+}
+
+
+StatusMessage ::= [125] SET
+{
+    cause                   Cause,
+    callState               CallState,
+    display                 Display                 OPTIONAL,
+    userUser                UserUser                OPTIONAL,
+    ...
+}
+
+StatusEnquiryMessage ::= [117] SET
+{
+    display                 Display                 OPTIONAL,
+    userUser                UserUser                OPTIONAL,
+    ...
+}
+
+
+FacilityMessage ::= [98] SET
+{
+    facility                Facility,
+    notificationIndicator   NotificationIndicator   OPTIONAL,
+    display                 Display                 OPTIONAL,
+    callingPartyNumber      CallingPartyNumber      OPTIONAL,
+    calledPartyNumber       CalledPartyNumber       OPTIONAL,
+    userUser                UserUser,
+    ...
+}
+
+
+BearerCapability ::= [4] SEQUENCE
+{
+    octet3  SEQUENCE
+    {
+        codingStandard                          INTEGER(0..3),
+        informationTransferCapability           INTEGER(0..31),
+        ...
+    },
+
+    octet4  SEQUENCE
+    {
+        transferMode                            INTEGER(0..3),
+        informationTransferRate                 INTEGER(0..31),
+        ...,
+        rateMultiplier                          INTEGER(0..127) OPTIONAL,
+    },
+
+    octet5  SEQUENCE
+    {
+        layer1Ident                             INTEGER(0..3),
+        userInformationLayer1Protocol           INTEGER(0..31),
+        ...
+    } OPTIONAL
+}
+
+
+
+CallIdentity ::= [32] IA5String
+
+
+CallState ::= [20] SEQUENCE
+{
+    codingStandard                                  INTEGER(0..3),
+    callStateValue                                  INTEGER(0..63),
+}
+
+
+
+CallingPartyNumber ::= [108] SEQUENCE
+{
+    octet3  SEQUENCE
+    {
+        typeOfNumber                            INTEGER(0..7),
+        numberingPlanIdentification             INTEGER(0..15),
+        ...,
+        presentationIndicator                   INTEGER(0..3),
+        spare                                   INTEGER(0..7),
+        screeningIndicator                      INTEGER(0..3)
+    },
+    numberDigits    IA5String
+}
+
+CallingPartySubaddress ::= [109] SEQUENCE
+{
+    octet3 SEQUENCE
+    {
+        typeOfSubaddress                        INTEGER(0..7),
+        oddEvenIndicator                        INTEGER(0..1),
+        ...
+    },
+    subaddressInformation OCTET STRING
+}
+
+CalledPartyNumber ::= [112] SEQUENCE
+{
+    octet3  SEQUENCE
+    {
+        typeOfNumber                            INTEGER(0..7),
+        numberingPlanIdentification             INTEGER(0..15),
+        ...
+    },
+    numberDigits    IA5String
+}
+
+
+CalledPartySubaddress ::= [113] SEQUENCE
+{
+    octet3 SEQUENCE
+    {
+        typeOfSubaddress                        INTEGER(0..7),
+        oddEvenIndicator                        INTEGER(0..1),
+        ...
+    },
+    subaddressInformation OCTET STRING
+
+}
+
+RedirectingNumber ::= [116] SEQUENCE
+{
+    octet3  SEQUENCE
+    {
+        typeOfNumber                            INTEGER(0..7),
+        numberingPlanIdentification             INTEGER(0..15),
+        ...,
+        presentationIndicator                   INTEGER(0..3),
+        spare1                                  INTEGER(0..7),
+        screeningIndicator                      INTEGER(0..3),
+        spare2                                  INTEGER(0..7),
+        reasonForRedirection                    INTEGER(0..15)
+    },
+    numberDigits    IA5String
+}
+
+
+
+-- This field is taken from Q951
+ConnectedNumber ::= [76] SEQUENCE
+{
+    octet3 SEQUENCE
+    {
+        typeOfNumber                            INTEGER(0..7),
+        numberingPlanIdentification             INTEGER(0..15),
+        ...,
+        presentationIndicator                   INTEGER(0..3),
+        spare                                   INTEGER(0..7),
+        screeningIndicator                      INTEGER(0..3)
+    },
+    numberDigits    IA5String
+}
+
+
+
+-- This field is taken from Q951
+ConnectedSubaddress ::= [77] SEQUENCE
+{
+    octet3 SEQUENCE
+    {
+        typeOfSubaddress                        INTEGER(0..7),
+        oddEvenIndicator                        INTEGER(0..1),
+        ...
+    },
+    subaddressInformation OCTET STRING
+}
+
+
+
+
+Cause ::= [  8] SEQUENCE
+{
+    octet3  SEQUENCE
+    {
+        codingStandard                          INTEGER(0..3),
+        spare                                   INTEGER(0..1),
+        location                                INTEGER(0..15),
+        ...,
+        recomendation                           INTEGER(0..127) OPTIONAL
+    },
+
+    octet4  SEQUENCE
+    {
+        causeValue                              INTEGER(0..127)
+        ...,
+    },
+}
+
+
+DateTime ::= [ 41] SEQUENCE
+{
+    year                                            INTEGER(0..255),
+    month                                           INTEGER(0..255),
+    day                                             INTEGER(0..255),
+    hour                                            INTEGER(0..255),
+    minute                                          INTEGER(0..255),
+    second                                          INTEGER(0..255)
+}
+
+
+
+Display ::= [40] IA5String
+
+
+KeypadFacility ::= [ 44] IA5String
+
+
+NotificationIndicator ::= [39] SEQUENCE
+{
+    octet3 SEQUENCE
+    {
+        notificationDescription                 INTEGER(0..127),
+        ...
+    }
+}
+
+ProgressIndicator ::= [ 30] SEQUENCE
+{
+    octet3  SEQUENCE
+    {
+        codingStandard                    INTEGER(0..3),
+        spare                             INTEGER(0..1),
+        location                          INTEGER(0..15),
+        ...
+    },
+
+    octet4  SEQUENCE
+    {
+        progressDescription              INTEGER(0..127),
+        ...
+    }
+
+}
+
+
+ProgressIndicator31 ::= [ 31] SEQUENCE
+{
+    octet3  SEQUENCE
+    {
+        codingStandard                          INTEGER(0..3),
+        spare                                   INTEGER(0..1),
+        location                                INTEGER(0..15),
+        ...
+    },
+
+    octet4  SEQUENCE
+    {
+        progressDescription              INTEGER(0..127),
+        ...
+    }
+
+}
+
+
+SendingComplete ::= [161] NULL
+
+MoreData ::= [160] NULL
+
+
+
+Signal ::= [ 52] SEQUENCE
+{
+    signalValue                                     INTEGER(0..255)
+}
+
+Facility ::= [28] OCTET STRING
+UserUser ::= [APPLICATION 126] SEQUENCE
+{
+    protocolDiscriminator                           INTEGER(0..255),
+    h323-UserInformation                            H323-UserInformation
+}
+
+
+END

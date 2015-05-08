@@ -1,0 +1,114 @@
+-- This file holds some of the H.245 types, which are not written in h245.asn as they should.
+-- The reason for that is the need of the types in this file in both h245.asn and h225asn1.asn.
+
+H323-MESSAGES-CAP DEFINITIONS AUTOMATIC TAGS ::=
+
+
+BEGIN
+
+
+
+NonStandardParameter    ::=SEQUENCE
+{
+    nonStandardIdentifier   NonStandardIdentifier,
+    data        OCTET STRING
+}
+
+NonStandardIdentifier   ::=CHOICE
+{
+    object      OBJECT IDENTIFIER,
+    h221NonStandard SEQUENCE
+    {
+        t35CountryCode  INTEGER (0..255),   -- country, per T.35 Annex A
+        t35Extension    INTEGER (0..255),
+                -- assigned nationally unless t35CountryCode is binary
+                -- 1111 1111, in which case it shall contain the country code
+                -- according to T.35 Annex B
+        manufacturerCode    INTEGER (0..65535)  -- assigned nationally
+    }
+}
+
+DataProtocolCapability  ::=CHOICE
+{
+    nonStandard NonStandardParameter,
+    v14buffered NULL,
+    v42lapm NULL,   -- may negotiate to V.42bis
+    hdlcFrameTunnelling NULL,
+    h310SeparateVCStack NULL,
+    h310SingleVCStack   NULL,
+    transparent NULL,
+    ...,
+    segmentationAndReassembly   NULL,
+    hdlcFrameTunnelingwSAR  NULL,
+    v120        NULL,   -- as in H.230
+    separateLANStack    NULL,
+       v76wCompression          CHOICE
+    {
+        transmitCompression         CompressionType,
+        receiveCompression      CompressionType,
+        transmitAndReceiveCompression   CompressionType,
+        ...
+    },
+    tcp         NULL,
+    udp         NULL
+}
+
+CompressionType     ::=CHOICE
+{
+    v42bis      V42bis,
+    ...
+}
+
+V42bis          ::=SEQUENCE
+{
+    numberOfCodewords   INTEGER (1..65536),
+    maximumStringLength INTEGER (1..256),
+    ...
+}
+
+
+T38FaxProfile   ::=SEQUENCE
+{
+    fillBitRemoval  BOOLEAN,
+    transcodingJBIG BOOLEAN,
+    transcodingMMR  BOOLEAN,
+    ...,
+    version INTEGER (0..255),
+                -- Version 0, the default, refers to T.38 (1998)
+    t38FaxRateManagement    T38FaxRateManagement,
+                -- The default Data Rate Management is
+                -- determined by the choice of
+                -- DataProtocolCapability
+    t38FaxUdpOptions    T38FaxUdpOptions OPTIONAL,
+                -- For UDP,  t38UDPRedundancy is the default
+    t38FaxTcpOptions    T38FaxTcpOptions OPTIONAL
+}
+
+T38FaxRateManagement    ::= CHOICE
+{
+    localTCF    NULL,
+    transferredTCF  NULL,
+    ...
+}
+
+T38FaxUdpOptions    ::= SEQUENCE
+{
+    t38FaxMaxBuffer INTEGER OPTIONAL,
+    t38FaxMaxDatagram   INTEGER OPTIONAL,
+    t38FaxUdpEC CHOICE
+    {
+        t38UDPFEC   NULL,
+        t38UDPRedundancy    NULL,
+        ...
+    }
+}
+
+T38FaxTcpOptions    ::= SEQUENCE
+{
+         t38TCPBidirectionalMode            BOOLEAN,
+    ...
+}
+
+
+
+END

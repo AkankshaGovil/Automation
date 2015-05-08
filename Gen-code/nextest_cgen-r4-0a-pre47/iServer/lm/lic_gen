@@ -1,0 +1,72 @@
+#
+# DESCRIPTION: Use this script to generate iServer Licenses
+#
+umask 022
+clear
+#ver=1.1
+echo
+echo "iServer License Generator"
+echo
+echo "Enter the License Version:"
+read ver
+echo
+echo "Enter the expiration date (MM-DD-YYYY):"
+echo "i.e. October 13th 2000 = 09-13-2000 (UNIX date used)"
+echo "Or enter - timeless - for a license that does not expire"
+read exp
+echo
+echo "Enter the number of agents:"
+read lic
+echo
+echo "Enter the number of vports/maxcalls:"
+read xcalls 
+echo
+echo "Enter the platform specific variable:"
+echo "SUN - Host ID"
+echo "LINUX - MAC Address"
+echo "Non Specific - unbound"
+read last
+echo
+echo "iServer $ver $exp $lic $xcalls $last"
+echo
+echo "Correct (y/n):"
+read correct
+if [ "$correct" = "y" ] || [ "$correct" = "Y" ];then
+echo
+echo "Enter Customer Name (Use the underbar for spaces):"
+read cust
+echo "iServer $ver $exp $lic $xcalls $last" >iserver.lc
+echo -n "Features">>iserver.lc
+
+echo
+echo "Enter Licensed Features:"
+echo "Enable H323 ?(y/n):"
+read correct
+if [ "$correct" = "y" ] || [ "$correct" = "Y" ];then
+echo -n " H323" >>iserver.lc
+fi
+echo "Enable SIP ?(y/n):"
+read correct
+if [ "$correct" = "y" ] || [ "$correct" = "Y" ];then
+echo -n " SIP" >>iserver.lc
+fi
+echo "Enable FCE ?(y/n):"
+read correct
+if [ "$correct" = "y" ] || [ "$correct" = "Y" ];then
+echo -n " FCE" >>iserver.lc
+fi
+echo "">> iserver.lc
+./lgen iserver.lc
+name=${cust}_${exp}_${last}
+echo "Backup as $name in parent?(y/n):"
+read correct
+if [ "$correct" = "y" ] || [ "$correct" = "Y" ];then
+mv iserver.lc ../$name
+echo
+echo "License Created - File Named - $name in Parent Directory"
+fi
+echo
+else
+echo "Exiting without generating a new license"
+echo
+fi

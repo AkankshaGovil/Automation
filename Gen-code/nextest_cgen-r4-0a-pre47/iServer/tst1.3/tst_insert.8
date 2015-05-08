@@ -1,0 +1,84 @@
+.TH tst_insert 8 06/11/1999 "Version 1.1" "Ternary Search Trie Functions"
+.SH NAME
+tst_insert \- insert string key into tree structure
+.SH SYNOPSIS
+.B cc
+.RI "[ " "flag" " \|.\|.\|. ] " "file" " \|.\|.\|."
+.B "\-ltst"
+.RI "[ " "library" " \|.\|.\|. ]"
+.LP
+#include <tst.h>
+.LP
+.BI "int tst_insert(unsigned char *" "key" , 
+.BI "void *" "data" ,
+.if n .ti +5n
+.if t .ti +5n
+.BI "struct tst *" "tst" ,
+.BI "int" " option" ,
+.BI "void **" "exist_ptr" ");"
+.SH DESCRIPTION
+tst_insert() inserts the string
+.I key
+into the tree. Behavior when a duplicate key is inserted is controlled
+by
+.I option.
+If
+.I key
+is already in the tree then TST_DUPLICATE_KEY is returned, and the data
+pointer for the existing key is placed in
+.I exist_ptr.
+If
+.I option
+is set to TST_REPLACE then the existing data pointer for the existing
+key is replaced by
+.I data.
+Note that the old data pointer will still be placed in
+.I exist_ptr.
+.SH "RETURN VALUES"
+If a duplicate key is encountered and
+.I option
+is not set to TST_REPLACE then TST_DUPLICATE_KEY is returned. If
+.I key
+is zero length then TST_NULL_KEY is returned. A successful insert or
+replace returns TST_OK. A return value of TST_ERROR indicates that a
+memory allocation error occurred while trying to grow the node free
+list.
+.SH EXAMPLES
+.nf
+char *string = "test string";
+struct tst *tst;
+void *exist_data;
+
+if ( (tst = tst_init(100)) == NULL)
+   exit(1);
+
+/*
+ * The following code returns TST_OK
+ * because nothing is in the tree yet 
+ */
+
+tst_insert(string, tst, tst, 0, &exist_data);
+
+/*
+ * This code returns TST_DUPLICATE_KEY because the key is already in
+ * the tree. Note that exist_data will contain our tst pointer. 
+ */
+
+tst_insert(string, tst, tst, 0, &exist_data);
+
+/*
+ * This code will succeed and overwrite the old data value for the key.
+ * Note that exist_data will contain our tst pointer. 
+ */
+
+tst_insert(string, tst, tst, TST_REPLACE, &exist_data);
+
+.SH "SEE ALSO"
+tst_cleanup(8), tst_search(8), tst_delete(8), tst_init(8)
+.SH NOTES
+The
+.I data
+argument must NEVER be NULL. If it is, then calls to tst_search() will
+fail for a key that exists because the data value was set to NULL,
+which is what tst_search() returns. If you just want a simple existence
+tree, use the tst pointer as the data pointer.

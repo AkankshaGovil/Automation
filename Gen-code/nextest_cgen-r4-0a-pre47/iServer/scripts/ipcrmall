@@ -1,0 +1,21 @@
+#!/bin/sh
+# Delete all shared memory and semaphore except the first
+
+shmids=""
+for shmid in  `ipcs -m |tail +4| awk '{if ($3 != "0x2") print $2}'`;
+do
+	ipcrm -m $shmid
+	shmids="$shmid $shmids"
+done
+semids=""
+for semid in  `ipcs -s |tail +4| awk '{print $2}'`;
+do
+	ipcrm -s $semid
+	semids="$semid $semids"
+done
+qids=""
+for qid in  `ipcs -q |tail +4| awk '{print $2}'`;
+do
+	ipcrm -q $qid
+	qids="$qid $qids"
+done

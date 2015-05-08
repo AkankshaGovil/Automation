@@ -1,0 +1,215 @@
+#!/usr/bin/perl
+
+
+###################################################################################
+###################################################################################
+###
+### 	genep
+###
+###	Generate XML for endpoint descriptions.
+###
+###	Copyright (C) 2002 NexTone Communications.
+###################################################################################
+###################################################################################
+
+
+## Preliminary
+use English;
+
+my $CurrentVersion = sprintf "%vd", $PERL_VERSION;
+
+if ($CurrentVersion lt "5.6")
+{
+	use lib "/usr/local/nextone/lib/perl5/site_perl/5.005";
+}
+else
+{
+	use lib "/usr/local/nextone/lib/perl5/site_perl";
+}
+
+#use lib "/usr/local/nextone/lib/perl5/site_perl";
+
+if ($ENV{BASE})
+{
+	use lib "$ENV{BASE}/lib/perl5/site_perl";
+}
+
+use Getopt::Std;
+use XML::Simple;
+use Data::Dumper;
+
+$mProgName = "genep";
+$mVersion  = "v0.2a, 05/16/2002";
+
+##
+## Defaults
+##
+$xcalls = "\"100\"";
+$prio   = "\"0\"";
+$cap    = "\"288\"";
+
+getopts "vhVf:r:o:";
+
+if ($opt_f)
+{
+	$infile = $opt_f;
+}
+
+$RegId = "TempRegid";
+
+if ($opt_r)
+{
+	$RegId = $opt_r;
+}
+
+if ($opt_v)
+{
+	PrintVersion ();
+	exit 0;
+}
+
+if ($opt_h)
+{
+	PrintHelp ();
+	exit 0;
+}
+
+$OutFile = "xmlout";
+
+if ($opt_o)
+{
+	$OutFile = $opt_o;
+}
+
+$verbose = 0;
+if ($opt_V)
+{
+	$verbose = 1;
+}
+
+## save off a copy
+$OrigRegId = $RegId;
+
+##
+## Main
+##
+%data;
+
+if ($infile eq "")
+{
+	print "Please specify file containing IP addresses via the -f option.\n\n";
+	PrintHelp ();
+	exit 0;
+}
+
+open (INFILE, "< $infile") or die "Cannot open $infile :$!";
+
+$n = 0;
+while (<INFILE>)
+{
+	## Ignore comments
+	next if m/^#.*/ ;
+
+	## Remove trailing and leading whitespace.
+	s/^\s+// ; 
+	s/\s+$// ; 
+
+	## Now save it in the variable:
+	if ($_ ne "")
+	{
+		my $val = $_;
+
+		GenERec ($val, $n);
+
+		$n++;
+	}
+
+
+}
+
+## For debug use.
+##print Dumper ($data);
+close (INFILE);
+GenXMLFile ();
+
+
+
+## Generate XML file.
+sub GenXMLFile ()
+{
+	my $xs = new XML::Simple();
+
+	## Equal to Forcearray changes the whole paradigm.
+	my $xml = $xs->XMLout( $data, 
+				outputfile => $OutFile,
+				rootname   => 'DB',
+				xmldecl    => 1,
+				noescape   => 1  );
+
+}
+
+
+## Create hash structure.
+sub GenERec ($ $)
+{
+	my ($ip, $count) = @_;
+	my $ncount = 0;
+
+	$data->{E}[$count]->{CAP}[0]    =  $cap ;
+	$data->{E}[$count]->{PRIO}[0]   =  $prio ;
+	$data->{E}[$count]->{ET}[0]     = "\"ipphone\"";
+	$data->{E}[$count]->{XCALLS}[0] =  $xcalls ;
+	$data->{E}[$count]->{SUBNETIP}[0]  =  '"' . $ip  . '"';
+	$data->{E}[$count]->{SUBNETMASK}[0]  =  "\"255.255.255.255\"";
+	$data->{E}[$count]->{VENDOR}[0]  =  "\"0\"";
+
+	## We cannot have more than 255 ports per regid.
+	if ($count > 255)
+	{
+		my $rem   = $count % 256;
+		my $whole = int ($count / 256);
+
+		$RegId = $OrigRegId . "-$whole";
+
+		$ncount = $rem;
+	}
+	else
+	{
+		$ncount = $count;
+	}
+
+	$data->{E}[$count]->{UPORT}[0]  =  '"' . $ncount . '"' ;
+	$data->{E}[$count]->{SRNO}[0]   =  '"' . $RegId . '"' ;
+
+
+	if ($verbose)
+	{
+		print "  $ip => $RegId, $ncount \n";
+	}
+
+}
+
+sub PrintHelp ()
+{
+	print <<eEOF
+$mProgName, $mVersion
+Usage:
+$mProgName -f <file> -r <regid> -o <outfile>
+Options are:
+-f <file>   	  - use IP addresses from <file>. No defaults.
+-r <regid>	  - use <regid> as the regid. Defaults to "TempRegid".
+-o <outfile>	  - output XML in <outfile>. Defaults to "xmlout".
+-h                - prints this
+-v                - prints out version
+-V		  - be verbose
+eEOF
+;
+}
+
+sub PrintVersion ()
+{
+	print "$mProgName, $mVersion \n";
+	print "Generate XML for endpoints.\n";
+	print "Copyright 2002, NexTone Communications, Inc.\n";
+}
+

@@ -1,0 +1,37 @@
+This is version 1.4 of libavl, a library in ANSI C for manipulation of
+balanced binary trees.  Functions for use with three varieties of AVL
+tree and one type of red-black tree are included.  There is full
+documentation, including an explanation of what AVL and red-black
+trees are and why you'd use them, in Texinfo, Info, HTML, and plain
+text formats.
+
+The library is divided into three parts, described in more detail
+below.  You need only include the files for the types of trees that
+you are using.
+
+	- avl.h, avl.c: Unthreaded AVL tree library.
+	- avlt.h, avlt.c: Threaded AVL tree library.
+	- avltr.h, avltr.c: Right-threaded AVL tree library.
+	- rb.h, rb.c: Unthreaded red-black tree library.
+
+Each .c file in the library has a self-test routine built in, which
+can be invoked by compiling it with SELF_TEST set to 1.  In addition,
+there is a separate program thread-test.c that tests the functions
+that convert among types of AVL trees.  To automatically run these
+tests, type `make check' after you have configured the library with
+`configure'.  For more information on how to configure and compile
+libavl, see the file INSTALL included in this directory.
+
+libavl is licensed under the GNU General Public License (GPL), which
+should be included in this directory in file COPYING.  This is not the
+same as GNU Library General Public License (LGPL).  Please read the
+license and become familiar with its terms.
+
+Please send bug reports and enhancement requests for libavl to Ben
+Pfaff <blp@gnu.org>.
+
+Share and enjoy!
+
+Local variables:
+mode: text
+End:

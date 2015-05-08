@@ -1,0 +1,109 @@
+##############################################################################
+# This is the global include file that is included from all the Makefiles in 
+# each SIP Directory 
+##############################################################################
+
+#
+# Possible Compile Time Flags
+#
+#    SIP_USE_CPP              -Specify this flag if the stack is being compiled
+#                              with a C++ compiler
+#    SIP_SOLARIS              -If compiled in solaris, this must be defined
+#    SIP_LINUX                -If compiled in Linux, this must be defined
+#    SIP_WINDOWS              -If compiled in windows, this must be defined
+#    SIP_DEBUG                -This makes the stack generate a lot of debug
+#                              messages while parsing
+#    SIP_FNDEBUG              -This makes the stack generate debug messsage while
+#                              entering and exitting accessor functions
+#    SIP_TRACE                -Enable trace log support
+#    SIP_ERROR                -Enable error log support
+#    SIP_STATISTICS           -Enable statistics support
+#    SIP_OVERRIDE_SNPRINTF    -Include this macro if your default library does
+#                              not support snprintf() API (eg. SunOS 5.5.1)
+#    SIP_MAX_MSG_SIZE=<val>   -Maximum SIP message size allocated by the stack
+#                              when forming outgoing messages. (default 3000)
+#    SIP_MAX_HDR_SIZE=<val>   -Maximum size allocated by the stack in functions
+#                              that return SIP headers or SDP lines as strings.
+#                              (default 1000)
+#    SIP_SELECTIVE_PARSE      -Enables selective header parsing
+#                              (and the callbacks associated with it)
+#    SIP_NO_CHECK             -Specifying this macro results in no parameter
+#                              checks performed by accessor APIs. This results
+#                              in a minor performance enhancement
+#    SIP_THREAD_SAFE          -Makes stack thread safe (portlayer mutex
+#                              functions must be ported)
+#    SIP_BY_REFERENCE         -Makes all accessor APIs get/set values by
+#                              reference and not as value. This results in a 
+#                              significant performance increase. Specifying 
+#                              this macro also adds reference counting to all 
+#                              accessor APIs. This macro has been added as a 
+#                              compatibility mode with earlier releases 
+#                              (2.4 and below) of the stack which only used to 
+#                              work as "pass by value". 
+#                              Use of this flag is STRONGLY RECCOMMENDED !!
+#    SIP_MSGBUFFER_CHECK      -Enables stack checking for buffer overflow when
+#                              forming a message buffer 
+#    SIP_INCOMPLETE_MSG_CHECK -Enables stack checking (paranoid) for incomplete
+#                              messages
+#    SIP_NO_CALLBACK          -Enabling this flag would mean the stack does not
+#                              call the indicateXXXX callbacks onto
+#                             -the client. The stack would still be issuing the
+#                              other callbacks like 
+#                             -sip_willParseHeader etc.
+#                             -This mode is desirable if the user wants to get
+#                              back the decoded message in the same context
+#                             -and not in an indicate Callback
+#    SIP_CPPWRAPPER           -This macro must be used when the stack is compiled 
+#                              with the C++ wrappers.
+#    SIP_TEL                  -Enable this for TEL support (optional package)
+#    SIP_DCS                  -Enable this for DCS support (optional package)
+#    SIP_CCP                  -Enable this for Caller and Callee Pref 
+#                              support (optional package)
+#    SIP_IMPP                 -Enable this for Instant Messaging and 
+#                              Presence support
+#    SIP_MWI                  -Enable this for Message Waiting Summary Body Support
+#    SIP_NOFLEXRECOVERY       -Enable this if fatal-errors in flex generated
+#                              code need not be intercepted by the stack.
+#                              With this flag enabled, the stack will use the
+#                              the default definition of YY_FATAL_ERROR for
+#                              when system errors occur in the tokenizer usually
+#                              leading to an exit() invocation.
+#    SIP_RETRANSCALLBACK      -Enable this flag if you want callbacks for 
+#                              retransmission notifications.
+#    SIP_LOCKEDREFCOUNT       -Use this flag in along with the SIP_THREAD_SAFE
+#                              option to use mutex locks around reference count
+#                              operations. This option incurs the overhead
+#                              of one mutex for every SIP stack structure
+#                              instance.
+#                              instance.
+#    SIP_SESSIONTIMER         -Use this flag to enable support for session timer.
+#    SIP_SERIALIZE            -Use this flag to include code for serialization
+#                              and deserialization of structures.
+#    SIP_TXN_LAYER            -Use this flag to enable support for transaction 
+#                              layer
+#    SIP_MIB                  -Use this flag to enable MIB support, if enabled
+#                              this also enables SIP_STATISTICS
+#    SIP_ATM                  -Use this flag to enable SDP support over ATM
+#    SIP_MEMALLOC             -Use this flag to enable override of memory allocators
+#                              in the classes (disabled by default as this would 
+#                              result in code size increase
+#    SIP_PRES                - Use this flag to enable pres-url related parsing
+#    SIP_CCP_VERSION10       - Use this flag to enable CCP related parsing as 
+#                              per version10
+#    SIP_CCP_VERSION06       - Use this flag to enable CCP related parsing as
+#                              per version06
+#    SIP_CONF                - Use this flag to enable parsing of headers related
+#                              to Conference
+#    SIP_CONGEST             - Use this flag to enable parsing of headers related
+#                              to Congestion
+#    SIP_3GPP                - Use this flag to enable parsing of headers related
+#                              to 3GPP
+
+#PURIFY=purify -best-effort -inuse_at_exit=yes -cache-dir=/home/sipuser1/cache
+PURIFY=
+YACC=bison -d
+LEX=flex -B 
+COPY=cp
+
+# HereOn is generated 
+

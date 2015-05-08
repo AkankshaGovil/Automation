@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!ELEMENT NexToneMsg (H323Data?, SIPData?, SWDownload?)>
+<!ATTLIST NexToneMsg
+	version CDATA #REQUIRED
+	cmd CDATA #FIXED "Response"
+>
+<!ELEMENT H323Data (H323Gateway, GatewayConfig, GatekeeperConfig, VendorData)>
+<!ELEMENT SIPData (Domain, Registrar, Registration, ProxyServer, VendorData)>
+<!ATTLIST SIPData
+	protocol (tcp | udp) #REQUIRED
+>
+<!ELEMENT SWDownload (ServerAddress, ServerPort, Mode, Username, Password, Filepath, Filename)>
+<!ELEMENT GatewayConfig (CountryCode, AreaCode, ExchangeCode)>
+<!ELEMENT GatekeeperConfig (Gatekeeper+)>
+<!ATTLIST GatekeeperConfig
+	addressType (static | discover) #REQUIRED
+>
+<!ELEMENT Gatekeeper (Address, ID)>
+<!ATTLIST Gatekeeper
+	role (primary | secondary) #REQUIRED
+>
+<!ELEMENT Address (#PCDATA)>
+<!ELEMENT AreaCode (#PCDATA)>
+<!ELEMENT CountryCode (#PCDATA)>
+<!ELEMENT ExchangeCode (#PCDATA)>
+<!ELEMENT H323Gateway (#PCDATA)>
+<!ELEMENT ID (#PCDATA)>
+<!ELEMENT Domain (#PCDATA)>
+<!ELEMENT VendorData (#PCDATA)>
+<!ELEMENT Port (#PCDATA)>
+<!ELEMENT ProxyServer (Address, Port)>
+<!ELEMENT Registrar (#PCDATA)>
+<!ELEMENT Registration (#PCDATA)>
+<!ELEMENT ServerAddress (#PCDATA)>
+<!ELEMENT ServerPort (#PCDATA)>
+<!ELEMENT Mode (#PCDATA)>
+<!ELEMENT Username (#PCDATA)>
+<!ELEMENT Password (#PCDATA)>
+<!ELEMENT Filepath (#PCDATA)>
+<!ELEMENT Filename (#PCDATA)>
+<!ATTLIST Registration
+	enable (true | false) #REQUIRED
+>

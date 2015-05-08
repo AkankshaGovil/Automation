@@ -1,0 +1,193 @@
+
+CHANGES in cdrpp
+================
+
+Changes in 0.81, released 05/09/2002.
+-------------------------------------
+
+1. The 'range' command now takes one more mandatory argument, which specifies a 
+regid or gw IP address. The range command syntax is:
+
+  => range d/7/3 regid=Washington-DC-1
+
+This would run the reports only for the CDRs pertaining to regid "Washington-DC-1".
+To preserve the old behavior (ie., run reports for all regids, use the following
+command):
+
+  => range d/7/3 regid=all
+
+Similar filtered reports could be achieved using the following commands:
+
+  => range d/6/3 gwip=192.168.0.33
+  
+    (OR)
+ 
+  => range d/6/3 gwip=all
+
+
+2. A new command "temp" has been added by which an administrator specifies a 
+directory for cdrpp to store temporary files in.
+
+3. A new command "cdrdir" has been added that specifies the directory where the
+CDR files are stored.
+
+
+Changes in 0.80, released 03/29/2002.
+-------------------------------------
+
+1. Added a 'range' command. This command has the following syntax:
+
+  => range d/7/3   ## for days
+
+	(OR)
+  => range t/12/5  ## for hours
+
+This means that you want cdrpp to automatically process files in a certain time range.
+The time range is specified by two numbers -- the first number specifies how far you
+want to go back, and the second number specifies for how many days starting from that day
+you want to run the report for.
+
+As an example, if today is March 29, 2002, and you run the following range command:
+ => range d/5/3
+then cdrpp will automatically read in the files for March 24 (today's date - 5), 
+March 25 and March 26. Going back 5 days from today gives us the report start date as
+March 24. Three days from that point gives us the files for March 24, March 25 and March 26.
+
+One can use this for interesting applications:
+1. You want a weekly report. Setup a cron job, running every Monday at 1am with the 
+following range command (For other information about cron jobs or batch processing, refer 
+elsewhere in this document):
+=> range d/7/7
+
+This would generate a report for the last week. One can easily extend it for a month or other
+time periods.
+
+2. Enhanced the CDR format reader to read in regid and uport of source and destination. 
+However, no reports are being generated using that information yet.
+
+Changes in v0.79
+----------------
+
+1. When multiple files are read in (through a "file *.CDR" command), cdrpp 
+tries to list them in a nice format. It bunches 20 files on a "page" 
+with header information repeated after 20 files/lines.
+
+
+2. The "Total duration" field and the outputs of "dstat" commands
+show the total duration of calls in minutes, instead of just seconds before.
+
+3. Fixed the "timestat all" command to show correct stats when inputting 
+multiple files.
+
+4. Added three more command line options:
+ -i <input_command_file> : takes cdrpp commands from <input_command_file>
+ -o <output_file>        : the whole output is put into this file
+ -n <notify_file>        : contains commands to run after batchmode processing 
+				is done.
+
+This enables batch mode processing for cdrpp. Thus, one can run cdrpp as:
+
+$ ./cdrpp -i infile -o dayreport -n notify.sh
+
+This runs cdrpp in non-interactive mode. It takes commands from "infile", runs 
+them, and all output is captured in "dayreport". After all the commands are 
+run, then a notification program can be run ("notify.sh") that can send the 
+"dayreport" as an e-mail, page somebody, etc. etc.
+
+As an example, this enables cdrpp to be run from cron at 1am, generate a 
+report and e-mail to the administrators so that they have it in their inbox 
+when they come into work. 
+
+An example "infile" is shown below. Notice that blank and comment lines 
+(starting with #) are allowed.
+
+***********
+
+## Daily report generator commands
+# Created 02/06/02
+
+##
+## commands
+
+file pdd.CDT
+timestat all
+gwstat dst
+gwstat src
+## quit must be last
+quit
+
+## end of infile
+***********
+
+Caveats:
+========
+1. Notification takes place only when the "quit" command is issued.  Hence, 
+the "infile" should have "quit" as the last command. Otherwise, cdrpp will 
+not exit.
+2. The notify file should be executable, as cdrpp just exec's it. This gives 
+the flexibility that the notify executable can be a shell script, Perl 
+program or other.
+3. The notify file is called with one argument, the name of the output file 
+or "dayreport" in the example above.
+
+Regarding adding it to cron:
+============================
+A file called "cdrpp.cron" is enclosed with the cdrpp distribution, which 
+runs cdrpp at 1:30am every day. Modify this file appropriately.
+
+1. To install the cron file, as the user who is going to run it 
+(maybe root or nextone), type the following at the Unix command prompt:
+
+$ crontab cdrpp.cron
+
+2. Verify if it got installed by typing, at the Unix command prompt:
+
+$ crontab -l
+
+This will echo the contents of cdrpp.cron to the screen.
+
+3. If you ever want to modify the cron entry, edit the cdrpp.cron file to
+reflect the new times, and type the following two commands:
+
+a)  crontab -r     ## removes the previous crontab entry
+b)  crontab cdrpp.cron     ## installs new cron entry.
+
+
+
+Configuring mail.pl
+===================
+
+'mail.pl' is a mail notification program, that takes as input the output of
+cdrpp and e-mails it out to the indicated receipients.
+
+'mail.pl' has the following configurable parameters. You can modify them
+by editing mail.pl using your favorite text editor.
+
+
+## Who the message is from
+## Modify it to the administrator of the site.
+$MailFrom = 'sridhar@nextone.com';
+
+## Subject of the mail.
+## Can be free format. The example here concatenates the current date
+## to the string "cdrpp Report".
+$MailSubject = "cdrpp Report " . $date;
+
+## List of Receipients
+## Indicate e-mail addresses as comma separated within the single quotes.
+## See example below.
+$MAILLIST = 'greene@nextone.com, sridhar@nextone.com';
+
+## CC list
+## Who should be CC'd on the e-mail. Include comma separated receipients
+## within the single quotes.
+$MailCC = '';
+
+## BCC list
+## Who should be blind CC'd on the e-mail. Include comma separated receipients
+## within the single quotes.
+$MailBCC = '';
+
+
+
+

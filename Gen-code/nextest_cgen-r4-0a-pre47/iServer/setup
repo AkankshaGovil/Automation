@@ -1,0 +1,34 @@
+#!/bin/sh
+
+###############################################
+###############################################
+##
+## NexTone Installer
+##
+###############################################
+###############################################
+## The main front-end.
+##
+## Sridhar, 06.16.99
+##
+
+
+echo " "
+echo " "
+echo "NexTone Installer v0.2"
+echo "Copyright (c)1998-2000, NexTone Communications, Inc."
+echo " "
+echo "This program is used to install, uninstall or upgrade"
+echo "various licensed NexTone software products."
+echo " "
+echo "Hit <CR> to continue..."
+
+read cr
+
+
+##
+## The real engine
+##
+cd install
+./install.sh
+

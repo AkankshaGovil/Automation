@@ -1,0 +1,22 @@
+
+##
+## Profile for ksh and bash.
+## 
+## Meant for use with NexTone MSW.
+##
+
+## Adjust PATH
+PATH=/usr/local/nextone/bin:/usr/local/nextone/etc:/usr/local/bin:/bin:.:$PATH
+export PATH
+
+## Adjust LD_LIBRARY_PATH
+LD_LIBRARY_PATH=/usr/local/nextone/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH
+
+## MSW_LOGS
+MSW_LOGS=/var/logs/iserver.log
+export MSW_LOGS
+
+## CDR_DIR
+CDR_DIR=/var/logs
+export CDR_DIR

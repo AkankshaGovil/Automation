@@ -1,0 +1,410 @@
+# RADVision H.323 Stack Configuration File
+#
+# Value encodings:
+#    ''   -  String (and asciiz is not appended)
+#    ""   -  BMP string of ASCII charactes
+#    []   -  Hex octet string
+#    <>   -  IP
+#    {}   -  Object ID
+#   Other -  Integer
+
+
+
+1 system = 0
++  maxCalls = 50
+   maxChannels = 4 
+#2  allocations = 0
+#3   vtNodeCount = 10800900
+
+
+1 RAS = 0
++  responseTimeOut = 5
+   gatekeeper = 0
+   manualRAS = 0
+   maxFail = 1
+   manualRegistration = 0
+   registrationInfo = 0
++   terminalType = 0
++    gateway = 0
++     protocol = 0
++      * = 0
++       voice = 0
++        supportedPrefixes = 0
+4    mc = 0
+     undefinedNode = 0
+2  rasMulticastAddress = 0
++   ipAddress = 0
++    ip = [e0000129]
+     port = 1918
+2  rasPort = 1919
+
+
+1 Q931 = 0
++  responseTimeOut = 5
+   connectTimeOut = 100
+   callSignalingPort = 1720
+   maxCalls = 50
+   manualAccept = 0
+#   manualCallProceeding = 0
+#   earlyH245 = 0
+#   h245Tunneling = 0
+
+1 h245 = 0
+2  masterSlave = 0
++   terminalType = 120
+    manualOperation = 0
+	manualResponse = 0
+
+2  capabilities = 0
++   terminalCapabilitySet = 0
++    sequenceNumber = 0
+     protocolIdentifier = [00080002]
+     multiplexCapability = 0
++     h2250Capability = 0
++      maximumAudioDelayJitter = 60
+       receiveMultipointCapability = 0
++       multicastCapability = 0
+        multiUniCastConference = 0
+        mediaDistributionCapability = 0
++        * = 0
++         centralizedControl = 0
+          distributedControl = 0
+          centralizedAudio = 0
+          distributedAudio = 0
+          centralizedVideo = 0
+          distributedVideo = 0
+
+6      transmitMultipointCapability = 0
++       multicastCapability = 0
+        multiUniCastConference = 0
+        mediaDistributionCapability = 0
++        * = 0
++         centralizedControl = 0
+          distributedControl = 0
+          centralizedAudio = 0
+          distributedAudio = 0
+          centralizedVideo = 0
+          distributedVideo = 0
+
+6      receiveAndTransmitMultipointCapability = 0
++       multicastCapability = 0
+        multiUniCastConference = 0
+        mediaDistributionCapability = 0
++        * = 0
++         centralizedControl = 0
+          distributedControl = 0
+          centralizedAudio = 0
+          distributedAudio = 0
+          centralizedVideo = 0
+          distributedVideo = 0
+
+6      mcCapability = 0
++       centralizedConferenceMC = 0
+        decentralizedConferenceMC = 0
+-      rtcpVideoControlCapability = 0
+       mediaPacketizationCapability = 0
++       h261aVideoPacketization = 0
+-      logicalChannelSwitchingCapability = 0
+       t120DynamicPortCapability = 0
+
+3   manualOperation = 0
+#1 h245 = 0
+#+  capabilities = 0
+#+   terminalCapabilitySet = 0
+#+    sequenceNumber = 0
+#     protocolIdentifier = [00080002]
+#     multiplexCapability = 0
+#+     h2250Capability = 0
+#+      maximumAudioDelayJitter = 60
+#       receiveMultipointCapability = 0
+#+       multicastCapability = 0
+#        multiUniCastConference = 0
+#        mediaDistributionCapability = 0
+#+        * = 0
+#+         centralizedControl = 0
+#          distributedControl = 0
+#          centralizedAudio = 0
+#          distributedAudio = 0
+#          centralizedVideo = 0
+#          distributedVideo = 0
+#
+#6      transmitMultipointCapability = 0
+#+       multicastCapability = 0
+#        multiUniCastConference = 0
+#        mediaDistributionCapability = 0
+#+        * = 0
+#+         centralizedControl = 0
+#          distributedControl = 0
+#          centralizedAudio = 0
+#          distributedAudio = 0
+#          centralizedVideo = 0
+#          distributedVideo = 0
+#
+#6      receiveAndTransmitMultipointCapability = 0
+#+       multicastCapability = 0
+#        multiUniCastConference = 0
+#        mediaDistributionCapability = 0
+#+        * = 0
+#+         centralizedControl = 0
+#          distributedControl = 0
+#          centralizedAudio = 0
+#          distributedAudio = 0
+#          centralizedVideo = 0
+#          distributedVideo = 0
+#
+#6      mcCapability = 0
+#+       centralizedConferenceMC = 0
+#        decentralizedConferenceMC = 0
+#-      rtcpVideoControlCapability = 0
+#       mediaPacketizationCapability = 0
+#+       h261aVideoPacketization = 0
+#-      logicalChannelSwitchingCapability = 0
+#       t120DynamicPortCapability = 0
+#4    capabilityTable = 0
+#+     * = 0
+#+      capabilityTableEntryNumber = 1
+#       capability = 0
+#+       receiveAndTransmitUserInputCapability = 0
+#+        dtmf = 0
+#
+#5     * = 0
+#+      capabilityTableEntryNumber = 2
+#       capability = 0
+#+       receiveAndTransmitAudioCapability = 0
+#+        g729AnnexA = 3
+#
+#5     * = 0
+#+      capabilityTableEntryNumber = 3
+#       capability = 0
+#+       receiveAndTransmitAudioCapability = 0
+#+        g729 = 3
+#
+#5     * = 0
+#+      capabilityTableEntryNumber = 4
+#       capability = 0
+#+       receiveAndTransmitAudioCapability = 0
+#+        g7231 = 0
+#+        maxAl-sduAudioFrames = 1
+#         silenceSuppression = 0
+#
+#5     * = 0
+#+      capabilityTableEntryNumber = 5
+#       capability = 0
+#+       receiveAndTransmitAudioCapability = 0
+#+        g711Ulaw64k = 200
+#
+#5     * = 0
+#+      capabilityTableEntryNumber = 6
+#       capability = 0
+#+       receiveAndTransmitAudioCapability = 0
+#+        g711Alaw64k = 200
+#
+#4    capabilityDescriptors = 0
+#+     * = 0
+#+      capabilityDescriptorNumber = 0
+#       simultaneousCapabilities = 0
+#+       * = 0
+#+        * = 2
+#         * = 3
+#         * = 4
+#         * = 5
+#         * = 6
+#-       * = 0
+#+        * = 1
+#
+2  channels = 0
+
+3   * = 0
++    name = 'g729AnnexA'
+     dataType = 0
++     audioData = 0
++      g729AnnexA = 3
+
+3   * = 0
++    name = 'g729'
+     dataType = 0
++     audioData = 0
++      g729 = 3
+
+3   * = 0
++    name = 'g7231'
+     dataType = 0
++     audioData = 0
++      g7231 = 0
++      maxAl-sduAudioFrames = 1
+       silenceSuppression = 0
+
+3   * = 0
++    name = 'g711Alaw64k'
+     dataType = 0
++     audioData = 0
++      g711Alaw64k = 200
+
+3   * = 0
++    name = 'g711Ulaw64k'
+     dataType = 0
++     audioData = 0
++      g711Ulaw64k = 200
+
+3   * = 0
++    name = 't38fax'
+     dataType = 0
++     data = 0
++      application = 0
++       t38fax = 0
++        t38FaxProtocol = 0
++         udp = 0
+-        t38FaxProfile = 0
++         fillBitRemoval = 0
+          transcodingJBIG = 0
+          transcodingMMR = 0
+          version = 0
+          t38FaxRateManagement = 0
++          transferredTCF = 0
+-         t38FaxUdpOptions = 0
++          t38FaxMaxBuffer = 200
+           t38FaxMaxDatagram = 72
+	   t38FaxUdpEC = 0
++           t38UDPRedundancy = 0
+
+6      maxBitRate = 144
+
+2  modes = 0
++   * = 0
++    name = 'g729a'
+     mode = 0
++     type = 0
++      audioMode = 0
++       g729AnnexA = 0
+5     genericModeParameters = 0
++      capabilityIdentifier = 0
++       standard = [00080002]
+
+3   * = 0
++    name = 'g729'
+     mode = 0
++     type = 0
++      audioMode = 0
++       g729 = 0
+5     genericModeParameters = 0
++      capabilityIdentifier = 0
++       standard = [00080002]
+
+3   * = 0
++    name = 't38fax'
+     mode = 0
++     type = 0
++      dataMode = 0
++       application = 0
++        t38fax = 0
++         t38FaxProtocol = 0
++          udp = 0
+-         t38FaxProfile = 0
++          fillBitRemoval = 0
+           transcodingJBIG = 0
+           transcodingMMR = 0
+           version = 0
+           t38FaxRateManagement = 0
++          transferredTCF = 0
+-         t38FaxUdpOptions = 0
++          t38FaxMaxBuffer = 200
+           t38FaxMaxDatagram = 72
+	   t38FaxUdpEC = 0
++           t38UDPRedundancy = 0
+
+7       bitRate = 144
+5     genericModeParameters = 0
++      capabilityIdentifier = 0
++       standard = [00080002]
+
+3   * = 0
++    name = 'g729AnnexA'
+     mode = 0
++     type = 0
++      audioMode = 0
++       g729AnnexA = 0
+5     genericModeParameters = 0
++      capabilityIdentifier = 0
++       standard = [00080002]
+
+3   * = 0
++    name = 'g728'
+     mode = 0
++     type = 0
++      audioMode = 0
++       g728 = 0
+5     genericModeParameters = 0
++      capabilityIdentifier = 0
++       standard = [00080002]
+
+3   * = 0
++    name = 'g711Alaw64k'
+     mode = 0
++     type = 0
++      audioMode = 0
++       g711Alaw64k = 0
+5     genericModeParameters = 0
++      capabilityIdentifier = 0
++       standard = [00080002]
+
+3   * = 0
++    name = 'g711Ulaw64k'
+     mode = 0
++     type = 0
++      audioMode = 0
++       g711Ulaw64k = 0
+5     genericModeParameters = 0
++      capabilityIdentifier = 0
++       standard = [00080002]
+
+3   * = 0
++    name = 'g711Alaw56k'
+     mode = 0
++     type = 0
++      audioMode = 0
++       g711Alaw56k = 0
+5     genericModeParameters = 0
++      capabilityIdentifier = 0
++       standard = [00080002]
+
+3   * = 0
++    name = 'g711Ulaw56k'
+     mode = 0
++     type = 0
++      audioMode = 0
++       g711Ulaw56k = 0
+5     genericModeParameters = 0
++      capabilityIdentifier = 0
++       standard = [00080002]
+
+3   * = 0
++    name = 'g7231'
+     mode = 0
++     type = 0
++      audioMode = 0
++       g7231 = 0
++        noSilenceSuppressionHighRate = 0
+
+5     genericModeParameters = 0
++      capabilityIdentifier = 0
++       standard = [00080002]
+
+3   * = 0
++    name = 'g729wAnnexB'
+     mode = 0
++     type = 0
++      audioMode = 0
++       g729wAnnexB = 3
+5     genericModeParameters = 0
++      capabilityIdentifier = 0
++       standard = [00080002]
+
+3   * = 0
++    name = 'g729AnnexAwAnnexB'
+     mode = 0
++     type = 0
++      audioMode = 0
++       g729AnnexAwAnnexB = 3
+5     genericModeParameters = 0
++      capabilityIdentifier = 0
++       standard = [00080002]

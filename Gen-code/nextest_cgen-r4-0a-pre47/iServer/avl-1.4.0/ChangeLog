@@ -1,0 +1,181 @@
+Sat Aug  7 18:32:43 1999  Ben Pfaff  <blp@gnu.org>
+
+	Implemented red-black tree library.	
+	* Makefile.am: Add rb.c, rb.h in appropriate places.
+	* README: Update.
+	* rb.c: New file.
+	* rb.h: Ditto.
+	* avl.texinfo: Revised.
+
+	* THANKS: Update.
+	* TODO: Update.
+	
+	* avl.c: In several places, replaced usage of comma operator with
+	a proper statement block.
+	* avlt.c: Ditto.
+	* avltr.c: Ditto.
+
+	* avl.h: (AVL_TRAVERSER_INIT) New macro.
+	(avl_init_traverser) New function-like macro.
+	* avlt.h: (AVLT_TRAVERSER_INIT) New macro.
+	(avlt_init_traverser) New function-like macro.
+	* avltr.h: (AVLTR_TRAVERSER_INIT) New macro.
+	(avltr_init_traverser) New function-like macro.
+	* thread-test.c: (main) Use AVL_TRAVERSER_INIT.
+
+	* Made version 1.4.0.
+
+Sat Jul 31 12:39:54 1999  Ben Pfaff  <blp@gnu.org>
+
+	* avl.texinfo: Update suggested by Jonathan Roy <roy@idle.com>.
+
+Tue May 25 12:20:43 1999  Ben Pfaff  <blp@gnu.org>
+
+	* avl.c: (avl_delete) Make work properly for empty tree.  Furrfu!
+	I should have noticed this before.
+
+Mon May 17 11:32:56 1999  Ben Pfaff  <blp@gnu.org>
+
+	* Makefile.am: Don't require texi2html.  Use $(MAKEINFO)
+	variable.  Thanks to Alexandre Oliva <oliva@dcc.unicamp.br>.
+
+Sat May 15 23:47:14 1999  Ben Pfaff  <blp@gnu.org>
+
+	* Updated copyright dates in several files.
+
+	* Made version 1.3.0.
+
+Sat May 15 21:44:54 1999  Ben Pfaff  <blp@gnu.org>
+
+	* avl.c, avlt.c, avltr.c: In many places replaced assert (p) by
+	assert (p != NULL).  Believe it or not, the former is not valid
+	ANSI C.
+
+	Thanks to "Ficarra, David W, NNAD" <dficarra@att.com> for pointing
+	out the following two sets of bugs.
+	* avl.c: (avl_probe) Fix order of assignment and assertion.
+	* avlt.c: (avlt_walk, avlt_probe, avlt_find) Ditto.
+	* avltr.c: (avltr_probe, avltr_find) Ditto.
+	
+	* avlt.c: (avlt_find, avlt_delete) Check for empty tree.
+	* avltr.c: (avltr_probe) Ditto.
+	
+	* avl.c, avlt.c, avltr.c, thread-test.c: Change test code to only
+	perform a limited number of iterations to facilitate automated
+	testing.
+
+	* avl.c: (avl_find_close) New function contributed by Thomas
+	Binder <binder@iue.tuwien.ac.at>.
+	* avlt.c: (avlt_find_close) Ditto.
+	* avltr.c: (avltr_find_close) Ditto.
+
+	* avl.texinfo: Update.
+
+	libavl is now automake/autoconfiscated.  Contributed by Alexandre
+	Oliva <oliva@dcc.unicamp.br>.
+	* AUTHORS: New file.
+	* Makefile: Now automake-generated.
+	* INSTALL: New file.
+	* Makefile.am: New file.
+	* Makefile.in: New file.
+	* THANKS: New file.
+	* config.h.in: New file.
+	* configure.in: New file.
+	* configure: New file.
+	* install-sh: New file.
+	* missing: New file.
+	* mkinstalldirs: New file.
+	* texinfo.tex: New file.
+	
+Tue May 11 13:33:20 1999  Ben Pfaff  <blp@gnu.org>
+
+	* avl.texinfo: Fix typos.  Thanks to onTy Toom <onty@yahoo.com>
+	for pointing these out.
+
+	* Made version 1.2.9.
+	
+Sun Mar 14 13:39:16 1999  Ben Pfaff  <blp@gnu.org>
+
+	* avl.c: Fixed two occurrences of = that should have been == in
+	assertions.  Thanks to Girish Zambre <gzambre@sprynet.com> for
+	pointing out this problem.
+
+	* avl.c, avlt.c, avltr.c: __attribute__ must follow declarations
+	for gcc 2.7.x.
+
+	* Made version 1.2.8.
+
+Sun Mar 14 13:38:29 1999  Ben Pfaff  <blp@gnu.org>
+
+	* TODO: Add some comments from David Kastrup
+	<dak@neuroinformatik.ruhr-uni-bochum.de>.
+
+	* Made version 1.2.7.
+
+Tue Jan 12 10:16:05 1999  Ben Pfaff  <blp@gnu.org>
+
+	* avl.texinfo: Add skip lists as alternative to AVL trees.  Thanks
+	to Ron Pfeifle <rpfeifle@aw.sgi.com>.
+
+	* Made version 1.2.6.
+
+Sun Jan 10 15:37:57 1999  Ben Pfaff  <blp@gnu.org>
+
+	* avl.texinfo: Elaborated description of distinction between
+	threaded and unthreaded trees at request of several.
+
+	* Made version 1.2.5.
+
+Sun Nov 22 13:36:58 1998  Ben Pfaff  <blp@gnu.org>
+
+	* avl.texinfo: Updates suggested by Jason Eisner
+	<jeisner@linc.cis.upenn.edu>.
+
+	* Made version 1.2.4.
+
+Sun Oct 18 10:26:08 1998  Ben Pfaff  <pfaffben@pilot.msu.edu>
+
+	* TODO: New file.
+
+	* avl.c: (xmalloc) Don't declare xmalloc if HAVE_XMALLOC is
+	defined.  By default on error, print a message to stderr and exit,
+	rather than calling abort() as before.
+	* avlt.c: (xmalloc) Same.
+	* avltr.c: (xmalloc) Same.
+
+	* Made version 1.2.3.
+
+Thu Sep  3 13:58:55 1998  Ben Pfaff  <pfaffben@pilot.msu.edu>
+
+	* README: Update.
+
+	* avl.c: (avl_delete) Minor efficiency fixes; removed redundant
+	comparison.
+
+	* avlt.c: (avl_delete) Minor efficiency fix.
+	* avltr.c: (avl_delete) Same change.
+
+	* avl.texi: Update.
+
+	* Made version 1.2.2.
+
+Thu Jun 11 15:13:02 1998  Ben Pfaff  <pfaffben@pilot.msu.edu>
+
+	* avl.c: Don't #define unused when PSPP is defined.
+	(force_avl_delete) Rename avl_force_delete.
+
+	* avlt.c: (force_avlt_delete) Rename avlt_force_delete.
+
+	* avltr.c: (force_avltr_delete) Rename avltr_force_delete.
+
+	* Made version 1.2.1.
+
+Thu Jun 11 14:43:30 1998  Ben Pfaff  <pfaffben@pilot.msu.edu>
+
+	* Version 1.2.0: First GNU release.
+
+----------------------------------------------------------------------
+Local Variables:
+mode: change-log
+version-control: never
+End:

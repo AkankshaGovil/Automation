@@ -1,0 +1,51 @@
+File-Rsync - A wrapper module for rsync(1) http://rsync.samba.org/rsync/
+
+*******************************************************************************
+Copyright (c) 2000-2001 Lee Eakin.  All rights reserved.
+   This program is free software; you can redistribute it and/or modify
+   it under the same terms as Perl itself.
+*******************************************************************************
+
+Perl-style options may be passed as a hash reference.  Thanks to Greg Ward
+for the suggestion.  There is a limited test suite as well.
+
+You may now specify your own output functions.  Your custom function is called
+for each line of output.  The line is the first argument to the function.  The
+second argument is either 'err' or 'out' so the same function may be used for
+both and can determine where the line came from.  Thanks to Boris Goldowsky
+for the suggestion.
+
+James Mello pointed out that if no destination is given, rsync prints a list
+of files that would be processed.  To that end, a list function has been added.
+
+Since I have gotten various reports (and some good improvements) from people
+using this module, and no real problems, I will be bumping the version number
+to 1.0 soon unless someone finds problems.  As always, suggestions for
+improvement are always greatly appreciated.
+
+Thanks to Andreas Keonig for explaining how to get this into the by-module
+listing properly, and helping me avoid possible problems by utilizing the
+arch-specific @INC dir to store the path to rsync itself.
+
+NOTE:  If you installed 0.18, the install path was incorrect.  You will
+most likely need to 'make install UNINST=1' to clean up properly.
+
+See the Changelog for details of all changes.
+
+QUICK START GUIDE:
+
+   Install rsync if you haven't already.
+
+   Build/test/install File::Rsync
+
+      perl Makefile.PL
+      make
+      make test
+      make install
+   
+   Once installed you can use 'perldoc File::Rsync' to get the rest of the
+   documentation.  Or if you'd prefer to examine the docs before installation
+   try 'perldoc -F Rsync.pm'.
+
+This module is an attempt to efficiently handle the possibly numerous arguments
+to the rsync command, and it's error conditions and messages.

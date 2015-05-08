@@ -1,0 +1,213 @@
+
+#################################################################
+#################################################################
+##
+##			Makefile
+##
+#################################################################
+#################################################################
+
+include ../global.mk
+
+CC=cc -mt 
+CFLAGS += $(INCDIRS) -g -DSUNOS -D_REENTRANT
+VPNSCFLAGS = $(CFLAGS) -DVPNS
+
+YACC=yacc -b config
+YACC=bison
+LEX=lex
+LEX=flex
+LIBS = $(LIBMEM) $(LIBDB) $(LIBUTILS) $(LIBSRVR) $(LIBUTIL) $(LIBCOMMON) $(LIBNIKE) $(LIBCRYPTO) $(LIBSCONFIG)
+
+BINDIR = ../bin
+
+LSOBJDIR = lsobj
+VPNSOBJDIR = vpnsobj
+LSAGEOBJDIR = lusageobj
+VPNSAGEOBJDIR = vpnsageobj
+BCSOBJDIR = .
+
+LSOBJS = $(LSOBJDIR)/process.o \
+	 $(LSOBJDIR)/ls.o \
+	 $(LSOBJDIR)/entry.o \
+	 $(LSOBJDIR)/phone.o 
+
+VPNSOBJS = $(VPNSOBJDIR)/process.o \
+	 $(VPNSOBJDIR)/ls.o \
+	 $(VPNSOBJDIR)/entry.o \
+	 $(VPNSOBJDIR)/phone.o 
+
+LSAGEOBJS = $(LSOBJDIR)/age.o $(LSOBJDIR)/phone.o
+VPNSAGEOBJS = $(VPNSOBJDIR)/age.o $(VPNSOBJDIR)/phone.o
+
+BCSOBJS = $(BCSOBJDIR)/bcs.o
+
+all:	lus vpns lusage vpnsage bcs
+
+##
+## Manager level programs.
+##
+lus:	$(LSOBJS) $(LIBS)
+	$(CC) $(CFLAGS) -o $@ $^ -lpthread  -lgdbm -lfl -lxnet
+
+vpns:	$(VPNSOBJS) $(LIBS)
+	$(CC) $(VPNSCFLAGS) -DVPNS -o $@ $^ -lpthread  -lgdbm -lfl -lxnet
+
+lusage:	$(LSAGEOBJS) $(LIBS)
+	$(CC) $(CFLAGS) -o $@ $^ -lpthread -lfl -lgdbm -lxnet
+
+vpnsage:$(VPNSAGEOBJS) $(LIBS)
+	$(CC) $(VPNSCFLAGS) -o $@ $^ -lpthread -ll -ly -lgdbm -lxnet
+
+bcs:$(BCSOBJS) $(LIBS)
+	$(CC) $(VPNSCFLAGS) -o $@ $^ -lpthread -ll -ly -lxnet
+
+$(LSOBJDIR)/ls.o:	ls.c
+	$(CC) $(CFLAGS) -c ls.c -o $@
+
+$(LSOBJDIR)/process.o:	process.c
+	$(CC) $(CFLAGS) -c process.c -o $@
+
+$(LSOBJDIR)/entry.o:	entry.c
+	$(CC) $(CFLAGS) -c entry.c -o $@
+
+$(VPNSOBJDIR)/ls.o:	ls.c
+	$(CC) $(VPNSCFLAGS) -c ls.c -o $@
+
+$(VPNSOBJDIR)/process.o:	process.c
+	$(CC) $(VPNSCFLAGS) -c process.c -o $@
+
+$(VPNSOBJDIR)/entry.o:	entry.c
+	$(CC) $(VPNSCFLAGS) -c entry.c -o $@
+
+$(LSOBJDIR)/phone.o:	phone.c
+	$(CC) $(CFLAGS) -c phone.c -o $@
+
+$(VPNSOBJDIR)/phone.o:	phone.c
+	$(CC) $(VPNSCFLAGS) -c phone.c -o $@
+
+$(LSOBJDIR)/age.o:	age.c
+	$(CC) $(CFLAGS) -c age.c -o $@
+
+$(VPNSOBJDIR)/age.o:	age.c
+	$(CC) $(VPNSCFLAGS) -c age.c -o $@
+
+$(BCSOBJDIR)/bcs.o:	bcs.c
+	$(CC) $(CFLAGS) -c bcs.c -o $@
+
+parse.o : config.y config.l parse.c
+	$(YACC) -d config.y
+	$(LEX) config.l
+	$(CC) $(CFLAGS) -o $@ -c parse.c
+
+clean:	
+	$(RM) -f $(LSOBJS) $(VPNSOBJS) $(LSAGEOBJS) $(VPNSAGEOBJS) vpns lus vpnsage lusage lex.yy.c config.tab.c bcs
+
+depend:
+	$(MAKEDEPEND) $(CFLAGS) *.c
+
+install: lus vpns lusage vpnsage bcs
+	$(CP) lus $(BINDIR)
+	$(CP) vpns $(BINDIR)
+	$(CP) lusage $(BINDIR)
+	$(CP) vpnsage $(BINDIR)
+	$(CP) bcs $(BINDIR)
+	$(CP) server.cfg $(BINDIR)
+
+# DO NOT DELETE
+
+age.o: /usr/include/stdio.h /usr/include/libio.h /usr/include/features.h
+age.o: /usr/include/sys/cdefs.h /usr/include/gnu/stubs.h
+age.o: /usr/include/_G_config.h /usr/include/gnu/types.h
+age.o: /usr/lib/gcc-lib/i386-redhat-linux/2.7.2.3/include/stddef.h
+age.o: /usr/lib/gcc-lib/i386-redhat-linux/2.7.2.3/include/stdarg.h
+age.o: /usr/include/stdio_lim.h /usr/include/stdlib.h
+age.o: /usr/include/sys/types.h /usr/include/time.h /usr/include/endian.h
+age.o: /usr/include/bytesex.h /usr/include/sys/select.h
+age.o: /usr/include/selectbits.h /usr/include/alloca.h /usr/include/errno.h
+age.o: /usr/include/errnos.h /usr/src/linux/include/linux/errno.h
+age.o: /usr/src/linux/include/asm/errno.h /usr/include/fcntl.h
+age.o: /usr/include/fcntlbits.h /usr/include/sys/syslog.h
+age.o: /usr/include/netdb.h /usr/include/rpc/netdb.h
+age.o: /usr/include/sys/socket.h /usr/include/socketbits.h
+age.o: /usr/include/sockaddrcom.h /usr/src/linux/include/asm/socket.h
+age.o: /usr/src/linux/include/asm/sockios.h /usr/include/netinet/in.h
+age.o: /usr/include/sys/time.h /usr/include/timebits.h /usr/include/unistd.h
+age.o: /usr/include/posix_opt.h /usr/include/confname.h ../include/ipc.h
+age.o: ../include/mem.h /usr/include/sys/ipc.h /usr/include/sys/ipc_buf.h
+age.o: /usr/include/sys/shm.h /usr/include/sys/shm_buf.h
+age.o: /usr/include/pthread.h /usr/include/limits.h /usr/include/posix1_lim.h
+age.o: /usr/include/local_lim.h /usr/src/linux/include/linux/limits.h
+age.o: /usr/include/posix2_lim.h /usr/include/sched.h
+age.o: /usr/include/schedbits.h /usr/include/signal.h /usr/include/sigset.h
+age.o: ../include/alerror.h ../include/age.h
+entry.o: /usr/include/stdio.h /usr/include/libio.h /usr/include/features.h
+entry.o: /usr/include/sys/cdefs.h /usr/include/gnu/stubs.h
+entry.o: /usr/include/_G_config.h /usr/include/gnu/types.h
+entry.o: /usr/lib/gcc-lib/i386-redhat-linux/2.7.2.3/include/stddef.h
+entry.o: /usr/lib/gcc-lib/i386-redhat-linux/2.7.2.3/include/stdarg.h
+entry.o: /usr/include/stdio_lim.h /usr/include/stdlib.h
+entry.o: /usr/include/sys/types.h /usr/include/time.h /usr/include/endian.h
+entry.o: /usr/include/bytesex.h /usr/include/sys/select.h
+entry.o: /usr/include/selectbits.h /usr/include/alloca.h ../include/ipc.h
+entry.o: ../include/alerror.h ../include/entry.h ../include/profile.h
+entry.o: ../include/db.h /usr/include/gdbm.h ../include/mem.h
+entry.o: /usr/include/sys/ipc.h /usr/include/sys/ipc_buf.h
+entry.o: /usr/include/sys/shm.h /usr/include/unistd.h
+entry.o: /usr/include/posix_opt.h /usr/include/confname.h
+entry.o: /usr/include/sys/shm_buf.h /usr/include/pthread.h
+entry.o: /usr/include/errno.h /usr/include/errnos.h
+entry.o: /usr/src/linux/include/linux/errno.h
+entry.o: /usr/src/linux/include/asm/errno.h /usr/include/limits.h
+entry.o: /usr/include/posix1_lim.h /usr/include/local_lim.h
+entry.o: /usr/src/linux/include/linux/limits.h /usr/include/posix2_lim.h
+entry.o: /usr/include/sched.h /usr/include/schedbits.h /usr/include/signal.h
+entry.o: /usr/include/sigset.h /usr/include/syslog.h
+entry.o: /usr/include/sys/syslog.h
+ls.o: /usr/include/stdio.h /usr/include/libio.h /usr/include/features.h
+ls.o: /usr/include/sys/cdefs.h /usr/include/gnu/stubs.h
+ls.o: /usr/include/_G_config.h /usr/include/gnu/types.h
+ls.o: /usr/lib/gcc-lib/i386-redhat-linux/2.7.2.3/include/stddef.h
+ls.o: /usr/lib/gcc-lib/i386-redhat-linux/2.7.2.3/include/stdarg.h
+ls.o: /usr/include/stdio_lim.h /usr/include/stdlib.h /usr/include/sys/types.h
+ls.o: /usr/include/time.h /usr/include/endian.h /usr/include/bytesex.h
+ls.o: /usr/include/sys/select.h /usr/include/selectbits.h
+ls.o: /usr/include/alloca.h /usr/include/errno.h /usr/include/errnos.h
+ls.o: /usr/src/linux/include/linux/errno.h /usr/src/linux/include/asm/errno.h
+ls.o: /usr/include/fcntl.h /usr/include/fcntlbits.h /usr/include/sys/syslog.h
+ls.o: /usr/include/netdb.h /usr/include/rpc/netdb.h /usr/include/sys/socket.h
+ls.o: /usr/include/socketbits.h /usr/include/sockaddrcom.h
+ls.o: /usr/src/linux/include/asm/socket.h
+ls.o: /usr/src/linux/include/asm/sockios.h /usr/include/netinet/in.h
+ls.o: /usr/include/sys/time.h /usr/include/timebits.h /usr/include/unistd.h
+ls.o: /usr/include/posix_opt.h /usr/include/confname.h /usr/include/string.h
+ls.o: ../include/ipc.h ../include/mem.h /usr/include/sys/ipc.h
+ls.o: /usr/include/sys/ipc_buf.h /usr/include/sys/shm.h
+ls.o: /usr/include/sys/shm_buf.h /usr/include/pthread.h /usr/include/limits.h
+ls.o: /usr/include/posix1_lim.h /usr/include/local_lim.h
+ls.o: /usr/src/linux/include/linux/limits.h /usr/include/posix2_lim.h
+ls.o: /usr/include/sched.h /usr/include/schedbits.h /usr/include/signal.h
+ls.o: /usr/include/sigset.h ../include/alerror.h ../include/protos.h
+ls.o: ../include/lsprocess.h
+process.o: /usr/include/stdio.h /usr/include/libio.h /usr/include/features.h
+process.o: /usr/include/sys/cdefs.h /usr/include/gnu/stubs.h
+process.o: /usr/include/_G_config.h /usr/include/gnu/types.h
+process.o: /usr/lib/gcc-lib/i386-redhat-linux/2.7.2.3/include/stddef.h
+process.o: /usr/lib/gcc-lib/i386-redhat-linux/2.7.2.3/include/stdarg.h
+process.o: /usr/include/stdio_lim.h /usr/include/stdlib.h
+process.o: /usr/include/sys/types.h /usr/include/time.h /usr/include/endian.h
+process.o: /usr/include/bytesex.h /usr/include/sys/select.h
+process.o: /usr/include/selectbits.h /usr/include/alloca.h
+process.o: /usr/include/errno.h /usr/include/errnos.h
+process.o: /usr/src/linux/include/linux/errno.h
+process.o: /usr/src/linux/include/asm/errno.h /usr/include/fcntl.h
+process.o: /usr/include/fcntlbits.h /usr/include/sys/syslog.h
+process.o: /usr/include/netdb.h /usr/include/rpc/netdb.h
+process.o: /usr/include/sys/socket.h /usr/include/socketbits.h
+process.o: /usr/include/sockaddrcom.h /usr/src/linux/include/asm/socket.h
+process.o: /usr/src/linux/include/asm/sockios.h /usr/include/netinet/in.h
+process.o: /usr/include/sys/time.h /usr/include/timebits.h
+process.o: /usr/include/unistd.h /usr/include/posix_opt.h
+process.o: /usr/include/confname.h ../include/alerror.h ../include/ipc.h
+process.o: ../include/lsprocess.h ../include/protos.h ../include/entry.h
+process.o: ../include/profile.h ../include/db.h /usr/include/gdbm.h

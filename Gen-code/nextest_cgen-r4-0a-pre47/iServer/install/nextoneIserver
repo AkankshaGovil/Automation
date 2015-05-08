@@ -1,0 +1,37 @@
+#!/bin/sh
+#
+# chkconfig: 345 99 99
+# description: Nextone Iserver startup script
+
+test -d /databases || exit 0
+STARTDIR=`pwd`
+case "$1" in
+	start)
+		echo "cleaning iserver pids"
+		/bin/rm -f /databases/*.pid
+		if [ -f /databases/boot ]; then
+			cd /usr/local/nextone/bin
+			./iserver all start < /dev/null
+			cd $STARTDIR
+		fi
+		;;
+	stop)
+		cd /usr/local/nextone/bin
+		./iserver all stop < /dev/null
+		cd $STARTDIR
+		;;
+	status)
+		;;
+	restart)
+		$0 stop
+		$0 start
+		;;
+	*)
+		echo "Usage: iserver {start|stop|status|restart}"
+		exit 1
+esac
+
+# append stuff for restarting 
+test -d /usr/local/nextone/bin || exit 0
+
+exit 0

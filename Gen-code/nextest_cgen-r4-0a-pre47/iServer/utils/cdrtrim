@@ -1,0 +1,534 @@
+#!/usr/bin/perl
+
+
+#####################################################################
+#####################################################################
+## cdrtrim
+## Manages iServer cdr files according to configured rules.
+## Typical usage is to be installed under cron.
+##
+## Copyright 2001, NexTone Communications, Inc.
+#####################################################################
+#####################################################################
+
+BEGIN {
+	push @INC, "/usr/local/nextone/lib/perl5/site_perl/5.6.0";
+}
+
+use Getopt::Std;
+use File::Basename;
+use Config::Simple;
+use POSIX qw(strftime tmpnam);
+
+my %opt;
+my ($cfgfile, $config, $prog, $time, $du, $disk, $cmpr);
+my ($trimfun);
+
+$fullpath = $0;
+$prog = basename($0);
+
+$GZIP='/bin/gzip';
+$GZIP_OPT='';
+$SCP='/usr/local/bin/scp2';
+$SCP_OPT='-p -u';
+$RM='/bin/rm';
+$RM_OPT='';
+
+getopts("hf:", \%opt);
+
+if ($opt{h}) {
+	Usage();
+	exit 0;
+}
+
+$trimfun = { mail => \&mail,
+			 compress => \&compress,
+			 move => \&move,
+			 remove => \&remove };
+
+$cfgfile = $opt{f} if ($opt{f});
+$cfgfile = $fullpath.".cfg" unless( $cfgfile);
+
+select(STDOUT); $| = 1;
+select(STDERR); $| = 1;
+
+##
+## Read the configuration file
+##
+$config = new Config::Simple(filename => "$cfgfile") or die "Can not open $cfgfile\n";
+
+my $global = $config->param(-block=>'global');
+
+##
+## Some global settings
+##
+$global->{compress_ratio} = (1 - 0.5); #Size of the file reduced by
+
+##
+## Figure out the cdr directory 
+##
+die "Cdr directory not set. Exiting ...\n" unless ($global->{cdrdir});
+print "Cdr directory = $global->{cdrdir}\n";
+
+die "Threshold criterion not set. Exiting ...\n" unless ($global->{threshold});
+
+##
+## Figure out the file system for cdr directory 
+##
+unless ($global->{cdrpart}) {
+	## Let's try to figure out the partition 
+	$disk = get_df();
+	my $part;
+	my $len=0;
+	foreach my $d (keys(%$disk)) {
+		if ($global->{cdrdir} =~ /$d/  and (length($d) > $len)) {
+			$part = $d;
+			$len = length($d);
+		}
+	}
+	$global->{cdrpart} = $part;
+}
+
+die "Could not figure out the partition of cdrdir. Set explicitly. Exiting ...\n" 
+	unless ($global->{cdrpart});
+
+
+die "No actions configured. Nothing to do. Exiting ...\n"
+	unless ($global->{action});
+
+print "\n";
+
+@actions = split(' ', $global->{action});
+foreach my $a (@actions) {
+	unless ($trimfun->{$a}) {
+		print "Unknown $a action. Ignoring action ...\n";
+		next;
+	}
+
+	print "Executing action $a ...\n";
+	my $flist;
+	if (($a =~ /compress/) || ($a =~ /mail/)) {
+		$cmpr = $global->{compress_ratio};
+		$flist = getAllFiles($global->{threshold}, 'C[DT]R$');	
+	}
+	else {
+		$cmpr = 1;
+		$flist = getAllFiles($global->{threshold}, 'C[DT]R');	
+	}
+
+	die "No Files required to be trimmed. Exiting ...\n"
+		unless ($flist);
+	
+	if (@$flist) {
+		print $#$flist+1 . " files found that needs trimming. List - @$flist\n";
+	}
+
+	my $func = $trimfun->{$a};
+	if ($func->($config->param(-block=>"$a"), $flist)) {
+		print "Executed action $a succesfully.\n";
+		print "\n";
+		last;
+	}
+	print "\n";
+}
+
+sub getAllFiles() {
+	my ($cond, $ext) = @_;
+	my $scheme;
+
+	##
+	## Figure out which scheme to use
+	##
+	SWITCH: for ($cond) {
+		/^\s*(\d+)\%\s*/ && do {
+				$scheme = 'du';
+				$du = $1;
+				last;
+				};
+		/^\s*(\d+):(\d+):(\d+)\s*$/ && do {
+				$scheme = 'time';
+				$time = ($1*24*60 + $2*60 + $3)*60;
+				last;
+				};
+		/^\s*(\d+):(\d+)\s*$/ && do {
+				$scheme = 'time';
+				$time = ($1*24 + $2)*60*60;
+				last;
+				};
+		/^\s*(\d+)\s*$/ && do {
+				$scheme = 'time';
+				$time = $1*24*60*60;
+				last;
+				};
+		die "Unknown format $cond condition. Exiting ...\n";
+	}
+	if ($scheme =~ /du/) {
+		print "Configured for \'Disk Usage\' > $du% \n";
+		return getAllFiles_du($ext);
+	}
+	elsif ($scheme =~ /time/) {
+		print "Configured for \'Older than\' $time seconds \n";
+		return getAllFiles_time($ext);
+	}
+}
+
+sub getAllFiles_du() {
+	my ($ext) = @_;
+	my $usage;
+	if ($disk->{$global->{cdrpart}}{capacity} =~ /(\d+)/) {
+		$usage = $1;
+	}
+	else {
+		die "Couldn't figure out disk usage of partition $global->{cdrpart}. Exiting ...\n";
+	}
+
+	unless ($usage > $du) {
+		print "disk usage of partition $global->{cdrpart} = $usage% <= $du%.\n";
+		return undef;
+	}
+
+	my $flist = get_ls($global->{cdrdir}, $ext);
+	my $space = $disk->{$global->{cdrpart}}{used} -
+		($du/100)*$disk->{$global->{cdrpart}}{kbytes};
+
+	print "$space kbytes needed to get below $du%. \n";
+
+	my $fnames = [];
+	for $f (sort bydate keys(%$flist)) {
+		if ($space > 0) {
+			push(@$fnames, $f);
+			$space -= (($flist->{$f}[7])/1024)*$cmpr;
+		}
+		else {
+			last;
+		}
+	}
+	print "WARN: Disk usage higher than $du% after ignoring all .C[DT]R files.\n"
+		if ($space > 0);
+
+	return $fnames;
+}
+
+sub getAllFiles_time() {
+	my ($ext) = @_;
+	my $flist = get_ls($global->{cdrdir}, $ext);
+	my $modtime = time() - $time;
+	$modtime = strftime "%Y%m%d%H%M", localtime($modtime);
+	print "Checking files older than $modtime\n";
+
+	my $fnames = [];
+	for $f (keys(%$flist)) {
+		if ($f =~ /DATA/) {
+			print "Fixed CDR Format for file $f is not supported. Contact NexTone Support\n";
+			next;
+		}
+		my @t = ($f =~ /(\d+)/);
+		if ($#t) {
+			print "Unable to identify the CDR filename $f format. Please report.\n";
+			next;
+		}	
+		if ($t[0] le $modtime) {
+			push(@$fnames, $f);
+		}
+	}
+
+	if (defined($fnames)) {
+		$fnames = [ sort bydate @$fnames ];
+	}
+	return $fnames;
+}
+
+sub bydate {
+	my (@a_, @b_);
+	@a_ = ($a =~ /^([DST])(\d+)\.(C[DT]R)(.*)/);
+	@b_ = ($b =~ /^([DST])(\d+)\.(C[DT]R)(.*)/);
+
+	for ($i=$#a_; $i < 3; $i++) {
+		push(@a_, '');	
+	}
+
+	for ($i=$#b_; $i < 3; $i++) {
+		push(@b_, '');	
+	}
+
+	$b_[3] cmp $a_[3]
+       ||
+	$a_[1] cmp $b_[1]
+       ||
+	$a_[0] cmp $b_[0]
+       ||
+	$a_[2] cmp $b_[2];
+}
+
+##
+## returns the output of ls in a hash
+##
+sub get_ls() {
+	my ($dirname, $patt) = @_;
+
+	opendir(CDRDIR, $dirname) or die "Cannot opendir $dirname: $!\n";
+	my @files = grep { /$patt/ } readdir(CDRDIR);
+	closedir(CDRDIR);
+	%fh = map { $_ => [(stat "$dirname/$_")]} @files;
+	return \%fh;
+}
+
+##
+## returns the output of df in a hash of hashes
+##
+sub get_df() {
+	my $mnt;
+	my @parts = split(/\n/, `df -k $global->{cdrdir}`);
+	my @cols = split(' ', shift(@parts));
+	my $df = {};
+	
+	foreach my $i (0..$#cols) {
+		if ($cols[$i] =~ /mounted/i) {
+			$mnt = $i;
+			last;
+		}
+	}
+
+	while (@parts) {
+		my $h = {};
+		my @p = split(' ', shift(@parts));
+		foreach my $i (0..$#p) {
+			$h->{$cols[$i]} = $p[$i];
+		}
+		$df->{$p[$mnt]} = $h;
+	}
+
+	return $df;
+}
+
+##
+## Compress the specified file
+## Note: we are using gzip which preserves the timestamp by default
+## Returns non-zero on success
+##
+sub compress() {
+	my ($conf, $flist) = @_;
+	my $cmdstat = 0;
+	my $mycmd;
+	my $lo;
+	my $usg;
+
+	unless ($conf->{hi_mark})	{
+		print "hi_mark not configured for compress. Failed ...\n";
+		return 0;
+	}
+
+	$conf->{hi_mark} =~ s/\D//;
+
+	if (defined($conf->{lo_mark})) {
+		$lo = $conf->{lo_mark};
+	}
+	else {
+		$lo = $global->{threshold};
+	}
+
+	if ((!($conf->{cmd}) || !(-f ($mycmd = $conf->{cmd}))) && !(-f ($mycmd = $GZIP))) {
+		print "compress: Can not find $mycmd. Failed ...\n";	
+		return 0;
+	}
+
+	if ($conf->{cmd}) {
+		$mycmd .= " $conf->{cmd_opt}" if ($conf->{cmd_opt});
+	}
+	else {
+		$mycmd .= " $GZIP_OPT";
+	}
+
+	foreach my $f (@$flist) {
+		my $cmd = "$mycmd $global->{cdrdir}/$f 2>&1";
+		print "compressing $global->{cdrdir}/$f ...\n";
+		$status = system("$cmd");
+		print "compress: \'$cmd\' failed for file $f\n" if ($status);
+		$cmdstat = $cmdstat || $status;
+	}
+
+	if ($cmdstat) {
+		print "compress: Did not succeed for some files\n" unless ($cmdstat);
+		return 0;
+	}
+
+	my $dsk = get_df();
+	if ($dsk->{$global->{cdrpart}}{capacity} =~ /(\d+)/) {
+		$usg = $1; 
+	}
+	if ((!(defined($usg))) || ($usg > $conf->{hi_mark})) {
+		print "Usage = $usg% after compress.\n";
+		return 0; 
+	}
+
+	return 1;
+}
+
+##
+## Move the specified file
+## Note: we are using scp -p which preserves the timestamp
+## Returns non-zero on success
+##
+sub move() {
+	my ($conf, $flist) = @_;
+	my $cmdstat = 0;
+	my ($mycmd, $cmd, $pre_cmd);
+	my $zipit = 0;
+
+	if ((!($conf->{cmd}) || !(-f ($mycmd = $conf->{cmd}))) && !(-f ($mycmd = $SCP))) {
+		print "move: Can not find $mycmd. Failed ...\n";	
+		return 0;
+	}
+
+	if ($conf->{cmd}) {
+		$mycmd .= " $conf->{cmd_opt}" if ($conf->{cmd_opt});
+	}
+	else {
+		$mycmd .= " $SCP_OPT";
+	}
+
+	if (!$conf->{destdir}) {
+		print "move: destdir not configured. Failed ...\n";	
+		return 0;
+	}		
+
+	if (!(-d $conf->{destdir})) {
+		if (system("mkdir $conf->{destdir} 2>&1")) {
+			print "move: Error creating directory $conf->{destdir}. Failed ...\n"; 
+			return 0;
+		}
+
+		print "move: Created directory $conf->{destdir}.\n"; 
+	}
+
+	if ($conf->{compress} =~ /TRUE/) {
+		$zipit = 1;
+	}
+
+	foreach my $f (@$flist) {
+		if ($zipit) {
+			$pre_cmd = "cd $global->{cdrdir}; $GZIP $f 2>&1"; 
+			$status = system("$pre_cmd");
+			if ($status) {
+				"move: compress failed for file $f\n";
+			} else {
+				$f .= '.gz';	
+			}
+		}
+		my $cmd = "$mycmd $global->{cdrdir}/$f $conf->{destdir}/$f 2>&1";
+		$status = system("$cmd");
+		print "move: \'$cmd\' failed for file $f\n" if ($status);
+		$cmdstat = $cmdstat || $status;
+	}
+
+	if ($cmdstat) {
+		print "move: Did not succeed for some files\n" unless ($cmdstat);
+		return 0;
+	}
+
+	return 1;
+}
+
+##
+## Remove the specified file
+## Returns non-zero on success
+##
+sub remove() {
+	my ($conf, $flist) = @_;
+	my $cmdstat = 0;
+	my $mycmd;
+
+	if ((!($conf->{cmd}) || !(-f ($mycmd = $conf->{cmd}))) && !(-f ($mycmd = $RM))) {
+		print "compress: Can not find $mycmd. Failed ...\n";	
+		return 0;
+	}
+
+	if ($conf->{cmd}) {
+		$mycmd .= " $conf->{cmd_opt}" if ($conf->{cmd_opt});
+	}
+	else {
+		$mycmd .= " $RM_OPT";
+	}
+
+	foreach my $f (@$flist) {
+		my $cmd = "$mycmd $global->{cdrdir}/$f 2>&1";
+		$status = system("$cmd");
+		print "remove: \'$cmd\' failed for file $f\n" if ($status);
+		$cmdstat = $cmdstat || $status;
+	}
+
+	if ($cmdstat) {
+		print "remove: Did not succeed for some files\n" unless ($cmdstat);
+		return 0;
+	}
+
+	return 1;
+}
+
+##
+## mail always returns 0. SO that subsequent action can be taken
+##
+sub mail() {
+	my ($conf, $flist) = @_;
+
+	return 0 unless ($flist);
+
+	my $hostname = `hostname`;
+	chomp($hostname);
+
+	my $message = <<eEOF
+	Disk Usage of cdr directory $global->{cdrdir} on partition $global->{cdrpart} crossed threshold.
+	System Maintenance Required on host $hostname.
+eEOF
+;
+
+	my $MsgFile = tmpnam();
+	open (T, "> $MsgFile") or die "Unable to open file. \n"; 
+	print T "$message\n";
+	close(T);
+
+	my $cmd = 'mail.pl';
+	if (defined($conf->{Subject})) {
+		$cmd .= " -s '$conf->{Subject}'";
+	} 
+	else {
+		$cmd .= " -s 'CDR directory partition near critical limit'";
+	}
+
+	if (defined($conf->{To})) {
+		$cmd .= " -t '$conf->{To}'";
+	}
+
+	if (defined($conf->{From})) {
+		$cmd .= " -f '$conf->{From}'";
+	}
+
+	if (defined($conf->{CC})) {
+		$cmd .= " -c '$conf->{CC}'";
+	}
+
+	if (defined($conf->{BCC})) {
+		$cmd .= " -b '$conf->{BCC}'";
+	}
+
+	if (defined($conf->{SMTP})) {
+		$cmd .= " -m '$conf->{SMTP}'";
+	}
+
+	$cmd .= " $MsgFile";
+	system("$cmd"); 
+	unlink($MsgFile);
+	return 0;
+}
+
+sub Usage() {
+	print <<eEOF
+$prog [-h] [-f <cfgfile>] [-l <logfile>]
+eEOF
+;
+}
+
+sub strip_space() {
+	s/^\s+//;
+	s/\s+$//;
+}

@@ -1,0 +1,24 @@
+#######################################################################
+#               This is the test application  Makefile for the SipStack
+########################################################################
+#
+#               Creates perftestSipStack
+# To be Removed for LINUX port
+# -lxnet
+# -lmtmalloc
+# -lhoard
+# -lrt
+########################################################################
+include ../../MakeVars
+
+all: test
+INCLUDES = -I./h -I../../source/parser/h -I../../source/accessor/h -I../../source/common/h\
+           -I../../source/accessor/h -I../../source/common/ccp/h -I../../source/common/rpr/h\
+           -I../../source/accessor/ccp/h -I../../source/accessor/rpr/h\
+		   -I../../source/common/tel/h -I ../../test/parser
+LDFLAGS  = -L../../lib
+test: bin/perftest
+clean: 
+	-rm -f bin/perftest
+bin/perftest:   ../../lib/libsipcore.a ../../lib/libsipapi.a src/sipclient.c src/siptimer.c src/callbacks.c src/sipthreadmgr.c
+	$(PURIFYCC) $(INCLUDES) src/sipclient.c src/callbacks.c src/siptimer.c src/sipthreadmgr.c $(CFLAGS) $(LDFLAGS) -lsipapi -lsipcore -lthread -lxnet -lrt -lhoard -o $@

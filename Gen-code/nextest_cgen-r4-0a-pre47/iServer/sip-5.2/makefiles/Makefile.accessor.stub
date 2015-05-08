@@ -1,0 +1,68 @@
+########################################################################
+# 		This is the Accessor Makefile for the SipStack   	
+########################################################################
+#
+#		Creates libsipapi 
+#		
+########################################################################
+
+include ../../MakeVars
+
+ACCESSORSRC = sipinternal.c\
+	sipclone.c\
+	response.c\
+	entity.c \
+	header.c\
+	sdp.c\
+	sdpstring.c\
+	sipvalidate.c \
+	sipbcptinternal.c \
+	request.c\
+	general.c\
+	bcpt.c\
+@MWI@	mesgsummary.c\
+@IMPP@ 		impp.c\
+@IMPP@ 		imppinternal.c\
+@PRES@ 		pres.c\
+	sipstring.c
+ACCESSORCCPSRC = ccp.c \
+		ccpinternal.c
+ACCESSORRPRSRC = rpr.c \
+		rprinternal.c
+@DCS@ ACCESSORDCSSRC = dcs.c \
+@DCS@ 			dcsclone.c \
+@DCS@ 			dcsintrnl.c \
+@DCS@ 			dcsstring.c
+
+INCLUDES =  -I../parser/h -Ih -Irpr/h  \
+@CCP@ 		-Iccp/h  -I../common/ccp/h \
+@DCS@ 		-Idcs/h -I../common/dcs/h \
+@TEL@ 		-I../common/tel/h -I../accessor/tel/h -I../parser/tel/h \
+			-I../common/h -I../common/rpr/h 
+
+ACCESSOROBJS = $(ACCESSORSRC:%.c=../../obj/accessor/%.o) 
+ACCESSORCCPOBJS = $(ACCESSORCCPSRC:%.c=../../obj/accessor/ccp/%.o) 
+ACCESSORRPROBJS = $(ACCESSORRPRSRC:%.c=../../obj/accessor/rpr/%.o)
+@DCS@ ACCESSORDCSOBJS = $(ACCESSORDCSSRC:%.c=../../obj/accessor/dcs/%.o)
+OBJECTS = $(ACCESSOROBJS)  \
+@CCP@ 		$(ACCESSORCCPOBJS) \
+@DCS@ 		$(ACCESSORDCSOBJS) \
+			$(ACCESSORRPROBJS)
+
+all: libsipapi
+
+libsipapi: ../../lib/libsipapi.a
+../../lib/libsipapi.a: $(OBJECTS)
+	$(AR) ../../lib/libsipapi.a $(OBJECTS)
+
+include .depend
+../../obj/accessor/%.o: src/%.c
+	$(CC) $(CFLAGS)  $(INCLUDES) -c $< -o $@
+@CCP@ ../../obj/accessor/ccp/%.o: ccp/src/%.c
+@CCP@ 	$(CC) $(CFLAGS)   $(INCLUDES) -c $< -o $@
+../../obj/accessor/rpr/%.o: rpr/src/%.c
+	$(CC) $(CFLAGS)   $(INCLUDES) -c $< -o $@
+@DCS@ ../../obj/accessor/dcs/%.o: dcs/src/%.c
+@DCS@ 	$(CC) $(CFLAGS)   $(INCLUDES) -c $< -o $@
+@TEL@ ../../obj/accessor/tel/%.o: tel/src/%.c
+@TEL@ 	$(CC) $(CFLAGS)   $(INCLUDES) -c $< -o $@	

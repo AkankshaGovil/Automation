@@ -1,0 +1,252 @@
+#!/bin/sh
+
+##
+## Environment variables come here.
+##
+: ${SERPLEXPATH:=/usr/local/nextone/bin}
+MC=`uname | grep Sun`
+: ${MC:=linux}
+
+##
+## Other miscellaneous variables.
+##
+ECHO=/bin/echo
+Usage="Usage: $0 command opn low high [prefix]"
+
+PROGNAME=$0
+COMMAND=$1
+OPERATION=$2
+
+if [ "$MC" = "SunOS" ]; then
+LOGNAME=`/usr/xpg4/bin/id -u -n`
+else
+LOGNAME=`id -u -n`
+fi
+
+##
+## Check for valid arguments
+##
+if [ -z "$COMMAND" -a -z "$OPERATION" ]; then
+	$ECHO $Usage
+	$ECHO ""
+	exit 1
+fi
+
+shift 2
+
+while getopts a:s:u:p:v:x:g: option
+do
+	case "$option"
+	in
+		s)	SERNO=$OPTARG;;
+		u)	UPORT=$OPTARG;;
+		a)	AREAC=$OPTARG;;
+		p)	PHONE=$OPTARG;;
+		v)	VPN=$OPTARG;;
+		x)	EXTN=$OPTARG;;
+		g)	VPNG=$OPTARG;;
+	esac
+done
+
+shiftcount=`expr $OPTIND - 1`
+shift $shiftcount
+
+function getrange
+{
+	x=$1
+	type=$2
+	prefix=`echo $x| cut -d[ -f1`
+	range=`echo $x| cut -d[ -f2 -s`
+	low=`echo $range| cut -d- -f1`
+	high=`echo $range| cut -d- -f2 -s|cut -d] -f1`
+
+	case $type in
+	prefix) echo $prefix
+	;;
+	lo) echo $low
+	;;
+	hi) echo $high
+	;;
+	esac
+}
+
+echo "command $COMMAND $OPERATION"
+
+ARG=$SERNO;
+SERNO=$(getrange "$ARG" prefix)
+SERNOLO=$(getrange "$ARG" lo)
+SERNOHIGH=$(getrange "$ARG" hi)
+echo "serno $SERNO lo $SERNOLO hi $SERNOHIGH"
+
+ARG=$UPORT;
+UPORT=$(getrange "$ARG" prefix)
+UPORTLO=$(getrange "$ARG" lo)
+UPORTHIGH=$(getrange "$ARG" hi)
+echo "uport $UPORT lo $UPORTLO hi $UPORTHIGH"
+
+ARG=$VPNG;
+VPNG=$(getrange "$ARG" prefix)
+VPNGLO=$(getrange "$ARG" lo)
+VPNGHIGH=$(getrange "$ARG" hi)
+
+ARG=$VPN;
+VPN=$(getrange "$ARG" prefix)
+VPNLO=$(getrange "$ARG" lo)
+VPNHIGH=$(getrange "$ARG" hi)
+
+##
+## Must be super user to run this script
+##
+CheckForSuperuser ()
+{
+	###########################
+	## Must be root
+	###########################
+	if [ "$LOGNAME" != "root" ]; then
+		echo ""
+		echo "You must be super-user to run this script."
+		echo "Exiting.... "
+		exit 2
+	fi
+
+}
+
+function HandleVpn
+{
+	: ${VPNHIGH:=$VPNLO}
+	
+	if [ -n "$VPNLO" ]; then
+		while [ "$VPNLO" -le "$VPNHIGH" ]
+		do
+			CLIOP="$SERPLEXPATH/cli $COMMAND $OPERATION $VPN$VPNLO 4"
+			echo $CLIOP
+			$CLIOP
+			VPNLO=`expr $VPNLO + 1`
+		done
+	fi
+}
+
+function HandleVpnG
+{
+	: ${VPNGHIGH:=$VPNGLO}
+	
+	if [ -n "$VPNGLO" ]; then
+		while [ "$VPNGLO" -le "$VPNGHIGH" ]
+		do
+			CLIOP="$SERPLEXPATH/cli $COMMAND $OPERATION $VPNG$VPNGLO"
+			echo $CLIOP
+			$CLIOP
+			VPNGLO=`expr $VPNGLO + 1`
+		done
+	fi
+}
+
+function HandleIedge
+{
+	: ${SERNOHIGH:=$SERNOLO}
+	: ${UPORTHIGH:=$UPORTLO}
+
+	if [ -n "$SERNOLO" ]; then
+		slo=$SERNOLO;
+
+		echo "HandleIedge: $slo $SERNOHIGH"
+
+		while [ "$slo" -le "$SERNOHIGH" ]
+		do
+			if [ -n "$UPORTLO" ]; then
+				ulo=$UPORTLO
+				echo "HandleIedge: $ulo $UPORTHIGH"
+				while [ "$ulo" -le "$UPORTHIGH" ]
+				do
+					CLIOP="$SERPLEXPATH/cli $COMMAND add $SERNO$slo $UPORT$ulo $VPN $EXTN"
+					echo $CLIOP
+					$CLIOP
+
+					CLIOP="$SERPLEXPATH/cli $COMMAND phones $SERNO$slo $UPORT$ulo $AREAC$PHONE"
+					$CLIOP
+					echo $CLIOP
+					ulo=`expr $ulo + 1`
+					EXTN=`expr $EXTN + 1`
+					PHONE=`expr $PHONE + 1`
+				done
+			else
+			:
+			fi
+			slo=`expr $slo + 1`
+		done
+	else
+	:
+	fi
+}
+
+function HandleIedgeDelete
+{
+	: ${SERNOHIGH:=$SERNOLO}
+	: ${UPORTHIGH:=$UPORTLO}
+
+	if [ -n "$SERNOLO" ]; then
+		slo=$SERNOLO;
+		while [ "$slo" -le "$SERNOHIGH" ]
+		do
+			if [ -n "$UPORTLO" ]; then
+				ulo=$UPORTLO
+				while [ "$ulo" -le "$UPORTHIGH" ]
+				do
+					CLIOP="$SERPLEXPATH/cli $COMMAND $OPERATION $SERNO$slo $UPORT$ulo"
+					echo $CLIOP
+					$CLIOP
+
+					ulo=`expr $ulo + 1`
+				done
+			else
+			:
+			fi
+			slo=`expr $slo + 1`
+		done
+	else
+	:
+	fi
+}
+
+#
+# Based on command and operation, 
+# we need various arguments, and we will cook up the command
+#
+
+case $COMMAND in
+iedge)
+	case $OPERATION in
+	add)
+		: ${SERNO:?} ${UPORT:?}
+		HandleIedge
+	;;
+	delete)
+		: ${SERNO:?} ${UPORT:?}
+		HandleIedgeDelete
+	;;
+	vpns)
+	;;
+	phones)
+	;;
+	esac
+;;
+vpng)
+	: ${VPNG:?}
+	HandleVpnG
+;;
+vpn)
+	: ${VPN:?}
+	HandleVpn
+;;
+esac
+
+#while [ "$LOW" -le "$HIGH" ]
+#do
+#	CLIOP="$SERPLEXPATH/cli $COMMAND $OPERATION $PREFIX$LOW"
+#	$ECHO $CLIOP
+#	LOW=`expr $LOW + 1`
+#done
+
+## All's well that end's well
+exit 0
+

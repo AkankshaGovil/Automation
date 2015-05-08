@@ -1,0 +1,71 @@
+ar ruv ../libcrypto.a cryptlib.o
+making all in md5...
+make[1]: Entering directory `/export/home/medhavi/netoids/src/crypto/md5'
+ar ruv ../libcrypto.a md5_dgst.o md5_one.o 
+sh ../util/ranlib.sh ../libcrypto.a
+make[1]: Leaving directory `/export/home/medhavi/netoids/src/crypto/md5'
+making all in sha...
+make[1]: Entering directory `/export/home/medhavi/netoids/src/crypto/sha'
+ar ruv ../libcrypto.a sha_dgst.o sha1dgst.o sha_one.o sha1_one.o 
+sh ../util/ranlib.sh ../libcrypto.a
+make[1]: Leaving directory `/export/home/medhavi/netoids/src/crypto/sha'
+making all in bf...
+make[1]: Entering directory `/export/home/medhavi/netoids/src/crypto/bf'
+ar ruv ../libcrypto.a bf_skey.o bf_ecb.o  bf_cfb64.o bf_ofb64.o
+sh ../util/ranlib.sh ../libcrypto.a
+make[1]: Leaving directory `/export/home/medhavi/netoids/src/crypto/bf'
+making all in rc4...
+make[1]: Entering directory `/export/home/medhavi/netoids/src/crypto/rc4'
+ar ruv ../libcrypto.a rc4_skey.o 
+sh ../util/ranlib.sh ../libcrypto.a
+make[1]: Leaving directory `/export/home/medhavi/netoids/src/crypto/rc4'
+making all in bn...
+make[1]: Entering directory `/export/home/medhavi/netoids/src/crypto/bn'
+ar ruv ../libcrypto.a bn_add.o bn_div.o bn_exp.o bn_lib.o bn_mul.o bn_print.o bn_rand.o bn_shift.o bn_word.o bn_blind.o bn_gcd.o bn_prime.o bn_err.o bn_sqr.o  bn_recp.o bn_mont.o bn_mpi.o bn_exp2.o
+sh ../util/ranlib.sh ../libcrypto.a
+make[1]: Leaving directory `/export/home/medhavi/netoids/src/crypto/bn'
+making all in dsa...
+make[1]: Entering directory `/export/home/medhavi/netoids/src/crypto/dsa'
+ar ruv ../libcrypto.a dsa_gen.o dsa_key.o dsa_lib.o dsa_vrf.o dsa_sign.o dsa_err.o
+sh ../util/ranlib.sh ../libcrypto.a
+make[1]: Leaving directory `/export/home/medhavi/netoids/src/crypto/dsa'
+making all in dh...
+make[1]: Entering directory `/export/home/medhavi/netoids/src/crypto/dh'
+ar ruv ../libcrypto.a dh_gen.o dh_key.o dh_lib.o dh_check.o dh_err.o
+sh ../util/ranlib.sh ../libcrypto.a
+make[1]: Leaving directory `/export/home/medhavi/netoids/src/crypto/dh'
+making all in buffer...
+make[1]: Entering directory `/export/home/medhavi/netoids/src/crypto/buffer'
+ar ruv ../libcrypto.a buffer.o buf_err.o
+sh ../util/ranlib.sh ../libcrypto.a
+make[1]: Leaving directory `/export/home/medhavi/netoids/src/crypto/buffer'
+making all in stack...
+make[1]: Entering directory `/export/home/medhavi/netoids/src/crypto/stack'
+ar ruv ../libcrypto.a stack.o
+sh ../util/ranlib.sh ../libcrypto.a
+make[1]: Leaving directory `/export/home/medhavi/netoids/src/crypto/stack'
+making all in lhash...
+make[1]: Entering directory `/export/home/medhavi/netoids/src/crypto/lhash'
+ar ruv ../libcrypto.a lhash.o lh_stats.o
+sh ../util/ranlib.sh ../libcrypto.a
+make[1]: Leaving directory `/export/home/medhavi/netoids/src/crypto/lhash'
+making all in rand...
+make[1]: Entering directory `/export/home/medhavi/netoids/src/crypto/rand'
+ar ruv ../libcrypto.a md_rand.o randfile.o rand_lib.o
+sh ../util/ranlib.sh ../libcrypto.a
+make[1]: Leaving directory `/export/home/medhavi/netoids/src/crypto/rand'
+making all in err...
+make[1]: Entering directory `/export/home/medhavi/netoids/src/crypto/err'
+ar ruv ../libcrypto.a err.o err_all.o err_prn.o
+sh ../util/ranlib.sh ../libcrypto.a
+make[1]: Leaving directory `/export/home/medhavi/netoids/src/crypto/err'
+making all in asn2...
+make[1]: Entering directory `/export/home/medhavi/netoids/src/crypto/asn2'
+gcc  a_int.c -o a_int.o
+a_int.c:60: cryptlib.h: No such file or directory
+In file included from a_int.c:61:
+asn1.h:67: bn.h: No such file or directory
+asn1.h:68: stack.h: No such file or directory
+make[1]: *** [a_int.o] Error 1
+make[1]: Leaving directory `/export/home/medhavi/netoids/src/crypto/asn2'
+make: *** [subdirs] Error 2

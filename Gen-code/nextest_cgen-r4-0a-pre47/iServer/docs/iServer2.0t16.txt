@@ -1,0 +1,539 @@
+Release Notes for iServer/MSW v2.0t16N
+=======================================
+
+iServer v2.0t16N is an incremental release over v2.0t16M and was built on 
+06/18/2002.
+
+Bug Fixes in iServer/MSW:
+-------------------------
+1. H.245 Configuration:
+H.245 can now be enabled on a per endpoint basis. This used to be a global 
+parameter called "Force H.245", which is now configured on a per endpoint 
+basis. Some gateways and endpoints do not respond to the H.245 address that 
+the iServer/MSW typically sends in the CONNECT message. This failure to 
+respond may result in an eventual abnormal termination of the call.  To avoid 
+this, the iServer/MSW will send a FACILITY message with its H.245 address to 
+the (source or destination) gateway/endpoint only if "Force H.245" is enabled 
+for that gateway/endpoint.
+
+Clarent gateways do not need to have the "Force H.245" flag enabled explicitly, 
+as the iServer/MSW send FACILITY messages to Clarent gateways based on the 
+Vendor-ID selection.
+
+iView v2.0t16 and above supports per endpoint configuration of this 
+"Force H.245" parameter.
+
+2. An iServer/MSW crash for certain IWF calls has been fixed. This situation 
+used to happen when a call was being put off of HOLD.
+
+3. A memory leak has also been fixed in the iServer/MSW.
+
+4. A restart of the iServer/MSW on a certain deadlock situation has been fixed.
+
+5. A SIP bug has also been fixed.
+
+
+##################################################################################
+
+
+Release Notes for iServer/MSW v2.0t16M
+=======================================
+
+iServer v2.0t16M is an incremental release over v2.0t16L and was built on 
+06/11/2002.
+
+Bug Fixes in iServer/MSW:
+-------------------------
+1. H.245 fix: There was a bug in which the iServer/MSW did not flag the 
+FastStart element in the Call Proceeding message, and initiated an H.245 
+connection with the Endpoint, based on a Facility message previously received. 
+This has been fixed.
+
+2. Two new fields have been added to each CDR record.  These fields are appended 
+to the existing record as the last two fields, thus making the CDR record 
+backwards compatible. The new fields are:
+a) error code on egress leg of call, if error did occur on the egress leg.
+b) error string on egress leg of call, if error did occur on the egress leg.
+If these values are not present in the CDR record, then no error occurred on 
+the egress leg of the call.
+
+Changes to the iServer Admin Package:
+-------------------------------------
+
+A new program called "cdrmon" has been added to the iServer Admin Package.
+
+CDRMON:
+"cdrmon" monitors *.CDT files and looks for configured events, defined in a file called "events.conf".  Event definitions are XML based, similar to logpp etc. Currently, cdrmon monitors only for Local-disconnects and overall ASR. 
+ 
+Here's a brief look at events.conf:
+ 
+
+<EV>
+<EVENT> "Local disconnect" </EVENT>
+<QUAL> cdrdesc </QUAL>
+<KEY> local-disconnect </KEY>
+<TIME_AVERAGE> "5"  </TIME_AVERAGE>             
+<GT> "75" </GT>
+<ACTION> "mailn.pl -s LD_Report tout" </ACTION>
+<ACTION> "echo Warn" </ACTION>
+</EV>
+ 
+The above is an event description that says to monitor for Local-disconnects and if in the last 5 minutes, the number of local-disconnect calls is greater than 75% of all the calls, then alarm by performing the actions. Actions could be Unix shell commands, shell scripts
+or other programs such as Ethereal etc.  In this release, no provision exists to generate
+command line arguments programmatically. This will be added in a forthcoming release.
+ 
+Here, <QUAL> says to look at cdr files and follow MIND cdr format (default)
+KEY says monitor for Local-disconnects
+TIME_AVERAGE says to average for the last 5 minutes here. Units are always in minutes.
+GT indicates "Greater Than" and the value is a percentage.
+
+<EV>
+<EVENT> "ASR" </EVENT>
+<QUAL> cdrdesc </QUAL>
+<KEY> asr </KEY>
+<TIME_AVERAGE> "30" </TIME_AVERAGE>
+<LT> "50" </LT>
+<ACTION> "mailn.pl -s ASR_Report tout" </ACTION>
+</EV>
+
+Likewise, here cdrmon will monitor ASR for the last 30 minutes, and if it falls below 50%, it'll trigger the actions. cdrmon runs from /usr/local/nextone/etc.
+ 
+cdrmon requires Perl version 5.6 or higher.
+
+
+
+
+#########################################################################################
+
+Release Notes for iServer v2.0t16L
+==================================
+iServer v2.0t16L is an incremental release over v2.0t16K and was built on 06/08/2002.
+
+Bug Fixes in iServer/MSW:
+-------------------------
+1. The process manager (pm) forces hanging processes which it restarts to dump core
+before it restarts them.  These core images could then be used for potential debugging.
+
+2. Bandwidth requests even though confirmed would result in a dropped call. This has been
+fixed.
+
+3. A call leak in the H.323 stack was fixed. 
+
+4. FCE: Pinholes were not being opened if the media address (RTP address) was contained
+in SIP messages 180 Ringing / 183 Ringing with media. This has been fixed.
+
+
+#########################################################################################
+
+Release Notes for iServer v2.0t16K
+==================================
+iServer v2.0t16K is an incremental release over v2.0t16J. v2.0t16K was built on 06/06/2002.
+
+Bug fixes in iServer/MSW:
+-------------------------
+
+1. "cli test" command has been enhanced to report more internal statistics regarding
+certain protocol parameters for H.323 and SIP.  
+
+2. The process manager (pm) supervises iServer processes for availability of the
+iServer/MSW. pm has been enhanced to trigger a "cli test" command run just before it
+restarts various iServer/MSW processes.  The output of this command is logged in 
+/var/log/pmrestart.log. This facility is to aid in reporting and debugging resource 
+utilization on the iServer/MSW.
+
+
+Changes to the iServer Admin Package:
+--------------------------------------
+
+LOGPP:
+------
+logpp now provides a more generic framework to perform a specified set of actions based
+on specified events.  The events and actions are configured through a configuration file.
+The default configuration file is "logpp.conf".  The configuration follows an XML syntax.
+
+An example logpp.conf is shown below:
+
+---------example logpp.conf---------------
+
+<DB>
+ 
+<EV>
+<EVENT> "array overflow" </EVENT>
+<QUAL> "logdesc" </QUAL>
+<EQUALS> "Array full" </EQUALS>
+<ACTION> "restart.pl" </ACTION>
+<ACTION> "echo Success" </ACTION>
+</EV>
+ 
+
+<EV>
+<EVENT> "iServer Restart" </EVENT>
+<QUAL> "logdesc" </QUAL>
+<EQUALS> "NexTone iServer started" </EQUALS>
+<ACTION> "notify.pl tout" </ACTION>
+<ACTION> "echo Fatal: restart of iServer" </ACTION>
+</EV>
+ 
+
+<EV>
+<EVENT> "OnWarn" </EVENT>
+<QUAL> logdesc </QUAL>
+<EQUALS> "Warning" </EQUALS>
+<ACTION> "notify.pl" </ACTION>
+<ACTION> "echo Warn" </ACTION>
+</EV>
+ 
+
+</DB>
+
+-------- end of logpp.conf --------------
+The <EV> token defines an event.
+
+The <EVENT> token is just a generic name for the event.
+
+<QUAL> is the event group to look at -- setting it to "logdesc" makes it parse iServer/MSW
+log file formats.
+
+<EQUALS> is the string to search for in the log event group. A match would trigger 
+the event.
+
+<ACTION> is the action to carry out.  Multiple <ACTION> lines can be given for each event (no limit currently).  The <ACTION>s will be carried out in sequence.
+ 
+
+
+
+restart.pl:
+-----------
+This is a script that stops and restarts all the iServer/MSW processes. The stop and
+start are logged in syslog.
+
+
+
+#######################################################################################
+
+
+Release Notes for iServer v2.0t16J
+==================================
+iServer v2.0t16J is an incremental release over v2.0t16I. iServer v2.0t16J was built on 
+06/05/2002. It is also recommended that iView v2.0t15 be used to configure this version of
+the iServer/MSW.
+
+Bug fixes in MSW:
+-----------------
+
+1. H.323 non-Fast start calls: A bug has been fixed that caused some H.323 non-fast 
+start calls to fail. 
+
+2. IWF calls - When a call is initiated from the H.323 side, an ARJ for is returned 
+if the "routecall" parameter is set to "no" or disabled. 
+
+3. FCE: An optimization that makes all call legs of a call go on the same PPC (firewall
+card) has been added. This optimization addresses two problems:
+A. If call legs are setup through multiple PPCs, then gateways see multiple and different
+IP address/ports for send and receive RTP streams. Some gateways see this as a security
+breach, and terminate the call. With this optimization, gateways always see the same IP
+address for send and receive RTP streams.
+B. With this optimization, in case of PPC failure, only calls setup through the failed PPC
+are affected.
+
+4. iView v2.0t15 now supports customized logging configuration.
+
+5. Two locking problems have been fixed: 
+   - one at startup of iServer/MSW
+   - another one for fax based calls that occurred intermittently.
+
+6. This version also supports the concept of "MaxCalls" on SIP based Gateways. The
+iServer/MSW keeps track of active calls setup to SIP gateways and uses this parameter
+to make active routing decisions. This works similar to the "MaxCalls" parameter for H.323
+Endpoints. However, note that because Session Timers support is not available in this
+release, the notion of "active call" may not be fully reliable.
+
+7. The facility now exists to specify multiple Q.931 ports and RAS ports for the same
+Registration ID/IP Address.
+
+Performance Optimizations:
+--------------------------
+1. Certain superfluous timeouts have been taken out/adjusted in the H.323 stack to increase
+performance in the system.
+
+2. A new throttling parameter, "Max ARQs per second" has been added.  It defines the
+maximum ARQs (H.323) per second that the iServer/MSW can handle.  If more than the specified
+number of ARQs arrive in a time interval of 1 second, then those calls above the specified
+parameter are dropped and an LRJ response is sent back.  No CDR is generated for calls
+over the configured limit. The default value of this parameter is currently set to
+10 ARQs/second.  The value can be changed via the "sconfig" command.
+
+3. The maximum number of call legs that the system can have active at any given instant
+of time was an internal parameter that required NexTone support personnel to adjust.  A
+new parameter called "MaxCalls" has been exposed. This value can be set via "sconfig". The
+default value is 50. The actual number must be computed based on the licensed number 
+of vPorts installed on the iServer/MSW system. Contact NexTone Support for configuring
+this parameter.
+
+4. The iServer/MSW supports multiple instances of the H.323 stack.  This allows the system
+to take advantage of multiple processors available with the hardware configuration for
+protocol processing.  Parameters are exposed through "sconfig" to control the number of
+instances.  However, it is recommended that only NexTone personnel adjust these parameters.
+
+
+
+
+##########################################################################################
+
+
+Release Notes for iServer v2.0t16I
+==================================
+
+iServer v2.0t16I is an incremental release over v2.0t16H. iServer v2.0t16I was built on 
+05/28/2002.
+
+Bug Fixes in MSW:
+-----------------
+1. gis now does a "deadlock" check before sending poll messages to pm. This should ensure
+efficient and quicker cleanup, if gis becomes deadlocked for any reason.
+
+2. If the Contact header in SIP was set to "Contact = *", it would cause erroneous behavior
+of the MSW. This has been fixed.
+
+3. If a codec was not enabled, and an IWF call instance happened, then the SIP side saw
+codecs set to "0". This has been fixed.
+
+4. The MSW would crash if the sipdomain was unspecified for IWF calls. This has been fixed.
+
+5. A 23 byte memory leak was also fixed in the MSW.
+
+6. Some of the programs in the t16I distribution will show the version as t16H. This is in
+error and can be ignored.
+
+7. Deletion of ANI switching routes did not work. This has been fixed.
+
+
+##########################################################################################
+
+
+Release Notes for iServer v2.0t16H
+==================================
+
+iServer v2.0t16H is an incremental release over v2.0t16G.  iServer v2.0t16H was built on
+05/24/2002.
+
+Changes to the Main package
+----------------------------
+
+Bug Fixes in MSW:
+-----------------
+1. SDP parameter fix in IWF.
+Since there are no corresponding parameter mappings in SDP to indicate G.729a, G.729b
+and G.729a+b codecs, IWF calls involving such codecs typically fail, even though the codecs
+are compatible with each other. 
+The system wide fix is to map G.729, G.729a, G.729b and G.729a+b to the same SDP parameter
+(18), which maps to the G.729 codec.
+
+2. Display Information Element Parameter in Q.931
+Some termination gateways do not accept Display Information Element parameter set to the
+Calling Party Number (the default behavior of the MSW), and reject the call. 
+This can now be configured on a per gateway basis. Configuration support is available from
+iView v2.0t14 onwards. A checkbox in the endpoint configuration enables/disables setting
+the Q.931 Display Information Element (IE) in the outgoing Setup message to this
+endpoint.  By default, the MSW sends the calling party number in the Display IE.
+
+3. Database import from v2.0t16G.
+There was a minor bug where the Dynamic Call Hunting parameters could not be imported
+from a database that was exported by iServer v2.0t16G.  This has been fixed.
+
+
+Changes to the Admin Package
+-----------------------------
+GENEP:
+------
+
+A new version (v0.2a) of "genep" is available. It has the following changes:
+1. Outputs XML compatible with CLI library.  It does not escape special characters.
+2. If there are more than 255 entries in the input file of IP addresses, then genep
+automatically appends (count modulo 256) to the RegID to make a unique RegID. This is
+to get beyond the iServer system limitation of 255 uports per RegID.
+
+
+##########################################################################################
+
+Release Notes for iServer v2.0t16G
+==================================
+
+iServer v2.0t16G is an incremental release over v2.0t16F. iServer v2.0t16G has been built on
+05/22/2002.
+
+A new feature has been added:
+1. Dynamic Call Hunting (DCH) has been added.
+
+DCH can be configured using iView v2.0t13 or higher. DCH can be configured on a global
+system wide basis or on an (source) endpoint basis.  The endpoint DCH attribute overrides
+the system parameter.  Currently, two parameters are available for both system and endpoint
+configuration of DCH:
+	1. DCH Enable/Disable
+	2. Maximum number of "hunt" attempts (Default = 16)
+
+2. The ability to partially export databases from iView has been added. This capability
+is available from iView 2.0t13 onwards.
+
+
+###########################################################################################
+
+
+Release Notes for iServer v2.0t16E
+===================================
+
+* Changes to the iServer Admin Package
+---------------------------------------
+
+LOGPP:
+------
+1. A new program, called logpp, has been added to the distribution. logpp is intended to
+be used to parse and post process "/var/adm/iserver.log" files to determine different
+levels of events that may have occured.
+
+With the current release, logpp looks for iServer restart events and generates notifications
+upon seeing such events. Currently, the notifications are hard coded to 
+a) E-mail to a list.
+b) Phone an administrator(s).
+
+To achieve the notifications, two programs are included in the Admin Package -- mail.pl
+and phone.pl.  "mail.pl" already exists in previous Admin packages.  "phone.pl" has 
+been added from this release onwards.
+
+LOGPP Usage:
+------------
+1. To start up logpp, go to /usr/local/nextone/etc and type:
+	$ ./logpp &
+Since logpp runs continuously and does not give control back to the shell, it is
+useful to run it as a background job. By default, logpp looks at "/var/adm/iserver.log"
+as the logfile to parse.  To point to a different file, type:
+	$ ./logpp -f <different_file> &
+
+2. As with all NexTone programs, logpp also supports the "-v" and "-h" options for version
+and help respectively.
+
+logpp uses mail.pl and phone.pl to perform notifications whenever a iServer restart is
+detected.
+
+PHONE.PL
+--------
+phone.pl is a program that utilizes the NexTone iPortal service to place 3PCC calls to
+two phone numbers specified.
+
+Typical usage of phone.pl is as follows:
+	$ ./phone.pl <phone_number_1>  <phone_number_2>
+
+However, the values of <phone_number_1> and <phone_number_2> can also be hardcoded inside
+the phone.pl program.  To modify these values, edit the "phone.pl" file. The phone number
+values to be edited are close to the top of the file.
+
+MAIL.PL
+-------
+mail.pl has been modified to take an additional option. Now, one can specify "-s <subject>"
+option on the commandline so that one can override the "cdrpp Report..." default subject
+line.
+
+
+CDRPP
+-----
+1. The ability to filter from the "range" command has been added. This allows one to 
+generate reports for just one regid or one gateway IP address.
+
+
+
+###########################################################################################
+
+
+
+Release Notes for iServer v2.0t16A
+===================================
+
+General:
+--------
+This is the iServer v2.0t16tA, built on 04/12/2002. It fixes certain bugs in iServer v2.0t16. The corresponding version of iView that is fully compatible with this version of the iServer is iView v2.0t10.
+
+Release notes for iServer v2.0t16 is found elsewhere in this document.
+
+Bugs Fixed:
+-----------
+1. "getAcfTokenNodeId" error message, and hence one-way voice in Non-FastStart call setups -- fixed.
+
+2. Intermittent call drops reported by a customer -- fixed.
+
+3. Install script -- Uninstall procedure:
+   During "Uninstall" of the iServer Main package, the backup of the configuration is to a directory.  The script ensures that the directory is present, before backing up the files. If the directory is not present, the uninstall script exits.
+
+4. The install/uninstall script explicitly prints the various files being backed up and restored.
+
+5. dbop:
+   The "-e <XML_file>" option of 'dbop' has been changed to "-u <XML_file>" as the functional semantics were closer to "update" rather than "edit". So, "dbop -u xml_file" will update the records found in "xml_file" in the database.
+
+System:
+-------
+1. The "iServer Core Package" is now renamed as the "iServer Main Package". The install, upgrade and uninstall procedures will reflect this new name henceforth. There are no material changes to the procedures themselves.
+
+2. "mail.pl" found in the iServer Admin Package, also operates in interactive mode. Start mail.pl without any options, and it'll enter into interactive mode, prompting the user for various parameters.
+
+3. The install procedure automatically creates appropriate Perl library directories for Perl
+versions 5.005, 5.6.0 and 5.6.1.
+
+
+
+###########################################################################################
+
+
+
+Release Notes for iServer v2.0t16
+==================================
+
+General:
+--------
+This is the iServer v2.0t16 release, built on 04/09/2002. 
+
+
+A. H.323:
+---------
+1. Sending MSDAck after TCS was causing calls to drop in interop testing with 
+recent Cisco IOS builds. The change is part of "h323cfg-gk.val" file. So, when 
+upgrading from previous releases, make sure that the new file overwrites the older 
+file. However, the new file may need manual modification to reflect older 
+parameters. Contact NexTone Support for help on this issue.
+
+B. SIP:
+-------
+<< No changes in SIP functionality from the last release. >>
+
+C. IWF:
+----------
+1. Sets ISDN cause code if calls get dropped at source because of "maxcalls" 
+being reached.
+
+2. If ISDN cause code from the H.323 side is unspecified, then a "500" message 
+is sent to the SIP side on INVITE failure.
+
+3. The iServer now indicates support for "rfc2833" for User Signaling via DTMF 
+tones on the SIP side.
+
+4. T.38 Fax support has been added for IWF.
+
+D. FCE:
+-------
+<< No changes in FCE functionality from the last release >>
+
+E. System:
+----------
+1. The iServer Admin package is also provided with this release.
+
+Bugs Fixed:
+-----------
+1. Non fast-start OLC -- codecs not being initialized has been fixed.
+
+2. iServer now puts peer GkID in outgoing LRQ.
+
+3. iServer now puts the correct number in ACF. When the number was wrong, some 
+Cisco gateways would reject the call.
+
+4. Sometimes, the source call signaling address is not put into the ARQ, leading 
+to call admission problems. This has been fixed.
+
+

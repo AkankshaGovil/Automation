@@ -1,0 +1,53 @@
+#!/usr/bin/perl
+
+close STDERR;
+open ERR,">>/var/log/pmrestart.log";
+close STDOUT;
+open OUT,">>/var/log/pmrestart.log";
+
+print(OUT "\nPMCORE BEGIN\n"); 
+
+print(OUT "\nSYSTEM STATE BEGIN\n"); 
+system("top -n  -S 500;ps -clefLyP;vmstat;");
+print(OUT "\nSYSTEM STATE END\n"); 
+
+$pid=`pgrep -x $ARGV[0]`;
+if ( "$pid" ) 
+{
+	if ( $ENV{'SYSTEM'} = 'linux' )
+	{
+		my $to;
+		$file="./core.cfg";
+		$cmd = sprintf("ls -l /proc/%d/cwd", $pid);
+		@list = split("->", `$cmd`);
+		$from = $list[1]; 
+		chomp($from);
+		open(CONFIG,$file) || die "Failed to open $file\n";
+	
+		while(<CONFIG>) {
+			chomp;
+			@arr = split(/=/,$_);
+			$to=$arr[1];
+		}
+		system("kill -ABRT $pid");
+		$cmd = sprintf("mv %s/core.%d %s/gcore\n",$from,$pid,$to);
+ 		while (kill 0 => $pid) {
+  			sleep 1;
+ 		}
+		system("$cmd");
+	}
+	else
+	{
+		$a = `coreadm $pid`;
+		@b =  split(' ',$a);
+		@c = split('/',$b[1]); 
+		pop(@c);
+		$gcorepath=join("/",@c,gcore);
+		system("gcore -o $gcorepath $pid");
+	}
+}
+else 
+{
+	print OUT "pmcore: process ",  $ARGV[0], " does not exist";
+}
+print OUT "\nPMCORE END\n"; 

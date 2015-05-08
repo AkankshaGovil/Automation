@@ -1,0 +1,66 @@
+../../obj/accessor/bcpt.o: src/bcpt.c ../common/h/sipcommon.h ../common/h/sipstruct.h \
+ ../common/h/siplist.h ../common/h/portlayer.h ../common/h/sipfree.h \
+ ../common/h/sipinit.h ../common/h/sipbcptfree.h \
+ ../common/h/sipbcptinit.h h/bcpt.h h/sipinternal.h \
+ h/sipbcptinternal.h h/sipvalidate.h
+../../obj/accessor/entity.o: src/entity.c ../common/h/sipcommon.h ../common/h/sipstruct.h \
+ ../common/h/siplist.h ../common/h/sipinit.h ../common/h/sipfree.h \
+ ../common/h/portlayer.h h/entity.h h/sipinternal.h
+../../obj/accessor/general.o: src/general.c ../common/h/sipfree.h ../common/h/sipstruct.h \
+ ../common/h/sipcommon.h ../common/h/siplist.h ../common/h/sipinit.h \
+ ../common/h/portlayer.h h/sipinternal.h h/general.h h/sipvalidate.h
+../../obj/accessor/header.o: src/header.c ../common/h/portlayer.h ../common/h/sipcommon.h \
+ ../common/h/sipstruct.h ../common/h/siplist.h ../common/h/sipfree.h \
+ ../common/h/sipinit.h h/sipinternal.h h/header.h h/sipvalidate.h \
+ ../parser/h/sipformmessage.h
+../../obj/accessor/request.o: src/request.c ../common/h/sipstruct.h \
+ ../common/h/sipcommon.h ../common/h/siplist.h ../common/h/portlayer.h \
+ ../common/h/sipinit.h ../common/h/sipfree.h h/request.h \
+ h/sipinternal.h h/sipvalidate.h
+../../obj/accessor/response.o: src/response.c ../common/h/sipcommon.h \
+ ../common/h/sipstruct.h ../common/h/siplist.h ../common/h/portlayer.h \
+ ../common/h/sipfree.h ../common/h/sipinit.h h/response.h \
+ h/sipinternal.h
+../../obj/accessor/sdp.o: src/sdp.c ../common/h/sipfree.h ../common/h/sipstruct.h \
+ ../common/h/sipcommon.h ../common/h/siplist.h ../common/h/portlayer.h \
+ h/sdp.h h/sipinternal.h ../common/h/sipinit.h
+../../obj/accessor/sipbcptinternal.o: src/sipbcptinternal.c ../common/h/sipcommon.h \
+ ../common/h/sipstruct.h ../common/h/siplist.h ../common/h/portlayer.h \
+ ../common/h/sipinit.h ../common/h/sipfree.h ../common/h/sipbcptinit.h \
+ ../common/h/sipbcptfree.h h/sipinternal.h h/sipbcptinternal.h \
+ h/sipvalidate.h ../parser/h/sipdecode.h ../parser/h/sipdecodeintrnl.h
+../../obj/accessor/sipinternal.o: src/sipinternal.c ../common/h/sipcommon.h \
+ ../common/h/sipstruct.h ../common/h/siplist.h ../common/h/portlayer.h \
+ ../common/h/sipinit.h ../common/h/sipfree.h ../common/h/sipbcptinit.h \
+ ../common/ccp/h/ccpinit.h ../common/ccp/h/ccpstruct.h \
+ ../common/ccp/h/ccpfree.h ../common/rpr/h/rprinit.h \
+ ../common/h/sipbcptfree.h ../common/rpr/h/rprfree.h h/sipinternal.h \
+ rpr/h/rprinternal.h h/sipbcptinternal.h h/sipvalidate.h \
+ ccp/h/ccpinternal.h ../parser/h/sipdecode.h \
+ ../parser/h/sipdecodeintrnl.h h/sdp.h
+../../obj/accessor/sipvalidate.o: src/sipvalidate.c h/sipvalidate.h \
+ ../common/h/sipstruct.h ../common/h/sipcommon.h ../common/h/siplist.h \
+ ../common/h/portlayer.h ../common/h/sipfree.h
+../../obj/accessor/rpr/rpr.o: rpr/src/rpr.c rpr/h/rpr.h rpr/h/rprinternal.h \
+ ../common/h/portlayer.h ../common/h/sipcommon.h \
+ ../common/rpr/h/rprinit.h ../common/h/sipinit.h \
+ ../common/h/sipstruct.h ../common/h/siplist.h ../common/h/sipfree.h \
+ ../common/rpr/h/rprfree.h
+../../obj/accessor/rpr/rprinternal.o: rpr/src/rprinternal.c rpr/h/rprinternal.h \
+ ../common/h/portlayer.h ../common/h/sipcommon.h \
+ ../common/rpr/h/rprinit.h ../common/h/sipinit.h \
+ ../common/h/sipstruct.h ../common/h/siplist.h ../common/h/sipfree.h \
+ ../common/rpr/h/rprfree.h ../parser/h/sipdecodeintrnl.h \
+ ../parser/h/sipdecode.h
+../../obj/accessor/ccp/ccp.o: ccp/src/ccp.c ccp/h/ccp.h ../common/h/sipstruct.h \
+ ../common/h/sipcommon.h ../common/h/siplist.h \
+ ../common/ccp/h/ccpstruct.h ../common/h/portlayer.h h/sipinternal.h \
+ ccp/h/ccpinternal.h ../common/ccp/h/ccpfree.h ../common/h/sipfree.h \
+ ../common/ccp/h/ccpinit.h ../common/h/sipinit.h \
+ ../parser/h/sipdecode.h ../parser/h/sipdecodeintrnl.h
+../../obj/accessor/ccp/ccpinternal.o: ccp/src/ccpinternal.c ccp/h/ccpinternal.h \
+ ../common/h/sipstruct.h ../common/h/sipcommon.h ../common/h/siplist.h \
+ ../common/ccp/h/ccpstruct.h ../common/ccp/h/ccpfree.h \
+ ../common/h/sipfree.h ../common/h/portlayer.h \
+ ../common/ccp/h/ccpinit.h ../common/h/sipinit.h \
+ ../parser/h/sipdecode.h h/sipinternal.h ../parser/h/sipdecodeintrnl.h

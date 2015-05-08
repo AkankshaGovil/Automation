@@ -1,0 +1,36 @@
+#!/bin/sh
+#
+# Quick and dirty script which tells you what files
+# have changed between the CVS repository and a local
+# source copy. Run it from the top of the CVS tree.
+#
+
+cvs status 2>&1 | \
+awk '
+BEGIN {
+	DIR = ""
+}
+
+/^cvs server: Examining.*/ {
+	DIR = $4
+}
+
+/Needs Checkout/ {
+	printf "File: %-24s in %-30s needs Checkout\n", $2, DIR
+}
+
+/Needs Merge/ {
+	printf "File: %-24s in %-30s needs Merge\n", $2, DIR
+}
+
+/Needs Patch/ {
+	printf "File: %-24s in %-30s needs Patch\n", $2, DIR
+}
+
+/Locally Modified/ {
+	printf "File: %-24s in %-30s locally modified\n", $2, DIR
+}
+
+END {
+}
+'

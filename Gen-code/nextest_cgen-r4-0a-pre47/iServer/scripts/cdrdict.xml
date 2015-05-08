@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- CDR descriptions v0.1 -->
+<CDR>
+<field no="1" name="start-time" fmt="string"/>
+<field no="2" name="start-time" fmt="uint32"/>
+<field no="3" name="call-duration" fmt="HH:MM:SS"/>
+<field no="4" name="call-source" fmt="A.B.C.D"/>
+<field no="5" name="call-source-q931sig-port" fmt="uint32"/>
+<field no="6" name="call-dest" fmt="A.B.C.D"/>
+<field no="7"/>
+<field no="8" name="call-source-custid" fmt="string"/>
+<field no="9" name="called-party-on-dest" fmt="string"/>
+<field no="10" name="called-party-from-src" fmt="string"/>
+<field no="11" name="call-type" fmt="{ IF|IV }"/>
+<field no="12"/>
+<field no="13" name="disconnect-error-type" fmt="{A|B|N|E}"/>
+<field no="14" name="call-error" fmt="uint32"/>
+<field no="15" name="call-error" fmt="string"/>
+<field no="16"/>
+<field no="17"/>
+<field no="18" name="ani" fmt="string"/>
+<field no="19"/>
+<field no="20"/>
+<field no="21"/>
+<field no="22" name="cdr-seq-no" fmt="uint32"/>
+<field no="23"/>
+<field no="24" name="callid" fmt="string"/>
+<field no="25" name="call-hold-time" fmt="HH:MM:SS"/>
+<field no="26" name="call-source-regid" fmt="string"/>
+<field no="27" name="call-source-uport" fmt="uint32"/>
+<field no="28" name="call-dest-regid" fmt="string"/>
+<field no="29" name="call-dest-uport" fmt="uint32"/>
+<field no="30" name="isdn-cause-code" fmt="uint32"/>
+<field no="31" name="called-party-after-src-calling-plan" fmt="string"/>
+<field no="32" name="call-error-dest" fmt="uint32"/>
+<field no="33" name="call-error-dest" fmt="string"/>
+<field no="34" name="call-error-event-str" fmt="string#string"/>
+<field no="35" name="new-ani" fmt="string"/>
+<field no="36" name="call-duration" fmt="uint32"/>
+<field no="37" name="incoming-leg-callid" fmt="string"/>
+<field no="38" name="protocol" fmt="{sip|h323}"/>
+<field no="39" name="cdr-type" fmt="{start1|start2|end1|end2|hunt}"/>
+<field no="40" name="hunting-attempts" fmt="uint32"/>
+<field no="41" name="caller-trunk-group" fmt="string"/>
+<field no="42" name="call-pdd" fmt="uint32"/>
+<field no="43" name="h323-dest-ras-error" fmt="uint32"/>
+<field no="44" name="h323-dest-h225-error" fmt="uint32"/>
+<field no="45" name="sip-dest-respcode" fmt="uint32"/>
+<field no="46" name="dest-trunk-group" fmt="string"/>
+<field no="47" name="call-duration-fractional" fmt="float(3)"/>
+<field no="48" name="timezone" fmt="string"/>
+<field no="49" name="msw-name" fmt="string"/>
+<field no="50" name="called-party-after-transit-route" fmt="string"/>
+<field no="51" name="called-party-on-dest-num-type" fmt="uint32"/>
+<field no="52" name="called-party-from-src-num-type" fmt="uint32"/>
+<field no="53" name="call-source-realm-name" fmt="string"/>
+<field no="54" name="call-dest-realm-name" fmt="string"/>
+</CDR>

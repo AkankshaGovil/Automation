@@ -1,0 +1,4152 @@
+#!/usr/bin/perl
+
+#################################################################
+#################################################################
+##
+## cdrpp
+## CDR Analyzer
+##
+## Copyright 2001, NexTone Communications, Inc.
+##
+#################################################################
+#################################################################
+##
+## $Log: 
+##   v0.1: Only parses MIND CDR files.
+##
+##   v0.2: Added ability to write out "dialednum" info to file.
+##
+##   v0.3: Added 'error' reporting, 'dir' command etc.
+##
+##   v0.4: Added command line editing (vi/emacs mode), multiple files, shell
+##	   escape etc.
+##
+##   v0.5: Added formatted output for dir info.
+##
+##   v0.6: Added overall statistics and gateway based stats.
+##
+##   v0.65: Added more complete gateway stats.
+##
+##   v0.7: Completed time based stats.
+##
+##   v0.71: Added fax based stats <timestat fax>
+##
+##   v0.72: Added "cpm all" command. Lots of cleanup.
+##
+##   v0.75: Major overhaul of timestat commands.
+##
+##   v0.76: Modified "dist" to "dstat".
+##
+##   v0.77: Fixed formatting problems in reports.
+##
+##   v0.78: Looks at CDT files also. Stats for PDD.
+##
+##   v0.79: Fixed timestat bug with multiple files. Other usability issues.
+##
+##   v0.80: Added 'range' command. Enhanced CDR format reader.
+##
+##   v0.80a: Fixed packaging errors.
+##
+##   v0.81: Add filtering capability to range commands by regid or gwip.
+##
+#################################################################
+#################################################################
+
+
+## Preliminary
+use English;
+
+my $CurrentVersion = sprintf "%vd", $PERL_VERSION;
+
+if ($CurrentVersion lt "5.6")
+{
+	use lib "/usr/local/nextone/lib/perl5/site_perl/5.005";
+}
+else
+{
+	use lib "/usr/local/nextone/lib/perl5/site_perl";
+}
+
+if ($ENV{BASE})
+{
+	use lib "$ENV{BASE}/lib/perl5/site_perl";
+}
+
+
+## Other variables.
+$Prompt = "=> ";
+$pVersion = "0.81a, 05/10/02";
+$pName = $0;
+$dnumName = "dnum.dat";
+$errorName = "err.dat";
+$TempDir = "/tmp";
+
+##
+## Prototypes
+##
+sub FormatTime ($);
+sub ProcessNumber ($);
+sub ProcessError ($ $ $ $ $ $);
+sub ViewInfo ($);
+
+
+## Packages.
+use Getopt::Std;
+use Date::EzDate;
+use File::Basename;
+
+
+## Global variables
+##
+$FileInMemory = 0;
+
+## Check if modules exists locally before installing it.
+$Readline = "readline.pm";
+if ( -f $Readline )
+{
+	eval "use readline;";
+}
+else
+{
+	## We're not interested.
+	$Readline = 0;
+}
+
+use Statistics::Descriptive;
+
+## start
+getopts "vhf:i:o:n:";
+
+
+## Standard options.
+if ($opt_v)
+{
+	PrintVersion ();
+	exit 0;
+}
+
+if ($opt_h)
+{
+	PrintHelp ();
+}
+
+## Process files that are given on the command line anyway.
+if ($opt_f)
+{
+##	print "Using file $opt_f \n";
+	FileInputMIND ($opt_f);
+}
+
+## Output file..
+if ($opt_o)
+{
+	$OutFile = $opt_o;
+
+	open (STDOUT, "| tee $OutFile");
+}
+
+## For postprocessing
+if ($opt_n)
+{
+	$NotifyFile = $opt_n;
+
+}
+
+#######################
+### Preamble stuff
+#######################
+
+##
+## Create DSTAT {Duration Stat} objects.
+##
+CreateStatObjects ();
+
+
+## Reset counters.
+ResetCounters ();
+
+## print out version for identification;
+PrintVersion ();
+print "Type 'help' for help on commands. \n";
+
+
+########################
+### Processing mode
+########################
+
+######################
+## Detect batch mode.
+######################
+## Input file
+if ($opt_i)
+{
+	$InFile = $opt_i;
+
+	## Execute it.
+	RunCommands ($InFile);
+}
+
+
+
+###############################
+## Enter interactive mode.
+###############################
+
+if ($Readline)
+{
+&readline'rl_basic_commands 
+	(
+		'dir',
+		'dstat',
+		'file',
+		'help',
+		'quit',
+		'reset',
+		'save',
+		'timestat',
+		'version',
+		'write',
+		'!',
+	);
+
+}
+
+## Enter mainloop..
+while (1)
+{
+	print "\n$Prompt ";
+
+	if ($Readline)
+	{
+		$resp = &readline'readline ($Prompt);
+	}
+	else
+	{
+		$resp = <>;
+		chop $resp;
+	}
+
+	## Parse
+	ParseResponse ($resp);
+}
+
+
+
+sub ParseResponse ($)
+{
+	my ($resp) = @_;
+
+	if ($resp =~ m/^$/ )
+	{
+		return 0;
+	}
+
+	## Ignore comment lines
+	if ($resp =~ m/^#.*/)
+	{
+		return 0;
+	}
+
+	if ($resp =~ m/quit/ )
+	{
+		print "Exiting..\n";
+
+		## special
+		DoQuit ();
+	}
+	elsif ($resp =~ m/help/ )
+	{
+		PrintHelp ();
+	}
+	elsif ($resp =~ m/version/ )
+	{
+		print "CDR Analyzer, v$pVersion \n";
+		print "Copyright 2001-2002, NexTone Communications, Inc.\n";
+	}
+	elsif ($resp =~ m/reset/ )
+	{
+		print "Resetting counters.\n";
+		ResetCounters ();
+	}
+	elsif ($resp =~ m/file\s+(.*)/ )
+	{
+##		print "Using file $1 \n";
+		FileInputMIND ($1);
+	}
+	elsif ($resp =~ m/write\s+(.*)/ )
+	{
+		print "Writing to file $1 ...\n";
+		WriteStats ($1);
+		print "..done\n";
+	}
+	elsif ($resp =~ m/save\s+(.*)\s+(.*)/ )
+	{
+		SaveInfo ($1, $2);
+	}
+	elsif ($resp =~ m/view\s+(.*)/ )
+	{
+		ViewInfo ($1);
+	}
+	elsif ($resp =~ m/dir(.*)/ )
+	{
+		DirInfo ($1);
+	}
+	elsif ($resp =~ m/set\s+(.*)\s+(.*)/ )
+	{
+	}
+	elsif ($resp =~ m/!(.*)/ )
+	{
+		system ("$1");
+	}
+	elsif ($resp =~ m/list\s+(.*)/ )
+	{
+		ListInfo ($1);
+	}
+	elsif ($resp =~ m/tile\s+(.*)/ )
+	{
+		PercentileInfo ($1);
+	}
+	elsif ($resp =~ m/gwstat\s+(.*)/ )
+	{
+		PrintGWStats ($1);
+	}
+	elsif ($resp =~ m/timestat\s+(.*)/ )
+	{
+		PrintTimeStats ($1);
+	}
+	elsif ($resp =~ m/cpm\s+(.*)/ )
+	{
+		PrintCpsDetails ($1);
+	}
+	elsif ($resp =~ m/dstat\s+(.*)/ )
+	{
+		PrintDistDetails ($1);
+	}
+	elsif ($resp =~ m/run\s+(.*)/ )
+	{
+		RunCommands ($1);
+	}
+	elsif ($resp =~ m/<\s+(.*)/ )
+	{
+		RunCommands ($1);
+	}
+	elsif ($resp =~ m/range\s+(.*)/ )
+	{
+		SetRange ($1);
+	}
+	elsif ($resp =~ m/filter\s+(.*)/ )
+	{
+		SetFilter ($1);
+	}
+	elsif ($resp =~ m/date\s+(.*)/ )
+	{
+		SetDate ($1);
+	}
+	elsif ($resp =~ m/cdrdir\s+(.*)/ )
+	{
+		SetCdrDir ($1);
+	}
+	elsif ($resp =~ m/temp(.*)/ )
+	{
+		SetTempDir ($1);
+	}
+	elsif ($resp =~ m/!$/ )
+	{
+		system ("$ENV{SHELL}");
+	}
+	else
+	{
+		print "Unrecognized command: $resp \n";
+	}
+
+}
+
+##
+## Print out some help.
+##
+sub PrintHelp ()
+{
+	print <<eEOF
+Commands are:
+
+Administrative and miscellaneous commands:
+==========================================
+help			- prints this.
+quit			- quit out of program.
+dir <directory>		- lists CDR files in the directory specified.
+			  (No argument defaults to current directory).
+version			- prints version of program
+!<shell_command> 	- escapes and executes shell command
+temp			- Sets the directory for storing temporary files.
+			- Defaults to "/tmp".
+
+Data input/output/processing commands:
+=======================================
+file <filename> 	- process filename (takes wildcards)
+reset			- resets counters (not fully implemented yet).
+write <filename>	- writes/appends stats info to filename
+save <opt> <fname> 	- save field <opt> into <fname> while processing input file
+			currently <opt>s are 'dnum' and 'error'
+run <cmd_file>		- execute cdrpp commands in <cmd_file>
+< <cmd_file>		- same as run <cmd_file> above; same as -i <cmd_file>
+range d/<day1>/<ndays> gwip=<gwip|all> - Run cdrpp automatically on a day range going 
+                        - back <day1> days from current, and for <ndays> days.
+range d/<day1>/<ndays> regid=<regid|all> - Run cdrpp automatically on a day range going 
+                        - back <day1> days from current, and for <ndays> days.
+range t/<hr1>/<nhours>  - Run cdrpp automatically on a time range going back <hr1> hours
+                        - from current, and for <nhours> hours [Not yet implemented].
+
+Statistics commands:
+====================
+gwstat src|dst  	- prints out either src or dst gw statistics.
+cpm all			- prints the calls per minute with other summary information.
+list gw         	- prints duration stats, including PDD, per gateway.
+tile <number>   	- prints percentile information (not fully implemented yet).
+
+The 'timestat' set of commands:
+*******************************
+timestat all    	- prints out global per hour based stats.
+timestat fax		- prints out fax statistics, per hour.
+timestat gw <gwip>	- prints out time based stats for specified gw <gwip>.
+timestat last		- prints out stats for last 5, 10, 30, 60, 120, 180 mins etc.
+
+The 'dstat' set of commands:
+*****************************
+dstat all		- prints out duration stats for all calls.
+dstat good		- prints out duration stats only for successful calls.
+dstat pddall		- prints out PDD stats for all calls.
+dstat pddgood		- prints out PDD stats only for successful calls.
+dstat pdderr		- prints out PDD stats only for errored calls.
+eEOF
+;
+}
+
+
+sub PrintVersion ()
+{
+	print "CDR Analyzer, v$pVersion \n";
+	print "Copyright 2001, NexTone Communications, Inc.\n";
+}
+
+
+
+##
+## Understands MIND CDR formats.
+## Prints out duration statistics.
+##
+sub FileInputMIND ($)
+{
+	my ($CdrFile) = @_;
+	my $h;
+	my $m;
+	my $s;
+	my @cfiles;
+	my $curfile = 0;
+	my $gstartet = 0;
+
+	@cfiles = glob ($CdrFile);
+	
+	for $CdrFile (@cfiles)
+	{
+		my $startet, $endet;
+
+		$fileCounter = 0;
+
+		if ($CdrFile =~ m/.*\*.*/ )
+		{
+			$CdrFile = glob ($CdrFile);
+		}
+
+		## Increment file index..
+		$curfile++;
+
+		##
+		## Print out file information
+		##
+		($startet, $endet) = FileOverview ($CdrFile, $#cfiles, $curfile);
+
+		if ($curfile == 1)
+		{
+			$gstartet = $startet;
+		}
+		else
+		{
+			if (($startet > 0) && ($gstartet > $startet))
+			{
+				$gstartet = $startet;
+			}
+		}
+
+		open (IFP, $CdrFile) or die "Cannot open $CdrFile : $! \n";
+
+		$FileInMemory = 1;
+
+		if ($ProcessDnum)
+		{
+			PreProcessNumber ($dnumName, $CdrFile);
+		}
+
+		if ($ProcessErrorFlag)
+		{
+			PreProcessError ($errorName, $CdrFile);
+		}
+
+		while (<IFP>)
+		{
+
+			##
+			## MIND Format
+			##
+			(
+				$lgwstime, 
+				$lgwtimet, 
+				$duration, 
+				$srcip, 
+				$srcport, 
+				$dstip, 
+				$dstport, 
+				$userid, 
+				$dstnum, 
+				$dialednum, 
+				$ctype, 
+				$cparties, 
+				$cdisconnect, 
+				$errorcode, 
+				$errordesc, 
+				$fpages, 
+				$fprio, 
+				$ani, 
+				$dnis, 
+				$nbsent, 
+				$nbrecd, 
+				$seqno, 
+				$lgwstoptime, 
+				$callid, 
+## Extensions
+				$xpdd,
+				$srcregid,
+				$srcuport,
+				$dstregid,
+				$dstuport,
+				$isdncode,
+				$x1calledpn
+			) = split /;/ ;
+
+			my $uftime = UnformatTime($duration);
+			my $pddtime = UnformatTime ($xpdd);
+
+			$StatAll->add_data ($uftime);
+			$StatPddAll->add_data ($pddtime);
+
+			$totduration += SumDuration ($duration);
+
+			if (! $errorcode)
+			{
+				$StatGood->add_data ($uftime);
+				$StatPddGood->add_data ($pddtime);
+			}
+			else
+			{
+				$StatPddErr->add_data ($pddtime);
+			}
+
+			##
+			## Other per line processing here.
+			##
+			if ($ProcessDnum)
+			{
+				ProcessNumber ($dstnum);
+			}
+
+			if ($ProcessErrorFlag)
+			{
+				ProcessError ($dstnum, $errorcode, $errordesc, $dstip, $lgwtimet, $duration);
+			}
+
+			## Add when it happened into the stats table.
+			## Also, make sure that it is the lowest time for the "dataset".
+			my $difftimet = $lgwtimet - $gstartet;
+
+			##
+			## Dest gws.
+			##
+			ProcessGW ("dst", $dstip, $difftimet, $duration, $errorcode, $errordesc, $pddtime, $dstregid, $dstport);
+			##
+			## Source gateways, next.
+			##
+			ProcessGW ("src", $srcip, $difftimet, $duration, $errorcode, $errordesc, $pddtime, $srcregid, $srcport);
+###			ProcessSrcGW ($srcip, $duration, $errorcode, $errordesc);
+
+
+			## Process time when the event happened;
+			ProcessTOD ($difftimet, $duration, $errorcode, $errordesc);
+
+			if ($ctype eq "IF")
+			{
+				ProcessFax ($difftimet, $duration, $errorcode, $errordesc);
+			}
+
+			## Autoflush
+			$| = 1;
+			## Mark every 1000 records.
+			if ( !($linecounter % 1000) )
+			{
+				print "$linecounter\r";
+			}
+
+##			last if ($linecounter++ == 5000); 
+			$linecounter++;
+
+			$fileCounter++;
+
+		}
+
+
+		close (IFP);
+
+
+		## Post process
+		if ($ProcessDnum)
+		{
+			PostProcessNumber ();
+		}
+
+		if ($ProcessErrorFlag)
+		{
+			PostProcessError ();
+		}
+
+	} ## for each CDR file....
+
+		##
+		## True post-processing.
+		##
+		SortGWLists ();
+
+		if ($linecounter > 0)
+		{
+			$AverageDuration = $totduration / $linecounter;
+		}
+
+		($h, $m, $s) = FormatTime ($totduration);
+		my $totmins = ($h * 60) + $m; 
+
+		$SuccessCalls = $linecounter - $ZeroDuration;
+
+		## Do only if file is non-empty.
+		if ($linecounter)
+		{
+			$ASR = int ($SuccessCalls*100/$linecounter);
+		}
+
+		## Print stats.
+		print "\n\n";
+		printf "Total duration      = %3uH:%02um:%02us (%d minutes)\n", $h, $m, $s, $totmins;
+
+		## Beautify a little bit.
+		if ($AverageDuration > 60)
+		{
+			($h, $m, $s) = FormatTime ($AverageDuration);
+			printf "Average duration    = %3uH:%02um:%02us\n", $h, $m, $s;
+		}
+		else
+		{
+			print "Average duration    = $AverageDuration seconds\n";
+		}
+		print "Zero duration calls = $ZeroDuration \n";
+		print "Successful calls    = $SuccessCalls \n";
+		print "ASR                 = $ASR % \n";
+		print "Entries in $CdrFile = $fileCounter \n";
+		print "Total number of entries processed: $linecounter \n";
+
+		print "\n";
+		print "=======================================\n";
+		print "Duration Statistics for All Calls: \n";
+		print "=======================================\n";
+		PrintStats ($StatAll);
+		print "\n";
+		print "==========================================\n";
+		print "Duration Statistics for Successful Calls: \n";
+		print "==========================================\n";
+		PrintStats ($StatGood);
+##	} ## for each CDR file....
+
+}
+
+sub SumDuration ()
+{
+	my ($dur) = @_;
+	my $hours;
+	my $mins;
+	my $secs;
+	my $retval;
+
+	($hours, $mins, $secs) = split (':', $dur);
+
+	$retval += ($hours * 3600) + ($mins * 60) + $secs;
+
+	## Count zero duration calls.
+	if ($retval == 0)
+	{
+		$ZeroDuration++;
+	}
+
+	return $retval;
+}
+
+sub ResetCounters ()
+{
+	$linecounter = 0;
+	$totduration = 0;
+
+	$AverageDuration = 0;
+	$ZeroDuration = 0;
+	$ASR = 0;
+}
+
+sub FormatTime ($)
+{
+	my ($tot) = @_;
+	my $hours;
+	my $mins;
+	my $secs;
+	my $hoursres;
+
+	{
+	use integer;
+
+	$hours = $tot / 3600;
+	$hoursres = $tot % 3600;
+	$mins = $hoursres / 60;
+	$secs = $hoursres % 60;
+
+#	print "$tot => $hours"."H:"."$mins"."M:$secs \n";
+
+	}
+
+	return ($hours, $mins, $secs);
+
+}
+
+sub UnformatTime ($)
+{
+	my ($dur) = @_;
+	my $h;
+	my $m;
+	my $s;
+	my $retval = 0;
+
+	($h, $m, $s) = split (':', $dur);
+
+	$retval += ($h * 3600) + ($m * 60) + $s;
+	
+	return $retval;
+}
+
+
+##
+## Writes out statistics into given filename
+##
+sub WriteStats ()
+{
+	my ($fname) = @_;
+	my $date = `date`;
+	my $h;
+	my $m;
+	my $s;
+	my $hh;
+	my $mm;
+	my $ss;
+
+	chop $date;
+
+	open (OFP, ">> $fname") or die "Unable to open $fname : $! \n";
+
+	($h, $m, $s) = FormatTime ($totduration);
+
+	($hh, $mm, $ss) = FormatTime ($AverageDuration);
+
+	print OFP <<eEOF
+##
+## Generated by $pName, $pVersion
+## on $date
+##
+Total duration      = $h H:$m m:$s s
+Average duration    = $hh H:$mm m:$ss s
+Zero duration calls = $ZeroDuration 
+Successful calls    = $SuccessCalls 
+ASR                 = $ASR % 
+Total number of entries processed: $linecounter 
+
+eEOF
+;
+
+	close (OFP);
+
+}
+
+sub ProcessNumber ($)
+{
+	my ($dnum) = @_;
+
+	print DNUMOFP "$dnum\n";
+	
+}
+
+
+sub PreProcessNumber ($ $)
+{
+	my ($fname, $cdrfile) = @_;
+	my $date = `date`;	
+
+	chop $date;
+
+	## Create or append to file.
+	open (DNUMOFP, ">> $fname") or die "Unable to open $fname : $! \n";
+
+	print DNUMOFP <<eEOF
+##
+## Generated by $pName, $pVersion
+## on $date
+## for $cdrfile
+##
+eEOF
+;
+	
+}
+
+sub PostProcessNumber ()
+{
+	close (DNUMOFP);	
+}
+
+sub SaveInfo ($ $)
+{
+	my ($what, $fname) = @_;
+
+	
+	if ( $what =~ m/dnum/ )
+	{
+		print "Setting option to save $what into $fname\n";
+		$ProcessDnum = 1;
+		$dnumName = $fname;
+	}
+
+	if ( $what =~ m/error/ )
+	{
+		print "Setting option to save $what into $fname\n";
+		$ProcessErrorFlag = 1;
+		$errorName = $fname;
+	}
+
+}
+
+
+
+
+sub ProcessError ($ $ $ $ $ $)
+{
+	my ($dnum, $errorcode, $errordesc, $dstip, $gwtimet, $dur) = @_;
+	my $err;
+	my $gwst;
+	my $errdesc;
+
+	$gwst = scalar localtime($gwtimet);
+
+	$err = $errorcode ? $errorcode : "0";
+	$errdesc = $errordesc ? $errordesc : "success";
+
+	print ERROROFP "$dnum : $err : $errdesc : $dstip : $gwst : $dur\n";
+	
+}
+
+
+sub PreProcessError ($ $)
+{
+	my ($fname, $cdrfile) = @_;
+	my $date = `date`;	
+
+	chop $date;
+
+	## Create or append to file.
+	open (ERROROFP, ">> $fname") or die "Unable to open $fname : $! \n";
+
+	print ERROROFP <<eEOF
+##
+## Generated by $pName, $pVersion
+## on $date
+## for $cdrfile
+##
+eEOF
+;
+	
+}
+
+sub PostProcessError ()
+{
+	close (ERROROFP);	
+}
+
+
+sub ViewInfo ($)
+{
+	
+}
+
+sub DirInfo ($)
+{
+	my ($dir) = @_;
+	my @files;
+	my $i;
+	my $prevdir = `pwd`;
+
+	chop $prevdir;
+	
+
+	if (defined $dir)
+	{
+		for ($dir) 
+		{ 
+			s/^\s+// ; 
+			s/\s+$// ; 
+		}
+	}
+	else
+	{
+		## Default to the current directory
+		$dir = ".";
+	}
+
+	if ($dir eq "")
+	{
+		## Default to the current directory
+		$dir = ".";
+	}
+
+	chdir $dir or warn "Unable to cd to $dir : $! \n";
+
+	@files = glob ("*.CDR *.cdr *.CDT");
+
+	if (@files)
+	{
+
+		foreach $i (@files)
+		{
+			my $sz;
+			my $fname;
+			my $res = `ls -s $i`;
+			chop $res;
+
+			my $stread = `head -1 $i`;
+			my $etread = `tail -1 $i`;
+			chop $stread; chop $etread;
+
+			my ($st, $stt) = GetTime ($stread);
+			my ($et, $ett) = GetTime ($etread);
+			my $dur = GetDuration ($stt, $ett);
+			my $h;
+			my $m;
+			my $s;
+
+			($h, $m, $s) = FormatTime ($dur);
+
+			# Format the buffer.
+			my $timebuf = sprintf "%3d:%02u:%02u", $h, $m, $s;
+
+##			($sz, $fname) = split (/ /, $res);
+
+			if ($res =~ /(\d+)\s+(.*)/ )
+			{
+				$sz = $1;
+				$fname = $2;
+			}
+
+###			print "$sz, $fname \n";
+			##print "$fname  $sz blocks, Start:$st, End:$et \n";
+			$st = scalar localtime($stt);
+			$et = scalar localtime($ett);
+			##print "$fname  $sz blocks, Start:$st, End:$et \n";
+			##print "Duration: $h : $m : $s \n";
+
+		format DIRINFO_TOP = 
+
+                             Directory Listing
+==========================================================================
+Filename      Size     Start                End                   Duration
+==========================================================================
+.
+format DIRINFO =
+^<<<<<<<<<<<< @<<<<< ^<<<<<<<<<<<<<<<<<<<< ^<<<<<<<<<<<<<<<<<<<< ^>>>>>>>>
+$fname,       $sz,   $st,                  $et,                   $timebuf
+.
+			$FORMAT_NAME = "DIRINFO";
+			$FORMAT_TOP_NAME = "DIRINFO_TOP";
+			$FORMAT_LINES_PER_PAGE = $#files + 6;
+			write;
+		}
+	}
+
+	## Restore previous directory
+	chdir $prevdir;
+}
+
+sub GetTime ($)
+{
+	my ($in) = @_;
+
+	($lgwstime, $lgwtimet, $duration, $srcip, $srcport, $dstip, $dstport, $userid, $dstnum, $dialednum, $ctype, $cparties, $cdisconnect, $errorcode, $errordesc, $fpages, $fprio, $ani, $dnis, $nbsent, $nbrecd, $seqno) = split /;/, $in ;
+
+#	localtime ($lgwtimet);
+	return ($lgwstime, $lgwtimet);
+}
+
+sub GetDuration ($ $)
+{
+	my ($start, $end) = @_;
+	my $dur;
+
+	$dur = $end - $start;
+	
+	return $dur;
+}
+
+sub ProcessGW ($ $ $ $ $ $ $ $ $)
+{
+	my ($dir, $dstip, $difftimet, $dur, $errcode, $errdesc, $pdd, $regid, $uport) = @_;
+	my $match = 0;
+	my $gcalls = 0;
+	my $errcalls = 0;
+	my $status;
+	my $i;
+	my $tdur;
+	my %gwtstat, %gwtstatfax;
+	my $listref;
+	my $abandoned = 0; 
+	my $nr = 0;
+	my $ld = 0; 
+	my $du = 0;
+	my $busy = 0;
+	my %gwpddstat;
+
+	if ($dir eq "dst")
+	{
+		$listref = \@gwlist;
+	}
+	elsif ($dir eq "src")
+	{
+		$listref = \@srcgwlist;
+	}
+
+
+	for $i ( 0 .. $#$listref )
+	{
+		if ($$listref[$i]{gwip} eq $dstip)
+		{
+			$match = 1;
+
+			## Add the ALL stuff.
+			$$listref[$i]{gwtstat}{ALL}->add_data ($difftimet);
+			$$listref[$i]{gwtstat}{PDD}->add_data ($difftimet);
+
+			if ($dur)
+			{
+				$tdur = UnformatTime ($dur);
+			}
+
+			$status = $errcode ? $errcode : 0;
+			## if err'd
+			if ($status)
+			{
+				$$listref[$i]{errcalls} += 1;
+				$$listref[$i]{gwtstat}{ERR}->add_data ($difftimet);
+				## Add PDD information
+				$$listref[$i]{gwpddstat}{ERR}->add_data($pdd);
+			}
+			else
+			{
+				$$listref[$i]{gcalls} += 1;
+				$$listref[$i]{gwtstat}{G}->add_data ($difftimet);
+				## Add PDD information
+				$$listref[$i]{gwpddstat}{GOOD}->add_data($pdd);
+
+				## Add the good duration info.
+				$$listref[$i]{gwstatgood}->add_data ($tdur);
+			}
+
+			## Add duration data;
+			if ($dur)
+			{
+				$$listref[$i]{gwstat}->add_data ($tdur);
+
+				if (($tdur > 0) && ($tdur < 60))
+				{
+					$$listref[$i]{shorts} += 1;
+					$$listref[$i]{gwtstat}{SHORT}->add_data ($difftimet);
+				}
+
+				## Add PDD information
+				$$listref[$i]{gwpddstat}{ALL}->add_data($pdd);
+			}
+
+			if (defined $errdesc)
+			{
+				if ($errdesc eq "abandoned")
+				{
+					$$listref[$i]{abandoned} += 1;
+					$$listref[$i]{gwtstat}{AB}->add_data ($difftimet);
+				}
+				elsif ($errdesc eq "local-disconnect")
+				{
+					$$listref[$i]{localdisc} += 1;
+					$$listref[$i]{gwtstat}{LD}->add_data ($difftimet);
+				}
+				elsif ($errdesc eq "busy")
+				{
+					$$listref[$i]{busy} += 1;
+					$$listref[$i]{gwtstat}{BUSY}->add_data ($difftimet);
+				}
+				elsif ($errdesc eq "dest-unreach")
+				{
+					$$listref[$i]{destunreach} += 1;
+					$$listref[$i]{gwtstat}{DU}->add_data ($difftimet);
+				}
+				elsif ($errdesc eq "no-route")
+				{
+					$$listref[$i]{noroute} += 1;
+					$$listref[$i]{gwtstat}{NR}->add_data ($difftimet);
+				}
+			}
+			last;
+		}
+	}
+
+	if ($match == 0)
+	{
+		$status = $errcode ? $errcode : 0;
+
+		##
+		## Create the massive objects;
+		##
+		(%gwtstat, %gwtstatfax) = CreateNewTimeStatObjects ();
+
+		$gwstat = Statistics::Descriptive::Full->new();
+		$gwstatgood = Statistics::Descriptive::Full->new();
+
+		(%gwpddstat) = CreateNewPDDStatObjects ();
+
+
+		if ($dur)
+		{
+			$tdur = UnformatTime ($dur);
+		}
+
+		##
+		if ($status)
+		{
+			$gcalls = 0;
+			$errcalls = 1;
+			$gwtstat{ERR}->add_data ($difftimet);
+
+			if (defined $errdesc)
+			{
+				if ($errdesc eq "abandoned")
+				{
+					$abandoned += 1;
+					$gwtstat{AB}->add_data ($difftimet);
+				}
+				elsif ($errdesc eq "local-disconnect")
+				{
+					$ld += 1;
+					$gwtstat{LD}->add_data ($difftimet);
+				}
+				elsif ($errdesc eq "busy")
+				{
+					$busy += 1;
+					$gwtstat{BUSY}->add_data ($difftimet);
+				}
+				elsif ($errdesc eq "dest-unreach")
+				{
+					$du += 1;
+					$gwtstat{DU}->add_data ($difftimet);
+				}
+				elsif ($errdesc eq "no-route")
+				{
+					$nr += 1;
+					$gwtstat{NR}->add_data ($difftimet);
+				}
+			}
+
+			$gwpddstat{ERR}->add_data ($pdd);
+		}
+		else
+		{
+			$gcalls = 1;
+			$errcalls = 0;
+			$gwtstat{G}->add_data ($difftimet);
+
+			$gwpddstat{GOOD}->add_data ($pdd);
+
+			## Add the good call duration
+			$gwstatgood->add_data ($tdur);
+		}
+
+		if ($dur)
+		{
+			$gwstat->add_data ($tdur);
+			$gwtstat{ALL}->add_data ($difftimet);
+
+			## Short duration calls.
+			if (($tdur > 0) && ($tdur < 60))
+			{
+				$short = 1;
+				$gwtstat{SHORT}->add_data ($difftimet);
+			}
+		}
+
+		if ($dur)
+		{
+			$gwpddstat{ALL}->add_data ($pdd);
+			$gwtstat{PDD}->add_data ($difftimet);
+
+		}
+
+		push @$listref, { 
+		gwip      => $dstip, 
+		regid     => $regid,
+		uport     => $uport,
+		gcalls    => $gcalls, 
+		errcalls  => $errcalls, 
+		shorts    => $short, 
+		abandoned => $abandoned, 
+		noroute   => $nr, 
+		destunreach => $du, 
+		busy      => $busy, 
+		localdisc => $ld, 
+		gwstat    => $gwstat,
+		gwstatgood => $gwstatgood,
+		gwpddstat => \%gwpddstat,
+		gwtstat   => \%gwtstat,
+		gwtstatfax => \%gwtstatfax };
+	}
+}
+
+
+sub ListInfo ($)
+{
+	my ($info, $dstip) = @_;
+	my $h;
+	my $m;
+	my $s;
+	my $match = 0;
+	my $tmpdstat;
+	my $tmpdstatgood;
+	my $tmpdstatpdd;
+	my $report_offset = 8;
+
+
+	## List information for Gateways.
+	if ($info eq "gw")
+	{
+
+		format GWDURDST_TOP = 
+
+                  Per Gateway Duration Information for Calls 
+==============================================================================
+Gateway           Total     Avg        Avg.                 PDD (seconds)
+                  Calls   Duration   Duration    ---------------------------
+                           (All)     (Success)    All   Good   Error'd  Max
+==============================================================================
+.
+
+		for $i ( 0 .. $#sortedgwlist )
+		{
+			my $calls;
+			my $h, $m, $s;
+			my $hh, $mm, $ss;
+
+			$gw = $sortedgwlist[$i]{gwip};
+
+			if ($gw eq "0.0.0.0")
+			{
+				$report_offset--;
+				next;
+			}
+
+			## Somehow produces erroneous results
+			$calls = $sortedgwlist[$i]{gcalls} + $sortedgwlist[$i]{errcalls} ;
+			
+			$tmpdstat = $sortedgwlist[$i]{gwstat};
+			$tmpdstatgood = $sortedgwlist[$i]{gwstatgood};
+			$tmpdstatpdd = $sortedgwlist[$i]{gwpddstat};
+
+			my $gcalls = $sortedgwlist[$i]{gcalls};
+			my $errcalls = $sortedgwlist[$i]{errcalls};
+
+			my $avgall  = int ($tmpdstat->mean());
+			my $avggood = int ($tmpdstatgood->mean());
+
+			($h, $m, $s) = FormatTime ($avgall);
+			($hh, $mm, $ss) = FormatTime ($avggood);
+			my $avgbuf = sprintf "%3u:%02u:%02u", $h, $m, $s;
+			my $avggoodbuf = sprintf "%3u:%02u:%02u", $hh, $mm, $ss;
+
+			my $pddall  = int ($$tmpdstatpdd{ALL}->mean());
+			my $pddgood = int ($$tmpdstatpdd{GOOD}->mean());
+			my $pdderr  = int ($$tmpdstatpdd{ERR}->mean());
+			my $pddmax  = $$tmpdstatpdd{ALL}->max();
+
+			$calls = $gcalls + $errcalls;
+format GWDURDST =
+^<<<<<<<<<<<<<<<< @<<<<<<<^<<<<<<<< ^<<<<<<<<<     ^<<<<< ^<<<< ^<<<<   ^<<<<< 
+$gw,             $calls,   $avgbuf,$avggoodbuf,    $pddall, $pddgood, $pdderr, $pddmax
+.
+
+			$FORMAT_NAME = "GWDURDST";
+			$FORMAT_TOP_NAME = "GWDURDST_TOP";
+			$FORMAT_LINES_PER_PAGE = $#sortedgwlist + $report_offset;
+			write;
+		}
+	}
+	else
+	{
+		print "Unknown information: $info \n";
+	}
+}
+
+
+###
+### $nfiles - Total number of files to process for this run.
+### $curfile - Current file index.
+###
+sub FileOverview ($ $ $)
+{
+	my ($i, $nfiles, $curfile) = @_;
+	my $sz;
+	my $fname;
+	my $res = `ls -s $i`;
+	my $linesperpage = 25;
+	chop $res;
+
+	my $stread = `head -1 $i`;
+	my $etread = `tail -1 $i`;
+	my $nrecords = `wc -l $i`;
+	chop $stread; chop $etread;
+	chop $nrecords;
+
+	if ($nrecords = /(\d+).*/ )
+	{
+		$nrecords = $1;
+	}
+
+
+	if ($res =~ /(\d+)\s+(.*)/ )
+	{
+		$sz = $1;
+		$fname = $2;
+	}
+
+	my ($st, $stt) = GetTime ($stread);
+	my ($et, $ett) = GetTime ($etread);
+	my $dur = GetDuration ($stt, $ett);
+	my $h;
+	my $m;
+	my $s;
+
+	($h, $m, $s) = FormatTime ($dur);
+
+	my $timebuf = sprintf "%3u:%02u:%02u", $h, $m, $s;
+
+	$st = scalar localtime($stt);
+	$et = scalar localtime($ett);
+
+	if ($nfiles > 20)
+	{
+		my $wholepages = int ($nfiles/20);
+
+		if ($curfile > (20*$wholepages))
+		{
+			my $rem = $nfiles % 20;
+			$linesperpage = $rem + 6;
+		}
+		else
+		{
+			$linesperpage = 25;
+		}
+	}
+	else
+	{
+		$linesperpage = $nfiles + 4;
+	}
+
+	format FILEOV_TOP = 
+
+                             File Information
+==========================================================================
+Filename      Size     Start                End                   Duration
+==========================================================================
+.
+format FILEOV =
+^<<<<<<<<<<<< @<<<<< ^<<<<<<<<<<<<<<<<<<<< ^<<<<<<<<<<<<<<<<<<<< ^>>>>>>>>
+$i,           $sz,   $st,                  $et,                  $timebuf
+.
+			$FORMAT_NAME = "FILEOV";
+			$FORMAT_TOP_NAME = "FILEOV_TOP";
+######			$FORMAT_LINES_PER_PAGE = 5;
+#####			$FORMAT_LINES_PER_PAGE = ($nfiles < 25) ? ($nfiles + 4) : 25;
+			$FORMAT_LINES_PER_PAGE = $linesperpage;
+			write;
+
+
+	return ($stt, $ett);
+}
+
+
+sub PrintStats ($)
+{
+	my ($stat) = @_;
+	my $h, $m, $s;
+
+	print "=============================================\n";
+	print "============ Duration stats =================\n";
+	($h, $m, $s) = FormatTime (int $stat->mean());
+	printf "Mean          = %3u:%02u:%02u\n", $h, $m, $s;
+	($h, $m, $s) = FormatTime ($stat->median());
+	printf "Median        = %3u:%02u:%02u\n", $h, $m, $s;
+	printf "Sum           = %u minutes\n", int($stat->sum() / 60);
+	printf "Std Deviation = %f seconds\n", $stat->standard_deviation();
+	($h, $m, $s) = FormatTime ($stat->max());
+	printf "Max           = %3u:%02u:%02u  \n", $h, $m, $s;
+	print "=============================================\n";
+
+}
+
+sub PrintDistDetails ($)
+{
+	my ($arg) = @_;
+
+	if ($arg eq "all")
+	{
+		PrintDurationDistribution ($StatAll);
+	}
+
+	if ($arg eq "good")
+	{
+		PrintDurationDistribution ($StatGood);
+	}
+
+	if ($arg eq "pddall")
+	{
+		PrintDurationDistribution ($StatPddAll);
+	}
+
+	if ($arg eq "pddgood")
+	{
+		PrintDurationDistribution ($StatPddGood);
+	}
+
+	if ($arg eq "pdderr")
+	{
+		PrintDurationDistribution ($StatPddErr);
+	}
+
+	if ($arg =~ /gw\s+(.*)/ )
+	{
+		PrintDistStatsForGW ($1);
+	}
+}
+
+
+sub PrintDurationDistribution ($)
+{
+	my ($stat) = @_;
+	my $h, $m, $s;
+
+	if (! $FileInMemory)
+	{
+		WarnAboutNoFile ();
+		return 0;
+	}
+
+	print "=============================================\n";
+	print "============ Duration stats =================\n";
+	($h, $m, $s) = FormatTime (int $stat->mean());
+	printf "Mean          = %3u:%02u:%02u\n", $h, $m, $s;
+	($h, $m, $s) = FormatTime ($stat->median());
+	printf "Median        = %3u:%02u:%02u\n", $h, $m, $s;
+	printf "Sum           = %u seconds\n", $stat->sum();
+	printf "Sum (minutes) = %u minutes\n", int($stat->sum()/60);
+	printf "Std Deviation = %f seconds\n", $stat->standard_deviation();
+	($h, $m, $s) = FormatTime ($stat->max());
+	printf "Max           = %3u:%02u:%02u  \n", $h, $m, $s;
+	print "=============================================\n";
+
+	print "=============================================\n";
+	print "============= Distribution of data ==========\n";
+	my %f = $stat->frequency_distribution (24);
+	my $tprev = 0;
+	for (sort {$a <=> $b} keys %f) 
+	{
+		my $i = int $_;
+		my $h1, $h2;
+		my $m1, $m2;
+		my $s1, $s2;
+		($h1, $m1, $s1) = FormatTime ($tprev);
+		($h2, $m2, $s2) = FormatTime ($i);
+#		print "Duration $h1 : $m1 : $s1 <= $h2 : $m2: $s2, calls = $f{$_}\n";
+		printf "Duration %3u:%02u:%02u <= %3u:%02u:%02u, calls = %d\n", $h1, $m1, $s1, $h2, $m2, $s2, $f{$_};
+		$tprev = $i;
+	}
+	print "=============================================\n";
+
+}
+
+
+
+sub PercentileInfo ($)
+{
+	my ($tile) = @_;
+	my $i;
+	my $res;
+
+	if ($tile eq "all")
+	{
+		PrintTiles ();
+		return;
+	}
+	for $i ( 0 .. $#gwlist )
+	{
+
+		print "\n@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n";
+		print "Percentile GW stats for GW-IP : $gwlist[$i]{gwip}\n";
+		
+		$stat = $gwlist[$i]{gwstat};
+
+		$res = $stat->percentile($tile);
+		print "$tile th percentile = $res seconds\n";
+
+		print "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n\n";
+	}
+
+
+}
+
+
+sub PrintTiles ()
+{
+	my $info, $gw;
+	my $h;
+	my $m;
+	my $s;
+	my $stat;
+
+
+	## Destination gateway list.
+	if (@gwlist)
+	{
+		my $i;
+		print "\n";
+		print "*****************************************\n";
+		print "Gateway list: \n";
+ 		print "*****************************************\n";
+
+
+		format PERCENTILE_TOP = 
+
+                  Per Gateway Information for Call Duration (seconds)
+==========================================================================
+Gateway           Total      Errored   Successful  Short   nr  busy aban
+                  Calls      Calls     Calls       Calls
+==========================================================================
+.
+
+		for $i ( 0 .. $#gwlist )
+		{
+			my $calls;
+
+			$gw = $gwlist[$i]{gwip};
+			$calls = $gwlist[$i]{gcalls} + $gwlist[$i]{errcalls} ;
+			
+			$stat = $gwlist[$i]{gwstat};
+			$tile10 = $stat->percentile (10);
+			$tile10 = $stat->percentile (10);
+format PERCENTILE =
+^<<<<<<<<<<<<<<< @<<<<<  ^<<<<<<  ^<<<<<<<  ^<<<<<<   ^<<<<<< ^<<<<<<<
+$gw,       $calls,      $tile10, $tile25,  $tile50,  $tile75, $tile90
+.
+
+			$FORMAT_NAME = "PERCENTILE";
+			$FORMAT_TOP_NAME = "PERCENTILE_TOP";
+			$FORMAT_LINES_PER_PAGE = $#sortedgwlist + 7;
+			write;
+		}
+	}
+}
+
+
+
+
+sub PrintGWStats ()
+{
+	my ($arg) = @_;
+	my $info, $gw;
+	my $h;
+	my $m;
+	my $s;
+	my $stat;
+
+	if ($arg eq "dst")
+	{
+	if (@sortedgwlist)
+	{
+		my $i;
+		print "\n";
+		print "*****************************************\n";
+		print "Destination Gateway list: \n";
+ 		print "*****************************************\n";
+
+
+		format GWDST_TOP = 
+
+                  Per Gateway Information for Calls 
+==============================================================================
+Gateway           Total   Error   Successful  Short           ERRORS
+                  Calls   Calls   Calls       Calls   ------------------------
+                                             (<60 s)  ab  busy nr  ld  du
+==============================================================================
+.
+
+		for $i ( 0 .. $#sortedgwlist )
+		{
+			my $calls;
+
+			$gw = $sortedgwlist[$i]{gwip};
+
+			## Somehow produces erroneous results
+			$calls = $sortedgwlist[$i]{gcalls} + $gwlist[$i]{errcalls} ;
+			
+			$stat = $sortedgwlist[$i]{gwstat};
+
+			my $gcalls = $sortedgwlist[$i]{gcalls};
+			my $errcalls = $sortedgwlist[$i]{errcalls};
+			my $shorts = $sortedgwlist[$i]{shorts};
+			my $busy = $sortedgwlist[$i]{busy};
+			my $noroute = $sortedgwlist[$i]{noroute};
+			my $localdisc = $sortedgwlist[$i]{localdisc};
+			my $abandoned = $sortedgwlist[$i]{abandoned};
+			my $destunreach = $sortedgwlist[$i]{destunreach};
+
+			$calls = $gcalls + $errcalls;
+format GWDST =
+^<<<<<<<<<<<<<<<< @<<<<<<< ^<<<<< ^<<<<<<<    ^<<<< ^<<<< ^<<< ^<<<< ^<<<<^<<<<
+$gw,             $calls, $errcalls,$gcalls,$shorts,$abandoned,$busy,$noroute,$localdisc, $destunreach
+.
+
+			$FORMAT_NAME = "GWDST";
+			$FORMAT_TOP_NAME = "GWDST_TOP";
+			$FORMAT_LINES_PER_PAGE = $#gwlist + 8;
+			write;
+		}
+	}
+	} ## arg == dst
+
+
+	if ($arg eq "src")
+	{
+		if (@sortedsrcgwlist)
+		{
+			my $i;
+			print "\n";
+			print "*****************************************\n";
+			print "Source Gateway list: \n";
+			print "*****************************************\n";
+
+
+			format GWSRC_TOP = 
+
+                 Per Gateway Information for Calls
+==============================================================================
+Gateway           Total   Error   Successful  Short           ERRORS
+                  Calls   Calls   Calls       Calls   ------------------------
+                                             (<60 s)  ab  busy nr  ld  du
+==============================================================================
+.
+
+			for $i ( 0 .. $#sortedsrcgwlist )
+			{
+				my $calls;
+
+				$gw = $sortedsrcgwlist[$i]{gwip};
+
+				## Produces errorneous results.
+				$calls = $sortedsrcgwlist[$i]{gcalls} + $srcgwlist[$i]{errcalls} ;
+				
+				$stat = $sortedsrcgwlist[$i]{gwstat};
+
+				my $gcalls = $sortedsrcgwlist[$i]{gcalls};
+				my $errcalls = $sortedsrcgwlist[$i]{errcalls};
+				my $shorts = $sortedsrcgwlist[$i]{shorts};
+				my $busy = $sortedsrcgwlist[$i]{busy};
+				my $noroute = $sortedsrcgwlist[$i]{noroute};
+				my $localdisc = $sortedsrcgwlist[$i]{localdisc};
+				my $abandoned = $sortedsrcgwlist[$i]{abandoned};
+				my $destunreach = $sortedsrcgwlist[$i]{destunreach};
+
+				$calls = $gcalls + $errcalls;
+	format GWSRC =
+^<<<<<<<<<<<<<<<  @<<<<<<< ^<<<<< ^<<<<<<<    ^<<<< ^<<<< ^<<< ^<<<< ^<<<<^<<<<
+$gw,             $calls, $errcalls,$gcalls,$shorts,$abandoned,$busy,$noroute,$localdisc, $destunreach
+.
+
+				$FORMAT_NAME = "GWSRC";
+				$FORMAT_TOP_NAME = "GWSRC_TOP";
+				$FORMAT_LINES_PER_PAGE = $#sortedsrcgwlist + 8;
+				write;
+			}
+		} ## if srcgwlist
+	} ## if arg == src
+
+}
+
+
+
+
+sub ProcessSrcGW ($ $ $ $)
+{
+	my ($dstip, $dur, $errcode, $errdesc) = @_;
+	my $match = 0;
+	my $gcalls = 0;
+	my $errcalls = 0;
+	my $status;
+	my $i;
+	my $tdur;
+
+	for $i ( 0 .. $#srcgwlist )
+	{
+		if ($srcgwlist[$i]{gwip} eq $dstip)
+		{
+			$match = 1;
+
+			$status = $errcode ? $errcode : 0;
+			## if err'd
+			if ($status)
+			{
+				$srcgwlist[$i]{errcalls} += 1;
+			}
+			else
+			{
+				$srcgwlist[$i]{gcalls} += 1;
+			}
+
+			## Add duration data;
+			if ($dur)
+			{
+				$tdur = UnformatTime ($dur);
+				$srcgwlist[$i]{gwstat}->add_data ($tdur);
+
+				if (($tdur > 0) && ($tdur < 60))
+				{
+					$srcgwlist[$i]{shorts} += 1;
+				}
+			}
+
+			if (defined $errdesc)
+			{
+				if ($errdesc eq "abandoned")
+				{
+					$srcgwlist[$i]{abandoned} += 1;
+				}
+				elsif ($errdesc eq "local-disconnect")
+				{
+					$srcgwlist[$i]{localdisc} += 1;
+				}
+				elsif ($errdesc eq "busy")
+				{
+					$srcgwlist[$i]{busy} += 1;
+				}
+				elsif ($errdesc eq "dest-unreach")
+				{
+					$srcgwlist[$i]{destunreach} += 1;
+				}
+				elsif ($errdesc eq "no-route")
+				{
+					$srcgwlist[$i]{noroute} += 1;
+				}
+			}
+			last;
+		}
+	}
+
+	if ($match == 0)
+	{
+		$status = $errcode ? $errcode : 0;
+
+		if ($status)
+		{
+			$gcalls = 0;
+			$errcalls = 1;
+		}
+		else
+		{
+			$gcalls = 1;
+			$errcalls = 0;
+		}
+
+		$gwstat = Statistics::Descriptive::Full->new();
+		if ($dur)
+		{
+			$tdur = UnformatTime ($dur);
+			$gwstat->add_data ($tdur);
+
+			## Short duration calls.
+			if (($tdur > 0) && ($tdur < 60))
+			{
+				$short = 1;
+			}
+		}
+
+		push @srcgwlist, { 
+		gwip => $dstip, 
+		gcalls => $gcalls, 
+		errcalls => $errcalls, 
+		shorts => $short, 
+		abandoned => 0, 
+		noroute => 0, 
+		destunreach => 0, 
+		busy => 0, 
+		localdisc => 0, 
+		gwstat => $gwstat };
+	}
+} 
+
+
+sub PrintTimeStats ($)
+{
+	my ($arg) = @_;
+	my $tprev = 0;
+	my $startet = 0;
+	my $endet = 0;
+	my $i;
+	my $prev_startet = 0;
+	my $prev_endet = 0;
+	my $maxtime = $DSTAT{ALL}->max();
+	my $mintime = $DSTAT{ALL}->min();
+	my $hc = int (($maxtime - $mintime)/3600);
+
+
+
+			format TIMEPERHOUR_TOP = 
+
+                            Per Hour Distribution of Calls
+===================================================================================
+Start       End    Total   Error   Successful ASR  Short           ERRORS
+Period    Period   Calls   Calls   Calls      (%)  Calls   ------------------------
+                                                   (<60 s)  ab  busy   nr  ld   du
+===================================================================================
+.
+
+
+	if ($arg eq "all" || $arg eq "fax")
+	{
+		while ($endet < $maxtime)
+		{
+			my $h, $m, $s;
+			my $calls, $errcalls, $gcalls, $shorts, $abandoned;
+			my $busy, $noroute, $localdisc, $destunreach;
+			my $asr;
+			my $markneg = 0;
+
+			if ($prev_startet == 0)
+			{
+				$prev_startet = $startet = $mintime;
+
+				## if still zero...
+				if ($prev_startet == 0)
+				{
+					$prev_startet = 1;
+				}
+			}
+			else
+			{
+				$startet = $endet;
+			}
+			$endet = GetNextHour ($startet);
+
+			if ($endet > $maxtime)
+			{
+				$endet = $maxtime;
+			}
+
+			($h, $m, $s) = FormatTime ($startet);
+			if ($h < 0)
+			{
+				$h =  24 - (abs $h);
+				$markneg = 1;
+			}
+			if ($m < 0)
+			{
+				$m = 60 - (abs $m);
+				$markneg = 1;
+			}
+			if ($s < 0)
+			{
+				$s = 60 - (abs $s);
+				$markneg = 1;
+			}
+			if ($markneg)
+			{
+				$startp = sprintf "-%3d:%02d:%02d", $h, $m, $s;
+			}
+			else
+			{
+				$startp = sprintf "%3d:%02d:%02d", $h, $m, $s;
+			}
+			($h, $m, $s) = FormatTime ($endet);
+			$endp = sprintf "%3d:%02d:%02d", $h, $m, $s;
+
+			if ($arg eq "all")
+			{
+				$statref = \%DSTAT;
+			}
+			elsif ($arg eq "fax")
+			{
+				$statref = \%DSTATFAX;
+			}
+
+
+			$calls = $$statref{ALL}->get_freq_over_range ($startet, $endet);
+			$errcalls = $$statref{ERR}->get_freq_over_range ($startet, $endet);
+			$gcalls = $$statref{G}->get_freq_over_range ($startet, $endet);
+			$shorts = $$statref{SHORT}->get_freq_over_range ($startet, $endet);
+			$abandoned = $$statref{AB}->get_freq_over_range ($startet, $endet);
+			$busy = $$statref{BUSY}->get_freq_over_range ($startet, $endet);
+			$noroute = $$statref{NR}->get_freq_over_range ($startet, $endet);
+			$localdisc = $$statref{LD}->get_freq_over_range ($startet, $endet);
+			$destunreach = $$statref{DU}->get_freq_over_range ($startet, $endet);
+			if ($calls > 0)
+			{
+				$asr = int ($gcalls*100/$calls);
+			}
+			
+
+	format TIMEPERHOUR =
+@<<<<<<<<<@<<<<<<<<<^<<<<<< ^<<<<<   ^<<<<<    ^<<<   ^<<<<   ^<<<< ^<<< ^<<< ^<<<<^<<<<
+$startp,  $endp,    $calls, $errcalls,$gcalls, $asr, $shorts,$abandoned,$busy,$noroute,$localdisc, $destunreach
+.
+			$FORMAT_NAME = "TIMEPERHOUR";
+			$FORMAT_TOP_NAME = "TIMEPERHOUR_TOP";
+			$FORMAT_LINES_PER_PAGE = $hc + 8;
+			write;
+
+		}
+
+	}
+	elsif ($arg =~ /gw\s+(.*)/ )
+	{
+		PrintTimeStatsForGW ($1);
+	}
+	elsif ($arg eq "last")
+	{
+		## still retain old interface.
+		PrintTimeDetails ("all");
+	}
+
+}
+
+sub PrintTimeDetails ($)
+{
+	my ($arg) = @_;
+	my $startet = $DSTAT{ALL}->min();
+	my $endet = $DSTAT{ALL}->max();
+	my $last12hours = $endet - (12 * 3600);
+	my $last6hours = $endet - (6 * 3600);
+	my $last3hours = $endet - (3 * 3600);
+	my $last2hours = $endet - (2 * 3600);
+	my $lasthour = $endet - 3600;
+	my $lasthalf = $endet - 1800;
+	my $lastten = $endet - 600;
+	my $lastfive = $endet - 300;
+
+
+	if ($arg eq "all")
+	{
+
+			format TIMEDET_TOP = 
+
+                            Time Distribution of Calls
+===================================================================================
+Start       End    Total   Error   Successful ASR  Short           ERRORS
+Period    Period   Calls   Calls   Calls      (%)  Calls   ------------------------
+                                                   (<60 s)  ab  busy   nr  ld   du
+===================================================================================
+.
+
+	}
+	elsif ($arg eq "fax")
+	{
+		$startet = $DSTATFAX{ALL}->min();
+		$endet = $DSTATFAX{ALL}->max();
+		$last12hours = $endet - (12 * 3600);
+		$last6hours = $endet - (6 * 3600);
+		$last3hours = $endet - (3 * 3600);
+		$last2hours = $endet - (2 * 3600);
+		$lasthour = $endet - 3600;
+		$lasthalf = $endet - 1800;
+		$lastten = $endet - 600;
+		$lastfive = $endet - 300;
+
+
+			format TIMEDETFAX_TOP = 
+
+                         Time Distribution of Fax Calls
+===================================================================================
+Start       End    Total   Error   Successful ASR  Short           ERRORS
+Period    Period   Calls   Calls   Calls      (%)  Calls   ------------------------
+                                                   (<60 s)  ab  busy   nr  ld   du
+===================================================================================
+.
+
+
+
+	}
+
+
+
+	if ($arg eq "all")
+	{
+		my $i;
+		for ($i = 0; $i < 9; $i++)
+		{
+
+			if ($i == 1)
+			{
+				$startet = $last12hours;
+			}
+			elsif ($i == 2)
+			{
+				$startet = $last6hours;
+			}
+			elsif ($i == 3)
+			{
+				$startet = $last3hours;
+			}
+			elsif ($i == 4)
+			{
+				$startet = $last2hours;
+			}
+			elsif ($i == 5)
+			{
+				$startet = $lasthour;
+			}
+			elsif ($i == 6)
+			{
+				$startet = $lasthalf;
+			}
+			elsif ($i == 7)
+			{
+				$startet = $lastten;
+			}
+			elsif ($i == 8)
+			{
+				$startet = $lastfive;
+			}
+		my $h, $m, $s;
+		my $calls, $errcalls, $gcalls, $shorts, $abandoned;
+		my $busy, $noroute, $localdisc, $destunreach;
+		my $asr;
+		my $markneg = 0;
+
+		($h, $m, $s) = FormatTime ($startet);
+		if ($h < 0)
+		{
+			$h =  24 - (abs $h);
+			$markneg = 1;
+		}
+		if ($m < 0)
+		{
+			$m = 60 - (abs $m);
+			$markneg = 1;
+		}
+		if ($s < 0)
+		{
+			$s = 60 - (abs $s);
+			$markneg = 1;
+		}
+		if ($markneg)
+		{
+			$startp = sprintf "-%3d:%02d:%02d", $h, $m, $s;
+		}
+		else
+		{
+			$startp = sprintf "%3d:%02d:%02d", $h, $m, $s;
+		}
+		($h, $m, $s) = FormatTime ($endet);
+		$endp = sprintf "%3d:%02d:%02d", $h, $m, $s;
+
+		$calls = $DSTAT{ALL}->get_freq_over_range ($startet, $endet);
+		$errcalls = $DSTAT{ERR}->get_freq_over_range ($startet, $endet);
+		$gcalls = $DSTAT{G}->get_freq_over_range ($startet, $endet);
+		$shorts = $DSTAT{SHORT}->get_freq_over_range ($startet, $endet);
+		$abandoned = $DSTAT{AB}->get_freq_over_range ($startet, $endet);
+		$busy = $DSTAT{BUSY}->get_freq_over_range ($startet, $endet);
+		$noroute = $DSTAT{NR}->get_freq_over_range ($startet, $endet);
+		$localdisc = $DSTAT{LD}->get_freq_over_range ($startet, $endet);
+		$destunreach = $DSTAT{DU}->get_freq_over_range ($startet, $endet);
+		if ($calls > 0)
+		{
+			$asr = int ($gcalls*100/$calls);
+		}
+		
+
+format TIMEDET =
+@<<<<<<<<<@<<<<<<<<<^<<<<<< ^<<<<<   ^<<<<<    ^<<<   ^<<<<   ^<<<< ^<<< ^<<< ^<<<<^<<<<
+$startp,  $endp,    $calls, $errcalls,$gcalls, $asr, $shorts,$abandoned,$busy,$noroute,$localdisc, $destunreach
+.
+		$FORMAT_NAME = "TIMEDET";
+		$FORMAT_TOP_NAME = "TIMEDET_TOP";
+		$FORMAT_LINES_PER_PAGE = 16;
+		write;
+
+		}
+	}
+	elsif ($arg eq "fax")
+	{
+		my $i;
+		for ($i = 0; $i < 9; $i++)
+		{
+
+			if ($i == 1)
+			{
+				$startet = $last12hours;
+			}
+			elsif ($i == 2)
+			{
+				$startet = $last6hours;
+			}
+			elsif ($i == 3)
+			{
+				$startet = $last3hours;
+			}
+			elsif ($i == 4)
+			{
+				$startet = $last2hours;
+			}
+			elsif ($i == 5)
+			{
+				$startet = $lasthour;
+			}
+			elsif ($i == 6)
+			{
+				$startet = $lasthalf;
+			}
+			elsif ($i == 7)
+			{
+				$startet = $lastten;
+			}
+			elsif ($i == 8)
+			{
+				$startet = $lastfive;
+			}
+		my $h, $m, $s;
+		my $calls, $errcalls, $gcalls, $shorts, $abandoned;
+		my $busy, $noroute, $localdisc, $destunreach;
+		my $asr;
+		my $markneg = 0;
+
+		($h, $m, $s) = FormatTime ($startet);
+		if ($h < 0)
+		{
+			$h = 24 - (abs $h);
+			$markneg = 1;
+		}
+		if ($m < 0)
+		{
+			$m = 60 - (abs $m);
+			$markneg = 1;
+		}
+		if ($s < 0)
+		{
+			$s = 60 - (abs $s);
+			$markneg = 1;
+		}
+		if ($markneg)
+		{
+			$startp = sprintf "-%3d:%02d:%02d", $h, $m, $s;
+		}
+		else
+		{
+			$startp = sprintf "%3d:%02d:%02d", $h, $m, $s;
+		}
+		($h, $m, $s) = FormatTime ($endet);
+		$endp = sprintf "%3d:%02d:%02d", $h, $m, $s;
+
+		$calls = $DSTATFAX{ALL}->get_freq_over_range ($startet, $endet);
+		$errcalls = $DSTATFAX{ERR}->get_freq_over_range ($startet, $endet);
+		$gcalls = $DSTATFAX{G}->get_freq_over_range ($startet, $endet);
+		$shorts = $DSTATFAX{SHORT}->get_freq_over_range ($startet, $endet);
+		$abandoned = $DSTATFAX{AB}->get_freq_over_range ($startet, $endet);
+		$busy = $DSTATFAX{BUSY}->get_freq_over_range ($startet, $endet);
+		$noroute = $DSTATFAX{NR}->get_freq_over_range ($startet, $endet);
+		$localdisc = $DSTATFAX{LD}->get_freq_over_range ($startet, $endet);
+		$destunreach = $DSTATFAX{DU}->get_freq_over_range ($startet, $endet);
+		if ($calls > 0)
+		{
+			$asr = int ($gcalls*100/$calls);
+		}
+		
+
+format TIMEDETFAX =
+@<<<<<<<<@<<<<<<<< @<<<<< @<<<<<   ^<<<<<    ^<<<   ^<<<<   ^<<<< ^<<< ^<<< ^<<<<^<<<<
+$startp,$endp,     $calls, $errcalls,$gcalls,$asr, $shorts,$abandoned,$busy,$noroute,$localdisc, $destunreach
+.
+		$FORMAT_NAME = "TIMEDETFAX";
+		$FORMAT_TOP_NAME = "TIMEDETFAX_TOP";
+		$FORMAT_LINES_PER_PAGE = 16;
+		write;
+
+		}
+	}
+}
+
+
+sub ProcessTOD ($ $ $ $)
+{
+	my ($difft, $dur, $errcode, $errdesc) = @_;
+	my $match = 0;
+	my $gcalls = 0;
+	my $errcalls = 0;
+	my $status;
+	my $i;
+	my $tdur;
+
+	$DSTAT{ALL}->add_data ($difft);
+
+	$status = $errcode ? $errcode : 0;
+	## if err'd
+	if ($status)
+	{
+		$DSTAT{ERR}->add_data ($difft);
+	}
+	else
+	{
+		$DSTAT{G}->add_data ($difft);
+	}
+
+	## Add duration data;
+	if ($dur)
+	{
+		$tdur = UnformatTime ($dur);
+		$srcgwlist[$i]{gwstat}->add_data ($tdur);
+
+		if (($tdur > 0) && ($tdur < 60))
+		{
+			$DSTAT{SHORT}->add_data ($difft);
+		}
+	}
+
+	if (defined $errdesc)
+	{
+		if ($errdesc eq "abandoned")
+		{
+			$DSTAT{AB}->add_data ($difft);
+		}
+		elsif ($errdesc eq "local-disconnect")
+		{
+			$DSTAT{LD}->add_data ($difft);
+		}
+		elsif ($errdesc eq "busy")
+		{
+			$DSTAT{BUSY}->add_data ($difft);
+		}
+		elsif ($errdesc eq "dest-unreach")
+		{
+			$DSTAT{DU}->add_data ($difft);
+		}
+		elsif ($errdesc eq "no-route")
+		{
+			$DSTAT{NR}->add_data ($difft);
+		}
+	}
+	
+
+}
+
+sub CreateStatObjects ()
+{
+	## Global
+	## Works for 1 file.
+
+	## This creates DSTAT objects.
+
+	$DSTAT{ALL} = Statistics::Descriptive::Full->new();
+	$DSTAT{G} = Statistics::Descriptive::Full->new();
+	$DSTAT{ERR} = Statistics::Descriptive::Full->new();
+	$DSTAT{SHORT} = Statistics::Descriptive::Full->new();
+	$DSTAT{AB} = Statistics::Descriptive::Full->new();
+	$DSTAT{LD} = Statistics::Descriptive::Full->new();
+	$DSTAT{BUSY} = Statistics::Descriptive::Full->new();
+	$DSTAT{DU} = Statistics::Descriptive::Full->new();
+	$DSTAT{NR} = Statistics::Descriptive::Full->new();
+
+	## This creates DSTATFAX objects.
+	$DSTATFAX{ALL} = Statistics::Descriptive::Full->new();
+	$DSTATFAX{G} = Statistics::Descriptive::Full->new();
+	$DSTATFAX{ERR} = Statistics::Descriptive::Full->new();
+	$DSTATFAX{SHORT} = Statistics::Descriptive::Full->new();
+	$DSTATFAX{AB} = Statistics::Descriptive::Full->new();
+	$DSTATFAX{LD} = Statistics::Descriptive::Full->new();
+	$DSTATFAX{BUSY} = Statistics::Descriptive::Full->new();
+	$DSTATFAX{DU} = Statistics::Descriptive::Full->new();
+	$DSTATFAX{NR} = Statistics::Descriptive::Full->new();
+
+
+	$StatAll     = Statistics::Descriptive::Full->new();
+	$StatGood    = Statistics::Descriptive::Full->new();
+	$StatPddAll  = Statistics::Descriptive::Full->new();
+	$StatPddGood = Statistics::Descriptive::Full->new();
+	$StatPddErr  = Statistics::Descriptive::Full->new();
+
+
+}
+
+
+
+sub ProcessFax ($ $ $ $)
+{
+	my ($difft, $dur, $errcode, $errdesc) = @_;
+	my $match = 0;
+	my $gcalls = 0;
+	my $errcalls = 0;
+	my $status;
+	my $i;
+	my $tdur;
+
+	$DSTATFAX{ALL}->add_data ($difft);
+
+	$status = $errcode ? $errcode : 0;
+	## if err'd
+	if ($status)
+	{
+		$DSTATFAX{ERR}->add_data ($difft);
+	}
+	else
+	{
+		$DSTATFAX{G}->add_data ($difft);
+	}
+
+	## Add duration data;
+	if ($dur)
+	{
+		$tdur = UnformatTime ($dur);
+		$srcgwlist[$i]{gwstat}->add_data ($tdur);
+
+		if (($tdur > 0) && ($tdur < 60))
+		{
+			$DSTATFAX{SHORT}->add_data ($difft);
+		}
+	}
+
+	if (defined $errdesc)
+	{
+		if ($errdesc eq "abandoned")
+		{
+			$DSTATFAX{AB}->add_data ($difft);
+		}
+		elsif ($errdesc eq "local-disconnect")
+		{
+			$DSTATFAX{LD}->add_data ($difft);
+		}
+		elsif ($errdesc eq "busy")
+		{
+			$DSTATFAX{BUSY}->add_data ($difft);
+		}
+		elsif ($errdesc eq "dest-unreach")
+		{
+			$DSTATFAX{DU}->add_data ($difft);
+		}
+		elsif ($errdesc eq "no-route")
+		{
+			$DSTATFAX{NR}->add_data ($difft);
+		}
+	}
+}
+
+
+
+
+sub PrintCpsDetails ($)
+{
+	my ($arg) = @_;
+	my $startet = $DSTAT{ALL}->min();
+	my $endet = $DSTAT{ALL}->max();
+	my $last12hours = $endet - (12 * 3600);
+	my $last6hours = $endet - (6 * 3600);
+	my $last3hours = $endet - (3 * 3600);
+	my $last2hours = $endet - (2 * 3600);
+	my $lasthour = $endet - 3600;
+	my $lasthalf = $endet - 1800;
+	my $lastten = $endet - 600;
+	my $lastfive = $endet - 300;
+	my $dur;
+
+	my $prev_startet = 0;
+	my $prev_endet = 0;
+## Went with global min and max times..
+	my $maxtime = $DSTAT{ALL}->max();
+	my $mintime = $DSTAT{ALL}->min();
+	my $hc = int (($maxtime - $mintime)/3600);
+
+	if (! $FileInMemory)
+	{
+		WarnAboutNoFile ();
+		return 0;
+	}
+
+	if ($arg eq "all")
+	{
+
+			format TIMECPM_TOP = 
+
+                            Calls/min Distribution of Calls
+===================================================================================
+Start       End    Total   Error   Successful CPM  Short           ERRORS
+Period    Period   Calls   Calls   Calls           Calls   ------------------------
+                                                   (<60 s)  ab  busy   nr  ld   du
+===================================================================================
+.
+
+	}
+	elsif ($arg eq "fax")
+	{
+		$startet = $DSTATFAX{ALL}->min();
+		$endet = $DSTATFAX{ALL}->max();
+		$last12hours = $endet - (12 * 3600);
+		$last6hours = $endet - (6 * 3600);
+		$last3hours = $endet - (3 * 3600);
+		$last2hours = $endet - (2 * 3600);
+		$lasthour = $endet - 3600;
+		$lasthalf = $endet - 1800;
+		$lastten = $endet - 600;
+		$lastfive = $endet - 300;
+
+
+		format TIMECPMFAX_TOP = 
+
+                         Calls/minute Distribution of Fax Calls
+===================================================================================
+Start       End    Total   Error   Successful CPM  Short           ERRORS
+Period    Period   Calls   Calls   Calls           Calls   ------------------------
+                                                   (<60 s)  ab  busy   nr  ld   du
+===================================================================================
+.
+
+
+
+	}
+
+
+
+	if ($arg eq "all")
+	{
+
+		format CPSPERHOUR_TOP = 
+
+                  Per Hour Distribution of Calls/minute 
+==================================================================================
+Start       End    Total   Error   Successful CPM  Short           ERRORS
+Period    Period   Calls   Calls   Calls           Calls   ------------------------
+                                                   (<60 s)  ab  busy   nr  ld   du
+===================================================================================
+.
+
+
+		$endet = 0;
+		while ($endet < $maxtime)
+		{
+			my $h, $m, $s;
+			my $calls, $errcalls, $gcalls, $shorts, $abandoned;
+			my $busy, $noroute, $localdisc, $destunreach;
+			my $asr;
+			my $markneg = 0;
+
+			if ($prev_startet == 0)
+			{
+				$prev_startet = $startet = $mintime;
+				## if still zero...
+				if ($prev_startet == 0)
+				{
+					$prev_startet = 1;
+				}
+			}
+			else
+			{
+				$startet = $endet;
+			}
+			$endet = GetNextHour ($startet);
+
+			if ($endet > $maxtime)
+			{
+				$endet = $maxtime;
+			}
+
+			$dur = $endet - $startet;
+
+			($h, $m, $s) = FormatTime ($startet);
+			if ($h < 0)
+			{
+				$h =  24 - (abs $h);
+				$markneg = 1;
+			}
+			if ($m < 0)
+			{
+				$m = 60 - (abs $m);
+				$markneg = 1;
+			}
+			if ($s < 0)
+			{
+				$s = 60 - (abs $s);
+				$markneg = 1;
+			}
+			if ($markneg)
+			{
+				$startp = sprintf "-%3d:%02d:%02d", $h, $m, $s;
+			}
+			else
+			{
+				$startp = sprintf "%3d:%02d:%02d", $h, $m, $s;
+			}
+			($h, $m, $s) = FormatTime ($endet);
+			$endp = sprintf "%3d:%02d:%02d", $h, $m, $s;
+
+			$calls = $DSTAT{ALL}->get_freq_over_range ($startet, $endet);
+			$errcalls = $DSTAT{ERR}->get_freq_over_range ($startet, $endet);
+			$gcalls = $DSTAT{G}->get_freq_over_range ($startet, $endet);
+			$shorts = $DSTAT{SHORT}->get_freq_over_range ($startet, $endet);
+			$abandoned = $DSTAT{AB}->get_freq_over_range ($startet, $endet);
+			$busy = $DSTAT{BUSY}->get_freq_over_range ($startet, $endet);
+			$noroute = $DSTAT{NR}->get_freq_over_range ($startet, $endet);
+			$localdisc = $DSTAT{LD}->get_freq_over_range ($startet, $endet);
+			$destunreach = $DSTAT{DU}->get_freq_over_range ($startet, $endet);
+			if ($calls > 0)
+			{
+				$asr = int ($calls*60/$dur);
+			}
+			
+
+	format CPSPERHOUR =
+@<<<<<<<<<@<<<<<<<<<^<<<<<< ^<<<<<   ^<<<<<    ^<<<   ^<<<<   ^<<<< ^<<< ^<<< ^<<<<^<<<<
+$startp,  $endp,    $calls, $errcalls,$gcalls, $asr, $shorts,$abandoned,$busy,$noroute,$localdisc, $destunreach
+.
+			$FORMAT_NAME = "CPSPERHOUR";
+			$FORMAT_TOP_NAME = "CPSPERHOUR_TOP";
+			$FORMAT_LINES_PER_PAGE = $hc + 8;
+			write;
+
+		}
+
+
+		my $i;
+		$endet = $DSTAT{ALL}->max();
+		$startet = $DSTAT{ALL}->min();
+
+		for ($i = 0; $i < 9; $i++)
+		{
+
+			if ($i == 1)
+			{
+				$startet = $last12hours;
+			}
+			elsif ($i == 2)
+			{
+				$startet = $last6hours;
+			}
+			elsif ($i == 3)
+			{
+				$startet = $last3hours;
+			}
+			elsif ($i == 4)
+			{
+				$startet = $last2hours;
+			}
+			elsif ($i == 5)
+			{
+				$startet = $lasthour;
+			}
+			elsif ($i == 6)
+			{
+				$startet = $lasthalf;
+			}
+			elsif ($i == 7)
+			{
+				$startet = $lastten;
+			}
+			elsif ($i == 8)
+			{
+				$startet = $lastfive;
+			}
+		my $h, $m, $s;
+		my $calls, $errcalls, $gcalls, $shorts, $abandoned;
+		my $busy, $noroute, $localdisc, $destunreach;
+		my $asr;
+		my $markneg = 0;
+
+		($h, $m, $s) = FormatTime ($startet);
+		if ($h < 0)
+		{
+			$h = 24 - (abs $h);
+			$markneg = 1;
+		}
+		if ($m < 0)
+		{
+			$m = 60 - (abs $m);
+			$markneg = 1;
+		}
+		if ($s < 0)
+		{
+			$s = 60 - (abs $s);
+			$markneg = 1;
+		}
+		if ($markneg)
+		{
+			$startp = sprintf "-%3d:%02d:%02d", $h, $m, $s;
+		}
+		else
+		{
+			$startp = sprintf "%3d:%02d:%02d", $h, $m, $s;
+		}
+		($h, $m, $s) = FormatTime ($endet);
+		$endp = sprintf "%3d:%02d:%02d", $h, $m, $s;
+
+		$dur = $endet - $startet;
+
+		$calls = $DSTAT{ALL}->get_freq_over_range ($startet, $endet);
+		$errcalls = $DSTAT{ERR}->get_freq_over_range ($startet, $endet);
+		$gcalls = $DSTAT{G}->get_freq_over_range ($startet, $endet);
+		$shorts = $DSTAT{SHORT}->get_freq_over_range ($startet, $endet);
+		$abandoned = $DSTAT{AB}->get_freq_over_range ($startet, $endet);
+		$busy = $DSTAT{BUSY}->get_freq_over_range ($startet, $endet);
+		$noroute = $DSTAT{NR}->get_freq_over_range ($startet, $endet);
+		$localdisc = $DSTAT{LD}->get_freq_over_range ($startet, $endet);
+		$destunreach = $DSTAT{DU}->get_freq_over_range ($startet, $endet);
+		if ($dur > 0)
+		{
+			$asr = int ($calls*60/$dur);
+		}
+		
+
+format TIMECPM =
+@<<<<<<<<@<<<<<<<< @<<<<< @<<<<<   ^<<<<<    ^<<<   ^<<<<   ^<<<< ^<<< ^<<< ^<<<<^<<<<
+$startp,$endp,     $calls, $errcalls,$gcalls,$asr, $shorts,$abandoned,$busy,$noroute,$localdisc, $destunreach
+.
+		$FORMAT_NAME = "TIMECPM";
+		$FORMAT_TOP_NAME = "TIMECPM_TOP";
+		$FORMAT_LINES_PER_PAGE = 16;
+		write;
+
+		}
+	}
+	elsif ($arg eq "fax")
+	{
+		my $i;
+		for ($i = 0; $i < 9; $i++)
+		{
+
+			if ($i == 1)
+			{
+				$startet = $last12hours;
+			}
+			elsif ($i == 2)
+			{
+				$startet = $last6hours;
+			}
+			elsif ($i == 3)
+			{
+				$startet = $last3hours;
+			}
+			elsif ($i == 4)
+			{
+				$startet = $last2hours;
+			}
+			elsif ($i == 5)
+			{
+				$startet = $lasthour;
+			}
+			elsif ($i == 6)
+			{
+				$startet = $lasthalf;
+			}
+			elsif ($i == 7)
+			{
+				$startet = $lastten;
+			}
+			elsif ($i == 8)
+			{
+				$startet = $lastfive;
+			}
+		my $h, $m, $s;
+		my $calls, $errcalls, $gcalls, $shorts, $abandoned;
+		my $busy, $noroute, $localdisc, $destunreach;
+		my $asr;
+		my $markneg = 0;
+
+		($h, $m, $s) = FormatTime ($startet);
+		if ($h < 0)
+		{
+			$h = abs $h;
+			$markneg = 1;
+		}
+		if ($m < 0)
+		{
+			$m = abs $m;
+			$markneg = 1;
+		}
+		if ($s < 0)
+		{
+			$s = abs $s;
+			$markneg = 1;
+		}
+		if ($markneg)
+		{
+			$startp = sprintf "-%3d:%02d:%02d", $h, $m, $s;
+		}
+		else
+		{
+			$startp = sprintf "%3d:%02d:%02d", $h, $m, $s;
+		}
+		($h, $m, $s) = FormatTime ($endet);
+		$endp = sprintf "%3d:%02d:%02d", $h, $m, $s;
+
+		$dur = $endet - $startet;
+
+		$calls = $DSTATFAX{ALL}->get_freq_over_range ($startet, $endet);
+		$errcalls = $DSTATFAX{ERR}->get_freq_over_range ($startet, $endet);
+		$gcalls = $DSTATFAX{G}->get_freq_over_range ($startet, $endet);
+		$shorts = $DSTATFAX{SHORT}->get_freq_over_range ($startet, $endet);
+		$abandoned = $DSTATFAX{AB}->get_freq_over_range ($startet, $endet);
+		$busy = $DSTATFAX{BUSY}->get_freq_over_range ($startet, $endet);
+		$noroute = $DSTATFAX{NR}->get_freq_over_range ($startet, $endet);
+		$localdisc = $DSTATFAX{LD}->get_freq_over_range ($startet, $endet);
+		$destunreach = $DSTATFAX{DU}->get_freq_over_range ($startet, $endet);
+		if ($dur > 0)
+		{
+			$asr = int ($calls*60/$dur);
+		}
+		
+
+format TIMECPMFAX =
+@<<<<<<<<@<<<<<<<< @<<<<< @<<<<<   ^<<<<<    ^<<<   ^<<<<   ^<<<< ^<<< ^<<< ^<<<<^<<<<
+$startp,$endp,     $calls, $errcalls,$gcalls,$asr, $shorts,$abandoned,$busy,$noroute,$localdisc, $destunreach
+.
+		$FORMAT_NAME = "TIMECPMFAX";
+		$FORMAT_TOP_NAME = "TIMECPMFAX_TOP";
+		$FORMAT_LINES_PER_PAGE = 16;
+		write;
+
+		}
+	}
+}
+
+
+sub CreateNewTimeStatObjects ()
+{
+	$tmpstat{ALL}    = Statistics::Descriptive::Full->new();
+	$tmpstat{G}      = Statistics::Descriptive::Full->new();
+	$tmpstat{ERR}    = Statistics::Descriptive::Full->new();
+	$tmpstat{SHORT}  = Statistics::Descriptive::Full->new();
+	$tmpstat{AB}     = Statistics::Descriptive::Full->new();
+	$tmpstat{LD}     = Statistics::Descriptive::Full->new();
+	$tmpstat{BUSY}   = Statistics::Descriptive::Full->new();
+	$tmpstat{DU}     = Statistics::Descriptive::Full->new();
+	$tmpstat{NR}     = Statistics::Descriptive::Full->new();
+	$tmpstat{PDD}    = Statistics::Descriptive::Full->new();
+
+	$tmpstatfax{ALL}   = Statistics::Descriptive::Full->new();
+	$tmpstatfax{G}     = Statistics::Descriptive::Full->new();
+	$tmpstatfax{ERR}   = Statistics::Descriptive::Full->new();
+	$tmpstatfax{SHORT} = Statistics::Descriptive::Full->new();
+	$tmpstatfax{AB}    = Statistics::Descriptive::Full->new();
+	$tmpstatfax{LD}    = Statistics::Descriptive::Full->new();
+	$tmpstatfax{BUSY}  = Statistics::Descriptive::Full->new();
+	$tmpstatfax{DU}    = Statistics::Descriptive::Full->new();
+	$tmpstatfax{NR}    = Statistics::Descriptive::Full->new();
+	$tmpstatfax{PDD}   = Statistics::Descriptive::Full->new();
+
+
+	return (%tmpstat, %tmpstatfax);
+}
+
+sub CreateNewPDDStatObjects ()
+{
+	$gwpddstat{ALL}  = Statistics::Descriptive::Full->new();
+	$gwpddstat{GOOD} = Statistics::Descriptive::Full->new();
+	$gwpddstat{ERR}  = Statistics::Descriptive::Full->new();
+
+	return (%gwpddstat);
+}
+
+
+sub PrintTimeStatsForGW ($)
+{
+	my ($arg) = @_;
+	my $match = 0;
+	my $i;
+	my $dstip = $arg;
+	my $tmpstat;
+	my $tmpstatfax;
+
+	for $i ( 0 .. $#sortedgwlist )
+	{
+		if ($sortedgwlist[$i]{gwip} eq $dstip)
+		{
+			$match = 1;
+
+			$tmpstat = $sortedgwlist[$i]{gwtstat};
+			$tmpstatfax = $sortedgwlist[$i]{gwtstatfax};
+			last;
+		}
+	}
+
+	## Continue search in srcgw list...
+	if ($match == 0)
+	{
+		for $i ( 0 .. $#sortedsrcgwlist )
+		{
+			if ($sortedsrcgwlist[$i]{gwip} eq $dstip)
+			{
+				$match = 1;
+
+				$tmpstat = $sortedsrcgwlist[$i]{gwtstat};
+				$tmpstatfax = $sortedsrcgwlist[$i]{gwtstatfax};
+				last;
+			}
+		}
+	}
+
+
+	if ($match == 0)
+	{
+		return 0;
+	}
+
+	my $startet = $$tmpstat{ALL}->min();
+	my $endet = $$tmpstat{ALL}->max();
+	my $last12hours = $endet - (12 * 3600);
+	my $last6hours = $endet - (6 * 3600);
+	my $last3hours = $endet - (3 * 3600);
+	my $last2hours = $endet - (2 * 3600);
+	my $lasthour = $endet - 3600;
+	my $lasthalf = $endet - 1800;
+	my $lastten = $endet - 600;
+	my $lastfive = $endet - 300;
+	my $prev_startet = 0;
+	my $prev_endet = 0;
+## Went with global min and max times..
+	my $maxtime = $DSTAT{ALL}->max();
+	my $mintime = $DSTAT{ALL}->min();
+	my $hc = int (($maxtime - $mintime)/3600);
+
+
+	format TIMEDETGW_TOP = 
+
+                  Time Distribution of Calls for GW
+==================================================================================
+Start       End    Total   Error   Successful ASR  Short           ERRORS
+Period    Period   Calls   Calls   Calls      (%)  Calls   ------------------------
+                                                   (<60 s)  ab  busy   nr  ld   du
+===================================================================================
+.
+
+
+	format TIMEGWPERHOUR_TOP = 
+
+                  Per Hour Distribution of Calls for GW
+==================================================================================
+Start       End    Total   Error   Successful ASR  Short           ERRORS
+Period    Period   Calls   Calls   Calls      (%)  Calls   ------------------------
+                                                   (<60 s)  ab  busy   nr  ld   du
+===================================================================================
+.
+
+
+	$endet = 0;
+	while ($endet < $maxtime)
+	{
+		my $h, $m, $s;
+		my $calls, $errcalls, $gcalls, $shorts, $abandoned;
+		my $busy, $noroute, $localdisc, $destunreach;
+		my $asr;
+		my $markneg = 0;
+
+		if ($prev_startet == 0)
+		{
+			$prev_startet = $startet = $mintime;
+			## if still zero...
+			if ($prev_startet == 0)
+			{
+				$prev_startet = 1;
+			}
+		}
+		else
+		{
+			$startet = $endet;
+		}
+		$endet = GetNextHour ($startet);
+
+		if ($endet > $maxtime)
+		{
+			$endet = $maxtime;
+		}
+
+		($h, $m, $s) = FormatTime ($startet);
+		if ($h < 0)
+		{
+			$h =  24 - (abs $h);
+			$markneg = 1;
+		}
+		if ($m < 0)
+		{
+			$m = 60 - (abs $m);
+			$markneg = 1;
+		}
+		if ($s < 0)
+		{
+			$s = 60 - (abs $s);
+			$markneg = 1;
+		}
+		if ($markneg)
+		{
+			$startp = sprintf "-%3d:%02d:%02d", $h, $m, $s;
+		}
+		else
+		{
+			$startp = sprintf "%3d:%02d:%02d", $h, $m, $s;
+		}
+		($h, $m, $s) = FormatTime ($endet);
+		$endp = sprintf "%3d:%02d:%02d", $h, $m, $s;
+
+		$calls = $$tmpstat{ALL}->get_freq_over_range ($startet, $endet);
+		$errcalls = $$tmpstat{ERR}->get_freq_over_range ($startet, $endet);
+		$gcalls = $$tmpstat{G}->get_freq_over_range ($startet, $endet);
+		$shorts = $$tmpstat{SHORT}->get_freq_over_range ($startet, $endet);
+		$abandoned = $$tmpstat{AB}->get_freq_over_range ($startet, $endet);
+		$busy = $$tmpstat{BUSY}->get_freq_over_range ($startet, $endet);
+		$noroute = $$tmpstat{NR}->get_freq_over_range ($startet, $endet);
+		$localdisc = $$tmpstat{LD}->get_freq_over_range ($startet, $endet);
+		$destunreach = $$tmpstat{DU}->get_freq_over_range ($startet, $endet);
+		if ($calls > 0)
+		{
+			$asr = int ($gcalls*100/$calls);
+		}
+		
+
+format TIMEGWPERHOUR =
+@<<<<<<<<<@<<<<<<<<<^<<<<<< ^<<<<<   ^<<<<<    ^<<<   ^<<<<   ^<<<< ^<<< ^<<< ^<<<<^<<<<
+$startp,  $endp,    $calls, $errcalls,$gcalls, $asr, $shorts,$abandoned,$busy,$noroute,$localdisc, $destunreach
+.
+		$FORMAT_NAME = "TIMEGWPERHOUR";
+		$FORMAT_TOP_NAME = "TIMEGWPERHOUR_TOP";
+		$FORMAT_LINES_PER_PAGE = $hc + 8;
+		write;
+
+	}
+
+
+	my $i;
+
+	$endet = $$tmpstat{ALL}->max();
+	$startet = $$tmpstat{ALL}->min();
+
+	for ($i = 0; $i < 9; $i++)
+	{
+
+##		$i == 0 is reserved.
+
+		if ($i == 1)
+		{
+			$startet = $last12hours;
+		}
+		elsif ($i == 2)
+		{
+			$startet = $last6hours;
+		}
+		elsif ($i == 3)
+		{
+			$startet = $last3hours;
+		}
+		elsif ($i == 4)
+		{
+			$startet = $last2hours;
+		}
+		elsif ($i == 5)
+		{
+			$startet = $lasthour;
+		}
+		elsif ($i == 6)
+		{
+			$startet = $lasthalf;
+		}
+		elsif ($i == 7)
+		{
+			$startet = $lastten;
+		}
+		elsif ($i == 8)
+		{
+			$startet = $lastfive;
+		}
+	my $h, $m, $s;
+	my $calls, $errcalls, $gcalls, $shorts, $abandoned;
+	my $busy, $noroute, $localdisc, $destunreach;
+	my $asr;
+	my $markneg = 0;
+
+	($h, $m, $s) = FormatTime ($startet);
+	if ($h < 0)
+	{
+		$h =  24 - (abs $h);
+		$markneg = 1;
+	}
+	if ($m < 0)
+	{
+		$m = 60 - (abs $m);
+		$markneg = 1;
+	}
+	if ($s < 0)
+	{
+		$s = 60 - (abs $s);
+		$markneg = 1;
+	}
+	if ($markneg)
+	{
+		$startp = sprintf "-%3d:%02d:%02d", $h, $m, $s;
+	}
+	else
+	{
+		$startp = sprintf "%3d:%02d:%02d", $h, $m, $s;
+	}
+	($h, $m, $s) = FormatTime ($endet);
+	$endp = sprintf "%3d:%02d:%02d", $h, $m, $s;
+
+	if ($i)
+	{
+		$calls = $$tmpstat{ALL}->get_freq_over_range ($startet, $endet);
+		$errcalls = $$tmpstat{ERR}->get_freq_over_range ($startet, $endet);
+		$gcalls = $$tmpstat{G}->get_freq_over_range ($startet, $endet);
+		$shorts = $$tmpstat{SHORT}->get_freq_over_range ($startet, $endet);
+		$abandoned = $$tmpstat{AB}->get_freq_over_range ($startet, $endet);
+		$busy = $$tmpstat{BUSY}->get_freq_over_range ($startet, $endet);
+		$noroute = $$tmpstat{NR}->get_freq_over_range ($startet, $endet);
+		$localdisc = $$tmpstat{LD}->get_freq_over_range ($startet, $endet);
+		$destunreach = $$tmpstat{DU}->get_freq_over_range ($startet, $endet);
+		if ($calls > 0)
+		{
+			$asr = int ($gcalls*100/$calls);
+		}
+		
+	}
+	else
+	{
+		$calls = $$tmpstat{ALL}->count();
+		$errcalls = $$tmpstat{ERR}->count();
+		$gcalls = $$tmpstat{G}->count();
+		$shorts = $$tmpstat{SHORT}->count();
+		$abandoned = $$tmpstat{AB}->count();
+		$busy = $$tmpstat{BUSY}->count();
+		$noroute = $$tmpstat{NR}->count();
+		$localdisc = $$tmpstat{LD}->count();
+		$destunreach = $$tmpstat{DU}->count();
+		if ($calls > 0)
+		{
+			$asr = int ($gcalls*100/$calls);
+		}
+		
+	}
+
+format TIMEDETGW =
+@<<<<<<<<<@<<<<<<<<<^<<<<<< ^<<<<<   ^<<<<<    ^<<<   ^<<<<   ^<<<< ^<<< ^<<< ^<<<<^<<<<
+$startp,  $endp,    $calls, $errcalls,$gcalls, $asr, $shorts,$abandoned,$busy,$noroute,$localdisc, $destunreach
+.
+		$FORMAT_NAME = "TIMEDETGW";
+		$FORMAT_TOP_NAME = "TIMEDETGW_TOP";
+		$FORMAT_LINES_PER_PAGE = 16;
+		write;
+
+	}
+}
+
+
+
+sub PrintDistStatsForGW ($)
+{
+	my ($arg) = @_;
+	my $match = 0;
+	my $i;
+	my $dstip = $arg;
+	my $tmpdstat;
+	my $tmpdstatpdd;
+
+	for $i ( 0 .. $#sortedgwlist )
+	{
+		if ($sortedgwlist[$i]{gwip} eq $dstip)
+		{
+			$match = 1;
+
+			$tmpdstat = $sortedgwlist[$i]{gwstat};
+			$tmpdstatpdd = $sortedgwlist[$i]{gwpddstat};
+			last;
+		}
+	}
+
+	## Continue search in srcgw list...
+	if ($match == 0)
+	{
+		for $i ( 0 .. $#sortedsrcgwlist )
+		{
+			if ($sortedsrcgwlist[$i]{gwip} eq $dstip)
+			{
+				$match = 1;
+
+				$tmpdstat = $sortedsrcgwlist[$i]{gwstat};
+				$tmpdstatpdd = $sortedsrcgwlist[$i]{gwpddstat};
+				last;
+			}
+		}
+	}
+
+
+	if ($match == 0)
+	{
+		return 0;
+	}
+
+
+	print "***************************************\n";
+	print "*** Duration stats for GW $dstip \n";
+	print "***************************************\n";
+	PrintDurationDistribution ($tmpdstat);
+	print "\n\n";
+	print "***************************************\n";
+	print "*** PDD stats for GW $dstip \n";
+	print "***************************************\n";
+	PrintDurationDistribution ($tmpdstatpdd);
+	print "***************************************\n";
+
+	return 0;
+
+	my $startet = $$tmpstat{ALL}->min();
+	my $endet = $$tmpstat{ALL}->max();
+	my $last12hours = $endet - (12 * 3600);
+	my $last6hours = $endet - (6 * 3600);
+	my $last3hours = $endet - (3 * 3600);
+	my $last2hours = $endet - (2 * 3600);
+	my $lasthour = $endet - 3600;
+	my $lasthalf = $endet - 1800;
+	my $lastten = $endet - 600;
+	my $lastfive = $endet - 300;
+	my $prev_startet = 0;
+	my $prev_endet = 0;
+## Went with global min and max times..
+	my $maxtime = $DSTAT{ALL}->max();
+	my $mintime = $DSTAT{ALL}->min();
+	my $hc = int (($maxtime - $mintime)/3600);
+
+
+	format TIMEDETGW_TOP = 
+
+                  Time Distribution of Calls for GW
+==================================================================================
+Start       End    Total   Error   Successful ASR  Short           ERRORS
+Period    Period   Calls   Calls   Calls      (%)  Calls   ------------------------
+                                                   (<60 s)  ab  busy   nr  ld   du
+===================================================================================
+.
+
+
+	format TIMEGWPERHOUR_TOP = 
+
+                  Per Hour Distribution of Calls for GW
+==================================================================================
+Start       End    Total   Error   Successful ASR  Short           ERRORS
+Period    Period   Calls   Calls   Calls      (%)  Calls   ------------------------
+                                                   (<60 s)  ab  busy   nr  ld   du
+===================================================================================
+.
+
+
+	$endet = 0;
+	while ($endet < $maxtime)
+	{
+		my $h, $m, $s;
+		my $calls, $errcalls, $gcalls, $shorts, $abandoned;
+		my $busy, $noroute, $localdisc, $destunreach;
+		my $asr;
+		my $markneg = 0;
+
+		if ($prev_startet == 0)
+		{
+			$prev_startet = $startet = $mintime;
+			## if still zero...
+			if ($prev_startet == 0)
+			{
+				$prev_startet = 1;
+			}
+		}
+		else
+		{
+			$startet = $endet;
+		}
+		$endet = GetNextHour ($startet);
+
+		if ($endet > $maxtime)
+		{
+			$endet = $maxtime;
+		}
+
+		($h, $m, $s) = FormatTime ($startet);
+		if ($h < 0)
+		{
+			$h =  24 - (abs $h);
+			$markneg = 1;
+		}
+		if ($m < 0)
+		{
+			$m = 60 - (abs $m);
+			$markneg = 1;
+		}
+		if ($s < 0)
+		{
+			$s = 60 - (abs $s);
+			$markneg = 1;
+		}
+		if ($markneg)
+		{
+			$startp = sprintf "-%3d:%02d:%02d", $h, $m, $s;
+		}
+		else
+		{
+			$startp = sprintf "%3d:%02d:%02d", $h, $m, $s;
+		}
+		($h, $m, $s) = FormatTime ($endet);
+		$endp = sprintf "%3d:%02d:%02d", $h, $m, $s;
+
+		$calls = $$tmpstat{ALL}->get_freq_over_range ($startet, $endet);
+		$errcalls = $$tmpstat{ERR}->get_freq_over_range ($startet, $endet);
+		$gcalls = $$tmpstat{G}->get_freq_over_range ($startet, $endet);
+		$shorts = $$tmpstat{SHORT}->get_freq_over_range ($startet, $endet);
+		$abandoned = $$tmpstat{AB}->get_freq_over_range ($startet, $endet);
+		$busy = $$tmpstat{BUSY}->get_freq_over_range ($startet, $endet);
+		$noroute = $$tmpstat{NR}->get_freq_over_range ($startet, $endet);
+		$localdisc = $$tmpstat{LD}->get_freq_over_range ($startet, $endet);
+		$destunreach = $$tmpstat{DU}->get_freq_over_range ($startet, $endet);
+		if ($calls > 0)
+		{
+			$asr = int ($gcalls*100/$calls);
+		}
+		
+
+format TIMEGWPERHOUR =
+@<<<<<<<<<@<<<<<<<<<^<<<<<< ^<<<<<   ^<<<<<    ^<<<   ^<<<<   ^<<<< ^<<< ^<<< ^<<<<^<<<<
+$startp,  $endp,    $calls, $errcalls,$gcalls, $asr, $shorts,$abandoned,$busy,$noroute,$localdisc, $destunreach
+.
+		$FORMAT_NAME = "TIMEGWPERHOUR";
+		$FORMAT_TOP_NAME = "TIMEGWPERHOUR_TOP";
+		$FORMAT_LINES_PER_PAGE = $hc + 8;
+		write;
+
+	}
+
+
+	my $i;
+
+	$endet = $$tmpstat{ALL}->max();
+	$startet = $$tmpstat{ALL}->min();
+
+	for ($i = 0; $i < 9; $i++)
+	{
+
+##		$i == 0 is reserved.
+
+		if ($i == 1)
+		{
+			$startet = $last12hours;
+		}
+		elsif ($i == 2)
+		{
+			$startet = $last6hours;
+		}
+		elsif ($i == 3)
+		{
+			$startet = $last3hours;
+		}
+		elsif ($i == 4)
+		{
+			$startet = $last2hours;
+		}
+		elsif ($i == 5)
+		{
+			$startet = $lasthour;
+		}
+		elsif ($i == 6)
+		{
+			$startet = $lasthalf;
+		}
+		elsif ($i == 7)
+		{
+			$startet = $lastten;
+		}
+		elsif ($i == 8)
+		{
+			$startet = $lastfive;
+		}
+	my $h, $m, $s;
+	my $calls, $errcalls, $gcalls, $shorts, $abandoned;
+	my $busy, $noroute, $localdisc, $destunreach;
+	my $asr;
+	my $markneg = 0;
+
+	($h, $m, $s) = FormatTime ($startet);
+	if ($h < 0)
+	{
+		$h =  24 - (abs $h);
+		$markneg = 1;
+	}
+	if ($m < 0)
+	{
+		$m = 60 - (abs $m);
+		$markneg = 1;
+	}
+	if ($s < 0)
+	{
+		$s = 60 - (abs $s);
+		$markneg = 1;
+	}
+	if ($markneg)
+	{
+		$startp = sprintf "-%3d:%02d:%02d", $h, $m, $s;
+	}
+	else
+	{
+		$startp = sprintf "%3d:%02d:%02d", $h, $m, $s;
+	}
+	($h, $m, $s) = FormatTime ($endet);
+	$endp = sprintf "%3d:%02d:%02d", $h, $m, $s;
+
+	if ($i)
+	{
+		$calls = $$tmpstat{ALL}->get_freq_over_range ($startet, $endet);
+		$errcalls = $$tmpstat{ERR}->get_freq_over_range ($startet, $endet);
+		$gcalls = $$tmpstat{G}->get_freq_over_range ($startet, $endet);
+		$shorts = $$tmpstat{SHORT}->get_freq_over_range ($startet, $endet);
+		$abandoned = $$tmpstat{AB}->get_freq_over_range ($startet, $endet);
+		$busy = $$tmpstat{BUSY}->get_freq_over_range ($startet, $endet);
+		$noroute = $$tmpstat{NR}->get_freq_over_range ($startet, $endet);
+		$localdisc = $$tmpstat{LD}->get_freq_over_range ($startet, $endet);
+		$destunreach = $$tmpstat{DU}->get_freq_over_range ($startet, $endet);
+		if ($calls > 0)
+		{
+			$asr = int ($gcalls*100/$calls);
+		}
+		
+	}
+	else
+	{
+		$calls = $$tmpstat{ALL}->count();
+		$errcalls = $$tmpstat{ERR}->count();
+		$gcalls = $$tmpstat{G}->count();
+		$shorts = $$tmpstat{SHORT}->count();
+		$abandoned = $$tmpstat{AB}->count();
+		$busy = $$tmpstat{BUSY}->count();
+		$noroute = $$tmpstat{NR}->count();
+		$localdisc = $$tmpstat{LD}->count();
+		$destunreach = $$tmpstat{DU}->count();
+		if ($calls > 0)
+		{
+			$asr = int ($gcalls*100/$calls);
+		}
+		
+	}
+
+format TIMEDETGW =
+@<<<<<<<<<@<<<<<<<<<^<<<<<< ^<<<<<   ^<<<<<    ^<<<   ^<<<<   ^<<<< ^<<< ^<<< ^<<<<^<<<<
+$startp,  $endp,    $calls, $errcalls,$gcalls, $asr, $shorts,$abandoned,$busy,$noroute,$localdisc, $destunreach
+.
+		$FORMAT_NAME = "TIMEDETGW";
+		$FORMAT_TOP_NAME = "TIMEDETGW_TOP";
+		$FORMAT_LINES_PER_PAGE = 16;
+		write;
+
+	}
+}
+
+
+
+
+
+sub PrintTimeDetails ($)
+{
+	my ($arg) = @_;
+	my $startet = $DSTAT{ALL}->min();
+	my $endet = $DSTAT{ALL}->max();
+	my $last12hours = $endet - (12 * 3600);
+	my $last6hours = $endet - (6 * 3600);
+	my $last3hours = $endet - (3 * 3600);
+	my $last2hours = $endet - (2 * 3600);
+	my $lasthour = $endet - 3600;
+	my $lasthalf = $endet - 1800;
+	my $lastten = $endet - 600;
+	my $lastfive = $endet - 300;
+
+
+	if ($arg eq "all")
+	{
+
+			format TIMEDET_TOP = 
+
+                            Time Distribution of Calls
+===================================================================================
+Start       End    Total   Error   Successful ASR  Short           ERRORS
+Period    Period   Calls   Calls   Calls      (%)  Calls   ------------------------
+                                                   (<60 s)  ab  busy   nr  ld   du
+===================================================================================
+.
+
+	}
+	elsif ($arg eq "fax")
+	{
+		$startet = $DSTATFAX{ALL}->min();
+		$endet = $DSTATFAX{ALL}->max();
+		$last12hours = $endet - (12 * 3600);
+		$last6hours = $endet - (6 * 3600);
+		$last3hours = $endet - (3 * 3600);
+		$last2hours = $endet - (2 * 3600);
+		$lasthour = $endet - 3600;
+		$lasthalf = $endet - 1800;
+		$lastten = $endet - 600;
+		$lastfive = $endet - 300;
+
+
+			format TIMEDETFAX_TOP = 
+
+                         Time Distribution of Fax Calls
+===================================================================================
+Start       End    Total   Error   Successful ASR  Short           ERRORS
+Period    Period   Calls   Calls   Calls      (%)  Calls   ------------------------
+                                                   (<60 s)  ab  busy   nr  ld   du
+===================================================================================
+.
+
+
+
+	}
+
+
+
+	if ($arg eq "all")
+	{
+		my $i;
+		for ($i = 0; $i < 9; $i++)
+		{
+
+			if ($i == 1)
+			{
+				$startet = $last12hours;
+			}
+			elsif ($i == 2)
+			{
+				$startet = $last6hours;
+			}
+			elsif ($i == 3)
+			{
+				$startet = $last3hours;
+			}
+			elsif ($i == 4)
+			{
+				$startet = $last2hours;
+			}
+			elsif ($i == 5)
+			{
+				$startet = $lasthour;
+			}
+			elsif ($i == 6)
+			{
+				$startet = $lasthalf;
+			}
+			elsif ($i == 7)
+			{
+				$startet = $lastten;
+			}
+			elsif ($i == 8)
+			{
+				$startet = $lastfive;
+			}
+		my $h, $m, $s;
+		my $calls, $errcalls, $gcalls, $shorts, $abandoned;
+		my $busy, $noroute, $localdisc, $destunreach;
+		my $asr;
+		my $markneg = 0;
+
+		($h, $m, $s) = FormatTime ($startet);
+		if ($h < 0)
+		{
+			$h =  24 - (abs $h);
+			$markneg = 1;
+		}
+		if ($m < 0)
+		{
+			$m = 60 - (abs $m);
+			$markneg = 1;
+		}
+		if ($s < 0)
+		{
+			$s = 60 - (abs $s);
+			$markneg = 1;
+		}
+		if ($markneg)
+		{
+			$startp = sprintf "-%3d:%02d:%02d", $h, $m, $s;
+		}
+		else
+		{
+			$startp = sprintf "%3d:%02d:%02d", $h, $m, $s;
+		}
+		($h, $m, $s) = FormatTime ($endet);
+		$endp = sprintf "%3d:%02d:%02d", $h, $m, $s;
+
+		$calls = $DSTAT{ALL}->get_freq_over_range ($startet, $endet);
+		$errcalls = $DSTAT{ERR}->get_freq_over_range ($startet, $endet);
+		$gcalls = $DSTAT{G}->get_freq_over_range ($startet, $endet);
+		$shorts = $DSTAT{SHORT}->get_freq_over_range ($startet, $endet);
+		$abandoned = $DSTAT{AB}->get_freq_over_range ($startet, $endet);
+		$busy = $DSTAT{BUSY}->get_freq_over_range ($startet, $endet);
+		$noroute = $DSTAT{NR}->get_freq_over_range ($startet, $endet);
+		$localdisc = $DSTAT{LD}->get_freq_over_range ($startet, $endet);
+		$destunreach = $DSTAT{DU}->get_freq_over_range ($startet, $endet);
+		if ($calls > 0)
+		{
+			$asr = int ($gcalls*100/$calls);
+		}
+		
+
+format TIMEDET =
+@<<<<<<<<<@<<<<<<<<<^<<<<<< ^<<<<<   ^<<<<<    ^<<<   ^<<<<   ^<<<< ^<<< ^<<< ^<<<<^<<<<
+$startp,  $endp,    $calls, $errcalls,$gcalls, $asr, $shorts,$abandoned,$busy,$noroute,$localdisc, $destunreach
+.
+		$FORMAT_NAME = "TIMEDET";
+		$FORMAT_TOP_NAME = "TIMEDET_TOP";
+		$FORMAT_LINES_PER_PAGE = 16;
+		write;
+
+		}
+	}
+	elsif ($arg eq "fax")
+	{
+		my $i;
+		for ($i = 0; $i < 9; $i++)
+		{
+
+			if ($i == 1)
+			{
+				$startet = $last12hours;
+			}
+			elsif ($i == 2)
+			{
+				$startet = $last6hours;
+			}
+			elsif ($i == 3)
+			{
+				$startet = $last3hours;
+			}
+			elsif ($i == 4)
+			{
+				$startet = $last2hours;
+			}
+			elsif ($i == 5)
+			{
+				$startet = $lasthour;
+			}
+			elsif ($i == 6)
+			{
+				$startet = $lasthalf;
+			}
+			elsif ($i == 7)
+			{
+				$startet = $lastten;
+			}
+			elsif ($i == 8)
+			{
+				$startet = $lastfive;
+			}
+		my $h, $m, $s;
+		my $calls, $errcalls, $gcalls, $shorts, $abandoned;
+		my $busy, $noroute, $localdisc, $destunreach;
+		my $asr;
+		my $markneg = 0;
+
+		($h, $m, $s) = FormatTime ($startet);
+		if ($h < 0)
+		{
+			$h = 24 - (abs $h);
+			$markneg = 1;
+		}
+		if ($m < 0)
+		{
+			$m = 60 - (abs $m);
+			$markneg = 1;
+		}
+		if ($s < 0)
+		{
+			$s = 60 - (abs $s);
+			$markneg = 1;
+		}
+		if ($markneg)
+		{
+			$startp = sprintf "-%3d:%02d:%02d", $h, $m, $s;
+		}
+		else
+		{
+			$startp = sprintf "%3d:%02d:%02d", $h, $m, $s;
+		}
+		($h, $m, $s) = FormatTime ($endet);
+		$endp = sprintf "%3d:%02d:%02d", $h, $m, $s;
+
+		$calls = $DSTATFAX{ALL}->get_freq_over_range ($startet, $endet);
+		$errcalls = $DSTATFAX{ERR}->get_freq_over_range ($startet, $endet);
+		$gcalls = $DSTATFAX{G}->get_freq_over_range ($startet, $endet);
+		$shorts = $DSTATFAX{SHORT}->get_freq_over_range ($startet, $endet);
+		$abandoned = $DSTATFAX{AB}->get_freq_over_range ($startet, $endet);
+		$busy = $DSTATFAX{BUSY}->get_freq_over_range ($startet, $endet);
+		$noroute = $DSTATFAX{NR}->get_freq_over_range ($startet, $endet);
+		$localdisc = $DSTATFAX{LD}->get_freq_over_range ($startet, $endet);
+		$destunreach = $DSTATFAX{DU}->get_freq_over_range ($startet, $endet);
+		if ($calls > 0)
+		{
+			$asr = int ($gcalls*100/$calls);
+		}
+		
+
+format TIMEDETFAX =
+@<<<<<<<<@<<<<<<<< @<<<<< @<<<<<   ^<<<<<    ^<<<   ^<<<<   ^<<<< ^<<< ^<<< ^<<<<^<<<<
+$startp,$endp,     $calls, $errcalls,$gcalls,$asr, $shorts,$abandoned,$busy,$noroute,$localdisc, $destunreach
+.
+		$FORMAT_NAME = "TIMEDETFAX";
+		$FORMAT_TOP_NAME = "TIMEDETFAX_TOP";
+		$FORMAT_LINES_PER_PAGE = 16;
+		write;
+
+		}
+	}
+}
+
+
+sub WarnAboutNoFile ()
+{
+	print "No file has been input.\n";
+	print "Use 'file' command or 'help' for more help.\n";
+
+}
+
+
+
+sub OldPrintTimeStats ($)
+{
+	my ($arg) = @_;
+	my %f = $DSTAT{ALL}->frequency_distribution (24);
+	my $tprev = 0;
+
+
+	if ($arg eq "all")
+	{
+		print "=============================================\n";
+		print "=========== All Calls over time =============\n";
+		print "=============================================\n";
+		for (sort {$a <=> $b} keys %f) 
+		{
+			my $i = int $_;
+			my $h1, $h2;
+			my $m1, $m2;
+			my $s1, $s2;
+			($h1, $m1, $s1) = FormatTime ($tprev);
+			($h2, $m2, $s2) = FormatTime ($i);
+			printf "Time %3d:%02d:%02d <= %3d:%02d:%02d, calls = %d\n", $h1, $m1, $s1, $h2, $m2, $s2, $f{$_};
+			$tprev = $i;
+		}
+		print "=============================================\n";
+
+		%f = $DSTAT{G}->frequency_distribution (24);
+		$tprev = 0;
+		print "=============================================\n";
+		print "======= Successful Calls over time ==========\n";
+		print "=============================================\n";
+		for (sort {$a <=> $b} keys %f) 
+		{
+			my $i = int $_;
+			my $h1, $h2;
+			my $m1, $m2;
+			my $s1, $s2;
+			($h1, $m1, $s1) = FormatTime ($tprev);
+			($h2, $m2, $s2) = FormatTime ($i);
+			printf "Time %3d:%02d:%02d <= %3d:%02d:%02d, calls = %d\n", $h1, $m1, $s1, $h2, $m2, $s2, $f{$_};
+			$tprev = $i;
+		}
+		print "=============================================\n";
+
+		%f = $DSTAT{ERR}->frequency_distribution (24);
+		$tprev = 0;
+		print "=============================================\n";
+		print "========= Errored Calls over time ===========\n";
+		print "=============================================\n";
+		for (sort {$a <=> $b} keys %f) 
+		{
+			my $i = int $_;
+			my $h1, $h2;
+			my $m1, $m2;
+			my $s1, $s2;
+			($h1, $m1, $s1) = FormatTime ($tprev);
+			($h2, $m2, $s2) = FormatTime ($i);
+			printf "Time %3d:%02d:%02d <= %3d:%02d:%02d, calls = %d\n", $h1, $m1, $s1, $h2, $m2, $s2, $f{$_};
+			$tprev = $i;
+		}
+		print "=============================================\n";
+
+
+		PrintTimeDetails ("all");
+
+	}
+	elsif ($arg eq "fax")
+	{
+
+		%f = $DSTATFAX{ALL}->frequency_distribution (24);
+		$tprev = 0;
+		print "=============================================\n";
+		print "=========== Fax Calls over time =============\n";
+		print "=============================================\n";
+		for (sort {$a <=> $b} keys %f) 
+		{
+			my $i = int $_;
+			my $h1, $h2;
+			my $m1, $m2;
+			my $s1, $s2;
+			($h1, $m1, $s1) = FormatTime ($tprev);
+			($h2, $m2, $s2) = FormatTime ($i);
+			printf "Time %3d:%02d:%02d <= %3d:%02d:%02d, calls = %d\n", $h1, $m1, $s1, $h2, $m2, $s2, $f{$_};
+			$tprev = $i;
+		}
+		print "=============================================\n";
+
+
+		PrintTimeDetails ($arg);
+	}
+	elsif ($arg =~ /gw\s+(.*)/ )
+	{
+		PrintTimeStatsForGW ($1);
+	}
+
+}
+
+sub GetNextHour ($)
+{
+	my ($startet) = @_;
+	my $endet;
+	my $nval = 0;
+	my $mod;
+
+	if ($startet < 0)
+	{
+		return 0;
+	}
+
+	$nval = $startet + 3600;
+
+	if (($mod = $nval % 3600))
+	{
+		return ($startet + $mod);
+	}
+	else
+	{
+		return $nval;
+	}
+
+}
+
+sub SortGWLists ()
+{
+	@sortedgwlist = sort SortGW @gwlist;
+
+	@sortedsrcgwlist = sort SortGW @srcgwlist;
+}
+
+sub SortGW 
+{
+	$a->{gwip}	<=>	$b->{gwip}
+}
+
+sub OldListInfo ($)
+{
+	my ($info, $gw) = @_;
+	my $h;
+	my $m;
+	my $s;
+	my $stat;
+
+
+	## List information for Gateways.
+	if ($info eq "gw")
+	{
+		if (@gwlist)
+		{
+			my $i;
+			print "\n";
+			print "*****************************************\n";
+			print "Destination Gateway list: \n";
+			print "*****************************************\n";
+			for $i (@gwlist)
+			{
+				my $role;
+				print "{ ";
+				for $role ( keys %$i )
+				{
+					if ($role ne "gwstat")
+					{
+						print "$role = $i->{$role} ";
+					}
+				}
+				print "} \n";
+
+			}
+			for $i ( 0 .. $#gwlist )
+			{
+
+				print "\n@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n";
+				print "Per GW stats for GW-IP : $gwlist[$i]{gwip}\n";
+				
+				$stat = $gwlist[$i]{gwstat};
+
+				PrintStats ($stat);
+
+				print "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n\n";
+			}
+		}
+	}
+	else
+	{
+		print "Unknown information: $info \n";
+	}
+}
+
+
+sub RunCommands ($)
+{
+	my ($cmdfile) = @_;
+	my $res;
+
+##	print "Command file is $cmdfile\n";
+
+	open (CMD, $cmdfile) or die "Cannot open $cmdfile : $! \n";
+
+	while ($res = <CMD>)
+	{
+		chomp ($res);
+
+		ParseResponse ($res);
+	}
+}
+
+
+sub DoQuit ()
+{
+
+	## Call the notify handlers
+	NotifyHandler ();
+	close (STDOUT);
+	exit 0;
+}
+
+sub NotifyHandler ()
+{
+	if ($NotifyFile)
+	{
+		open (NTFY, "< $NotifyFile") or die "Unable to open Notify file \n";
+
+		close (NTFY);
+
+		## Then execute it.
+		system ("$NotifyFile $OutFile");
+	}
+}
+
+sub SetRange ($)
+{
+	my ($arg) = @_;
+	my $mydate = Date::EzDate->new ();
+	print "Right now the time is: $mydate->{'full'} \n";
+
+	if ($arg =~ m/[dD]\/(\d+)\/(\d+)\s+(.*)/ )
+	{
+		my $f;
+		my $back = $1;
+		my $ndays = $2;
+		my $filter = $3;
+		my @newfilelist;
+
+		## Adjust the date...
+		$mydate->{'epochday'} -= $back;
+		print "Going back to:         $mydate->{'full'} \n";
+		print "To generate reports for: $ndays days\n";
+
+		@filelist = DateFiles ($mydate, $ndays);  # For start
+
+		print "Files to be used are: \n";
+		foreach $f (@filelist)
+		{
+			print "		$f \n";
+		}
+
+		## Process filters
+		if ($filter =~ /regid=(.*)/ )
+		{
+			print "filtering for regid = $1\n";
+
+			my $regid = $1;
+			foreach $f (@filelist)
+			{
+				my $newfile = GenFile ($f, $regid, "regid");
+
+				push @newfilelist, $newfile;
+			}
+		}
+		elsif ($filter =~ /gwip=(.*)/ )
+		{
+			print "filtering for gwip = $1\n";
+
+			my $gwip = $1;
+			foreach $f (@filelist)
+			{
+				my $newfile = GenFile ($f, $gwip, "gwip");
+
+				push @newfilelist, $newfile;
+			}
+		}
+
+		## Now process those files.
+#		foreach $f (@filelist)
+#		{
+#			FileInputMIND ($f);
+#		}
+
+		foreach $f (@newfilelist)
+		{
+			FileInputMIND ($f);
+		}
+		
+	}
+	if ($arg =~ m/[tT]\/(\d+)\/(\d+)/ )
+	{
+		my $f;
+		my $back = $1;
+		my $nhours = $2;
+
+		$mydate->{'hour'} -= $back;
+		print "Going back to:         $mydate->{'full'} \n";
+		print "To generate reports for: $nhours hours\n";
+
+		@filelist = TimeFiles ($mydate, $nhours);
+
+		print "Files to be used are: \n";
+		foreach $f (@filelist)
+		{
+			print "		$f \n";
+		}
+
+		## Now process those files.
+		foreach $f (@filelist)
+		{
+#			FileInputMIND ($f);
+		}
+	}
+
+}
+
+##
+## $startdate in EzDate data structure.
+## $ndays is the number of days going forward.
+##
+sub DateFiles ($ $)
+{
+	my ($startdate, $ndays) = @_;
+	my @filelist;
+	my $i;
+
+	##
+	## File names are of the form Dyyyymmdd.CDR
+	##
+
+	for ($i=0; $i < $ndays; $i++, $startdate->{'epochday'}++ )
+	{
+		my $dirbuf = sprintf "D%d%02d%02d.CDR", 
+				$startdate->{'year'}, 
+				$startdate->{'monthnumbase1'}, 
+				$startdate->{'dayofmonth'};
+
+		push @filelist, $dirbuf;
+	}
+
+	return @filelist;
+}
+
+sub TimeFiles ($ $)
+{
+	my ($startdate, $nhours) = @_;
+	my @filelist;
+	my $i;
+
+	##
+	## File names are of the form Tyyyymmddhhmm.CDR
+	##
+
+	for ($i=0; $i < $nhours; $i++, $startdate->{'hour'}++ )
+	{
+		my $dirbuf = sprintf "T%d%02d%02d%02d%02d.CDR", 
+				$startdate->{'year'}, 
+				$startdate->{'monthnumbase1'}, 
+				$startdate->{'dayofmonth'},
+				$startdate->{'hour'},
+				$startdate->{'minute'},
+
+		print "Dirbuf = $dirbuf \n";
+		push @filelist, $dirbuf;
+	}
+
+	return @filelist;
+}
+
+
+sub SetTempDir ($)
+{
+	my ($dirname) = @_;
+
+
+	if (defined $dirname)
+	{
+		for ($dirname) 
+		{ 
+			s/^\s+// ; 
+			s/\s+$// ; 
+		}
+	}
+
+	if ($dirname eq "")
+	{
+		## Default to the current directory
+		$dirname = "/tmp";
+		print "No tempdir specified\n";
+		print "Using /tmp\n";
+	}
+
+	$TempDir = $dirname;
+
+	if (! -d $TempDir)
+	{
+		print "Creating $TempDir \n";
+		mkdir ($TempDir, 0777) or die "Cannot mkdir $TempDir: $!";
+	}
+}
+
+
+sub GenFile ($ $ $)
+{
+	my ($origfile, $filter, $filtertype) = @_;
+
+	## Preliminary stuff -- special filter types.
+	if ($filter eq "all")
+	{
+		return $origfile;
+	}
+
+	open (OLD, "< $origfile");
+
+	my ($name, $path, $ext) = fileparse ($origfile, ".CDR");
+
+	my $newfile = $name . "-" . $filter . ".CDR" ;
+
+	my $newfullname = "$TempDir\/$newfile";
+	open (NEW, "> $TempDir/$newfile");
+
+	while (<OLD>)
+	{
+			##
+			## MIND Format
+			##
+			(
+				$lgwstime, 
+				$lgwtimet, 
+				$duration, 
+				$srcip, 
+				$srcport, 
+				$dstip, 
+				$dstport, 
+				$userid, 
+				$dstnum, 
+				$dialednum, 
+				$ctype, 
+				$cparties, 
+				$cdisconnect, 
+				$errorcode, 
+				$errordesc, 
+				$fpages, 
+				$fprio, 
+				$ani, 
+				$dnis, 
+				$nbsent, 
+				$nbrecd, 
+				$seqno, 
+				$lgwstoptime, 
+				$callid, 
+## Extensions
+				$xpdd,
+				$srcregid,
+				$srcuport,
+				$dstregid,
+				$dstuport,
+				$isdncode,
+				$x1calledpn
+			) = split /;/ ;
+
+		if ($filtertype eq "regid")
+		{
+
+			if ($srcregid =~ m/$filter/)
+			{
+				print NEW $_;
+			}
+
+			if ($dstregid =~ m/$filter/)
+			{
+				print NEW $_;
+			}
+		}	
+		elsif ($filtertype eq "gwip")
+		{
+			if ($srcip =~ m/$filter/)
+			{
+				print NEW $_;
+			}
+
+			if ($dstip =~ m/$filter/)
+			{
+				print NEW $_;
+			}
+		}
+
+	}
+
+	close (OLD);
+	close (NEW);
+
+	return ($newfullname);
+}
+
+sub SetCdrDir ($)
+{
+	my ($dirname) = @_;
+
+	chdir $dirname;
+	print "Current directory for CDR files is $dirname\n";
+}

@@ -1,0 +1,132 @@
+#!/usr/local/bin/bash
+
+# Name: collecttrace
+# Written by: Andrew Colby
+# Date: May 2, 2003
+# collect network tracing on e1000g0 and e1000g2, ignoring SSH and ARP
+# reset iserver.log and iserverh323.log
+# when done, copy iserver.log and iserverh323.log into the trace directory
+# name everything with same MMDDHHMMSS in the file name
+
+# set -x
+tstamp=`date +%m%d%H%M%S`
+hname=`hostname`
+
+WHOIAM=`basename $0`
+USAGE="${WHOIAM} [-t] [-s] [-1] [-2] [-3] [-h]\n
+collect trace and debug info: iserver.log, iserverh323.log and e1000g0 network trace\n
+-t: combine collected files into a compressed tar\n
+-s: use snoop instead of tethereal\n
+-1: also collect from e1000g1\n
+-2: also collect from e1000g2\n
+-3: also collect from e1000g3\n
+-h: print this message"
+
+collectg1=false
+collectg2=false
+collectg3=false
+useSnoop=false
+tarit=false
+while getopts hst123 nAME
+do
+    case ${nAME} in
+    h)  echo -e ${USAGE}
+        exit 0;;
+	s) useSnoop=true;;
+	t) tarit=true;;
+    1) collectg1=true;;
+    2) collectg2=true;;
+    3) collectg3=true;;
+    ?)  echo -e ${USAGE}
+        exit 1;;
+    esac
+done
+
+
+tracedir=/home/nextone/traces
+if [ ! -d ${tracedir} ]
+then
+	mkdir ${tracedir}
+	if [ $? -ne 0 ]
+	then
+		echo "$WHOIAM Error: Cannot create trace directory '${tracedir}'." >&2
+		exit 1
+	fi
+else
+if [ ! -w ${tracedir} ]
+then
+	echo "$WHOIAM Error: Cannot write to trace directory '${tracedir}'." >&2
+	exit 1
+fi
+fi
+logdir=/var/log
+
+function cleanup () 
+{
+	echo "--- STOP TRACE - $tstamp ---" >> $logdir/iserver.log
+	echo "--- STOP TRACE - $tstamp ---" >> $logdir/iserverh323.log
+
+	awk "/START TRACE - $tstamp/ , /STOP TRACE - $tstamp/" $logdir/iserver.log > $tracedir/iserver-$tstamp.log
+	awk "/START TRACE - $tstamp/ , /STOP TRACE - $tstamp/" $logdir/iserverh323.log > $tracedir/iserverh323-$tstamp.log
+	if [ "${tarit}" == "true" ]
+	then
+		cd ${tracedir}
+		tar cf trace${tstamp}.tar ${collectedFiles} iserver-$tstamp.log iserverh323-$tstamp.log
+		gzip trace${tstamp}.tar
+		echo "$WHOIAM Info: Traces found in ${tracedir}/trace${tstamp}.tar.gz"
+		rm ${collectedFiles} iserver-$tstamp.log iserverh323-$tstamp.log
+	else
+		echo "$WHOIAM Info: Traces found in ${tracedir}/ with timestamp ${tstamp}"
+	fi
+}
+
+
+trap cleanup 0
+
+echo "--- START TRACE - $tstamp ---" >> $logdir/iserver.log
+echo "--- START TRACE - $tstamp ---" >> $logdir/iserverh323.log
+
+collectedFiles=""
+
+# set -x
+if [ "${collectg1}" == "true" ]
+then
+	if [ "${useSnoop}" == "true" ]
+	then
+		snoop -d e1000g1 -r -o ${tracedir}/trace${hname}${tstamp}-e1000g1.eth ! port 22 and ! port 23 &
+	else
+		tethereal -f "not port 22 && not arp" -i e1000g1 -w ${tracedir}/trace${hname}${tstamp}-e1000g1.eth &
+	fi
+	collectedFiles="${collectedFiles} trace${hname}${tstamp}-e1000g1.eth"
+fi
+
+if [ "${collectg2}" == "true" ]
+then
+	if [ "${useSnoop}" == "true" ]
+	then
+		snoop -d e1000g2 -r -o ${tracedir}/trace${hname}${tstamp}-e1000g2.eth ! port 22 and ! port 23 &
+	else
+		tethereal -f "not port 22 && not arp" -i e1000g2 -w ${tracedir}/trace${hname}${tstamp}-e1000g2.eth &
+	fi
+	collectedFiles="${collectedFiles} trace${hname}${tstamp}-e1000g2.eth"
+fi
+
+if [ "${collectg3}" == "true" ]
+then
+	if [ "${useSnoop}" == "true" ]
+	then
+		snoop -d e1000g3 -r -o ${tracedir}/trace${hname}${tstamp}-e1000g3.eth ! port 22 and ! port 23 &
+	else
+		tethereal -f "not port 22 && not arp" -i e1000g3 -w ${tracedir}/trace${hname}${tstamp}-e1000g3.eth &
+	fi
+	collectedFiles="${collectedFiles} trace${hname}${tstamp}-e1000g3.eth"
+fi
+
+if [ "${useSnoop}" == "true" ]
+then
+	snoop -r -o ${tracedir}/trace${hname}${tstamp}.eth ! port 22 and ! port 23
+else
+	tethereal -f "not port 22 && not arp" -i e1000g0 -w ${tracedir}/trace${hname}${tstamp}.eth
+fi
+collectedFiles="${collectedFiles} trace${hname}${tstamp}.eth"
+

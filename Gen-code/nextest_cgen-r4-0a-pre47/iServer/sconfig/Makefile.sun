@@ -1,0 +1,31 @@
+#################################################################
+#################################################################
+##
+##			Makefile
+##
+#################################################################
+#################################################################
+
+include ../global.mk
+
+CC=cc -mt
+CFLAGS += -DSUNOS
+OBJS = parse.o \
+	serverp.o
+
+lib install: $(OBJS)
+	ar ruv $(LIBSCONFIG) $(OBJS)
+	
+parse.o : config.y config.l parse.c
+	bison -d config.y
+	flex config.l
+	$(CC) $(CFLAGS) -o $@ -c parse.c
+
+clean:	
+	$(RM) -f $(OBJS) lex.yy.c config.tab.c
+
+depend:
+	$(MAKEDEPEND) $(CFLAGS) *.c
+
+
+# DO NOT DELETE

@@ -1,0 +1,383 @@
+# Initial NexTone filter file for Aravox 2.2 using policy tables
+
+# Protocols
+set tcp_protocol 6;
+set udp_protocol 17;
+set ospf_protocol 89;
+set icmp_protocol 1;
+
+# Ports
+set telnet_server_port 23;
+set dns_port 53;
+
+# Address of the iServer (FCP)
+set firewall_address 172.16.230.254;
+set fcp_address 192.168.230.2;
+set sip_port 5060;
+set h323_udp_ports 1717,1718,1719;
+set h323_tcp_port 1720;
+
+#****************************************************
+# NAT tables
+#****************************************************
+###################################################################
+# Media Rules
+###################################################################
+#
+# NAT MEDIA (INBINDRULE) - binding internal media servers (receivers)
+#
+# The inbindrule defines the NAT binding table used by the Call Control Agent
+# (SIP Proxy, Gatekeeper, etc.).  This table creates a dynamic inboundrule
+# using the information provided via the Aravox VoIP API call
+# 'nsVoipTranslateLocal'. The call control agent requests a binding for a media
+# destination residing inside the firewall.  The media destination information
+# is carried in the call signalling protocol (SIP, H.323, etc.)  The dynamic 
+# inboundrule creates two translations:
+#    1) A translation for the outbound RTP media stream
+#    2) A translation for the outbound RTCP media stream
+# External end-points sending media IN this peering point will
+# have a destination IP address and port allocated using this table.
+# 
+natrule media_inbind_nat
+   match      0.0.0.0          0.0.0.0          0         0       0;
+   mask       0.0.0.0          0.0.0.0          0         0       0;
+   packet     0.0.0.0          0.0.0.0          0         0       0xff;
+   alloc      0.0.0.0          0.0.0.0          0xffff    0xffff  0;
+   alloc_low  172.16.230.254   172.16.230.1     1024      2024    0;
+   alloc_hi   172.16.230.254   172.16.230.1     2023      3023    0;
+end
+
+# NAT MEDIA (OUTBINDRULE) - binding external media servers (receivers)
+#
+# The outbindrule defines the NAT binding table used by the Call Control Agent
+# (SIP Proxy, Gatekeeper, etc.).  This table creates a dynamic outboundrule
+# using the information provided via the Aravox VoIP API call
+# 'nsVoipTranslateRemote'. The call control agent requests a binding for a media
+# destination residing outside the firewall.  The media destination information
+# is carried in the call signalling protocol (SIP, H.323, etc.)  The dynamic 
+# outboundrule creates two translations:
+#    1) A translation for the outbound RTP media stream
+#    2) A translation for the outbound RTCP media stream
+# Internal end-points sending media OUT this peering point will
+# have a destination IP address and port allocated using this table.
+natrule media_outbind_nat
+   match      0.0.0.0         0.0.0.0         0       0       0;
+   mask       0.0.0.0         0.0.0.0         0       0       0;
+   packet     0.0.0.0         0.0.0.0         0       0       0xff;
+   alloc      0.0.0.0         0.0.0.0         0xffff  0xffff  0;
+   alloc_low  172.16.230.1    172.16.230.254  3024    5024    0;
+   alloc_hi   172.16.230.1    172.16.230.254  4023    6023    0;
+end
+
+
+###################################################################
+# SIP Signaling Rules
+###################################################################
+# Take the incoming SIP packets
+#             Source            Destination     Src     Dest    Proto
+natrule SIPServer5060Inbound
+   match      0.0.0.0           172.16.230.254  0       5060    0;
+   mask       0.0.0.0           255.255.255.255 0       0xffff  0;
+   packet     255.255.255.255   0.0.0.0         0xffff  0xffff  0xff;
+   alloc      0.0.0.0           0.0.0.0         0       0       0;
+   alloc_low  0.0.0.0           192.168.230.2	  0       0       0;
+   alloc_hi   0.0.0.0           192.168.230.2   0       0       0;
+end
+
+# This rule is for outgoing SIP signaling.
+#             Source            Destination     Src     Dest    Proto
+natrule SIPServer5060Outbound
+   match      192.168.230.2     0.0.0.0         0       5060    0;
+   mask       255.255.255.255   0.0.0.0         0       0xffff  0;
+   packet     0.0.0.0           255.255.255.255 0       0xffff  0xff;
+   alloc      0.0.0.0           0.0.0.0         0xffff  0       0;
+   alloc_low  172.16.230.254    0.0.0.0         21024   0       0;
+   alloc_hi   172.16.230.254    0.0.0.0         22023   0       0;
+end
+
+###################################################################
+# H323 signaling Rules
+###################################################################
+
+#             Source            Destination     Src     Dest    Proto
+natrule H323Server1717Inbound
+   match      0.0.0.0           172.16.230.254  0       1717    udp;
+   mask       0.0.0.0           255.255.255.255 0       0xffff  0xff;
+   packet     255.255.255.255   0.0.0.0         0xffff  0xffff  0xff;
+   alloc      0.0.0.0           0.0.0.0         0       0       0;
+   alloc_low  0.0.0.0           192.168.230.2	  0       0       0;
+   alloc_hi   0.0.0.0           192.168.230.2   0       0       0;
+end
+
+# This rule is for outgoing H323 signaling.
+#             Source            Destination     Src     Dest    Proto
+natrule SIPServer1717Outbound
+   match      192.168.230.2     0.0.0.0         0       1717    0;
+   mask       255.255.255.255   0.0.0.0         0       0xffff  0;
+   packet     0.0.0.0           255.255.255.255 0       0xffff  0xff;
+   alloc      0.0.0.0           0.0.0.0         0xffff  0       0;
+   alloc_low  172.16.230.254    0.0.0.0         22024   0       0;
+   alloc_hi   172.16.230.254    0.0.0.0         23023   0       0;
+end
+
+#             Source            Destination     Src     Dest    Proto
+natrule H323Server1718Inbound
+   match      0.0.0.0           172.16.230.254  0       1718    udp;
+   mask       0.0.0.0           255.255.255.255 0       0xffff  0xff;
+   packet     255.255.255.255   0.0.0.0         0xffff  0xffff  0xff;
+   alloc      0.0.0.0           0.0.0.0         0       0       0;
+   alloc_low  0.0.0.0           192.168.230.2	  0       0       0;
+   alloc_hi   0.0.0.0           192.168.230.2   0       0    	  0;
+end
+
+# This rule is for outgoing H323 signaling.
+#             Source            Destination     Src     Dest    Proto
+natrule SIPServer1718Outbound
+   match      192.168.230.2     0.0.0.0         0       1718    0;
+   mask       255.255.255.255   0.0.0.0         0       0xffff  0;
+   packet     0.0.0.0           255.255.255.255 0       0xffff  0xff;
+   alloc      0.0.0.0           0.0.0.0         0xffff  0       0;
+   alloc_low  172.16.230.254    0.0.0.0         22024   0       0;
+   alloc_hi   172.16.230.254    0.0.0.0         23023   0       0;
+end
+
+#             Source            Destination     Src     Dest    Proto
+natrule H323Server1719Inbound
+   match      0.0.0.0           172.16.230.254  0       1719  udp;
+   mask       0.0.0.0           255.255.255.255 0     0xffff  0xff;
+   packet     255.255.255.255   0.0.0.0        0xffff 0xffff  0xff;
+   alloc      0.0.0.0           0.0.0.0         0       0     0;
+   alloc_low  0.0.0.0           192.168.230.2	  0       0     0;
+   alloc_hi   0.0.0.0           192.168.230.2   0       0    	0;
+end
+
+# This rule is for outgoing H323 signaling.
+#             Source            Destination     Src     Dest    Proto
+natrule SIPServer1719Outbound
+   match      192.168.230.2     0.0.0.0         0       1719    0;
+   mask       255.255.255.255   0.0.0.0         0       0xffff  0;
+   packet     0.0.0.0           255.255.255.255 0       0xffff  0xff;
+   alloc      0.0.0.0           0.0.0.0         0xffff  0       0;
+   alloc_low  172.16.230.254    0.0.0.0         22024   0       0;
+   alloc_hi   172.16.230.254    0.0.0.0         23023   0       0;
+end
+
+#             Source            Destination     Src     Dest    Proto
+natrule H323Server1720Inbound
+   match      0.0.0.0           172.16.230.254  0       1720    tcp;
+   mask       0.0.0.0           255.255.255.255 0       0xffff  0xff;
+   packet     255.255.255.255   0.0.0.0         0xffff  0xffff  0xff;
+   alloc      0.0.0.0           0.0.0.0         0       0       0;
+   alloc_low  0.0.0.0           192.168.230.2	  0       0       0;
+   alloc_hi   0.0.0.0           192.168.230.2   0       0     	0;
+end
+
+# This rule is for outgoing H323 signaling.
+#             Source            Destination     Src     Dest    Proto
+natrule SIPServer1720Outbound
+   match      192.168.230.2     0.0.0.0         0       1720    0;
+   mask       255.255.255.255   0.0.0.0         0       0xffff  0;
+   packet     0.0.0.0           255.255.255.255 0       0xffff  0xff;
+   alloc      0.0.0.0           0.0.0.0         0xffff  0       0;
+   alloc_low  172.16.230.254    0.0.0.0         22024   0       0;
+   alloc_hi   172.16.230.254    0.0.0.0         23023   0       0;
+end
+
+###################################################################
+
+
+#  *****REQUIRED*****
+#  for Aravox VoIP API Initialization
+#
+nat nsvoip_nat
+  inbindrules
+    media_inbind_nat
+  outbindrules
+    media_outbind_nat
+  inboundrules
+    SIPServer5060Inbound
+    H323Server1717Inbound
+    H323Server1718Inbound
+    H323Server1719Inbound
+    H323Server1720Inbound
+  outboundrules
+    SIPServer5060Outbound
+    SIPServer1717Outbound
+    SIPServer1718Outbound
+    SIPServer1719Outbound
+    SIPServer1720Outbound
+end
+
+
+# Send the packet through nsvoip_nat
+filter nat_media
+	any nat nsvoip_nat continue;
+end
+
+
+#****************************************************
+# Pin-holes
+#****************************************************
+#
+# Policy Table Definitions
+ptable voip_tcp
+    protocol tcp;
+    sa_mask 0xffffffff;
+    da_mask 0xffffffff;
+    sp_mask 0xffff;
+    dp_mask 0xffff;
+    end
+
+ptable voip_tcp_any_source
+    protocol tcp;
+    sa_mask 0x00000000;
+    da_mask 0xffffffff;
+    sp_mask 0x0000;
+    dp_mask 0xffff;
+    end
+
+ptable voip_tcp_any_dest
+    protocol tcp;
+    sa_mask 0xffffffff;
+    da_mask 0x00000000;
+    sp_mask 0xffff;
+    dp_mask 0x0000;
+    end
+
+ptable voip_udp
+    protocol udp;
+    sa_mask 0xffffffff;
+    da_mask 0xffffffff;
+    sp_mask 0xfffe;
+    dp_mask 0xfffe;
+    end
+
+ptable voip_udp_any_source
+    protocol udp;
+    sa_mask 0x00000000;
+    da_mask 0xffffffff;
+    sp_mask 0x0000;
+    dp_mask 0xfffe;
+    end
+
+ptable voip_udp_any_dest
+    protocol udp;
+    sa_mask 0xffffffff;
+    da_mask 0x00000000;
+    sp_mask 0xfffe;
+    dp_mask 0x0000;
+    end
+
+#  *****REQUIRED*****
+#  for Aravox VoIP API Initialization
+#
+filter nsvoip_permit
+  ptable_match voip_udp_any_source succeed;
+  ptable_match voip_tcp_any_source succeed;
+end
+
+#****************************************************
+# Other filters
+#****************************************************
+#
+# Permit OSPF routing protocol
+filter allow_ospf
+  ip_protocol in (ospf_protocol) succeed;
+end
+
+# Permit ICMP protocol (PING)
+filter allow_icmp
+  ip_protocol in (icmp_protocol) succeed;
+end
+
+# Permit Telnet  (23)
+filter allow_telnet
+  tcp_destination_port in (telnet_server_port) succeed;
+end
+
+# Permit DNS lookups (dns)
+filter allow_dns
+  tcp_destination_port in (dns_port) succeed;
+  tcp_source_port in (dns_port) succeed;
+  udp_destination_port in (dns_port) succeed;
+  udp_source_port in (dns_port) succeed;
+end
+
+# This filter creates the static pinholes for the
+# incoming signaling channels.
+# This should be applied:
+# > start prov
+# > apply incoming_signaling on ip open incoming
+# > commit prov
+filter incoming_signaling
+  # Allow UDP SIP signaling to come in
+  ip_da in (fcp_address)
+  udp_dp in (sip_port)
+  succeed;
+
+  # Allow TCP SIP signaling to come in
+  ip_da in (fcp_address)
+  tcp_dp in (sip_port)
+  succeed;
+
+  # Allow h323 UDP signaling to come in
+  ip_da in (fcp_address)
+  udp_dp in (h323_udp_ports)
+  succeed;
+
+  # Allow h323 TCP signaling to come in
+  ip_da in (fcp_address)
+  tcp_dp in (h323_tcp_port)
+  succeed;
+
+  # Allow h323 TCP signaling to come in
+  ip_da in (fcp_address)
+  tcp_sp in (h323_tcp_port)
+  succeed;
+
+end
+
+
+# This filter creates the static pinholes for the
+# outgoing signaling channels.
+# This should be applied:
+# > start prov
+# > apply outgoing_signaling on ip open outgoing
+# > commit prov
+filter outgoing_signaling
+  # Allow all messages out from iServer (FCP) bearing in mind
+  # that we have already passed through NAT
+  ip_sa in (firewall_address)
+  succeed;
+
+end
+
+#****************************************************
+# Filter Points (must be applied)
+#****************************************************
+# This is the composite filter for the FIRST filter point
+#
+# API command:
+#    > start prov
+#    > apply first_filter on ip first
+#    > commit prov
+#
+filter first_filter
+
+  # allow dns so the Pingtels come up quicker
+  filter allow_dns;
+
+  # Allow OSPF
+  filter allow_ospf;
+
+  # Allow PING
+  filter allow_icmp;
+
+  # NAT the media
+  filter nat_media;
+
+  # Check the dynamic pinholes
+  filter nsvoip_permit;
+
+end
+

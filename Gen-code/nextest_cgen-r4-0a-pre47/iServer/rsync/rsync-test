@@ -1,0 +1,46 @@
+#!/usr/bin/sh
+
+prog=`basename $0`
+usage="USAGE -- $prog peer-hostname/peer-ipaddr"
+
+if [ $# -ne 1 ]
+then
+	echo $usage
+	exit
+fi
+
+rfile=/bin/sh 
+dest=`basename $rfile`
+lfile=/tmp/rs/$dest
+mkdir -p /tmp/rs
+unlink $lfile >/dev/null 2>&1
+
+cmd="/usr/local/bin/rsync -a $1::nextone$rfile $lfile "
+dir_err="1>/tmp/$$.out 2>/tmp/$$.err"
+echo "Executing  -"
+echo "$cmd"
+echo ""
+eval "$cmd $dir_err"
+
+echo "--- checking for $lfile file"
+if [ -x $lfile ]
+then
+	echo "$lfile file successfully copied"
+	echo ""
+	echo "rsync - TEST PASSED"
+	echo ""
+else
+	echo "$lfile file copy failed"
+	echo ""
+	echo "--- rsync output"
+	cat /tmp/$$.out
+	echo ""
+	echo "--- rsync error"
+	cat /tmp/$$.err
+	echo ""
+	echo "rsync - TEST FAILED"
+	echo ""
+fi
+
+unlink /tmp/$$.out
+unlink /tmp/$$.err

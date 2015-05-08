@@ -1,0 +1,21 @@
+#!/usr/bin/bash
+function prn_node()
+{
+	prog="prn_node";
+	dir=$1;
+
+	if [ "$dir" == '-h' ]
+	then
+	cat <<EOF
+Usage: $prog <file|dir>
+	   $prog -h : prints this help
+	   $prog <dir> : prints the inodes of all the files in the directory
+	   $prog <file>: prints the inode of the file
+EOF
+	else
+		for f in `find $dir`
+		do
+			echo $f | perl -e '$f = <>; chomp($f); @s = stat($f); print "$f $s[1]\n"; '
+		done
+	fi
+}

@@ -1,0 +1,12 @@
+/Makefile/1.1/Mon Jun 14 04:35:27 1999//Tnextest_cgen-r4-0a-pre47
+/Makefile.ssl/1.2/Tue Oct 26 00:12:52 1999//Tnextest_cgen-r4-0a-pre47
+/dsa.h/1.1/Mon Jun 14 04:35:26 1999//Tnextest_cgen-r4-0a-pre47
+/dsa_err.c/1.1/Mon Jun 14 04:35:26 1999//Tnextest_cgen-r4-0a-pre47
+/dsa_gen.c/1.1/Mon Jun 14 04:35:26 1999//Tnextest_cgen-r4-0a-pre47
+/dsa_key.c/1.1/Mon Jun 14 04:35:27 1999//Tnextest_cgen-r4-0a-pre47
+/dsa_lib.c/1.1/Mon Jun 14 04:35:27 1999//Tnextest_cgen-r4-0a-pre47
+/dsa_sign.c/1.1/Mon Jun 14 04:35:27 1999//Tnextest_cgen-r4-0a-pre47
+/dsa_vrf.c/1.1/Mon Jun 14 04:35:27 1999//Tnextest_cgen-r4-0a-pre47
+/dsagen.c/1.1/Mon Jun 14 04:35:27 1999//Tnextest_cgen-r4-0a-pre47
+/dsatest.c/1.1/Mon Jun 14 04:35:27 1999//Tnextest_cgen-r4-0a-pre47
+D

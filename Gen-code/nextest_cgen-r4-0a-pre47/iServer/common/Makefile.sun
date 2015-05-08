@@ -1,0 +1,71 @@
+
+##
+## Makefile for DSP Driver.
+## Sridhar , 03/98.
+##
+## Revisions for Linux, 07/13/98.
+
+## Default project.
+##
+include ../global.mk
+CC = cc -mt
+AR = ar
+LD = gcc
+ILD = ld
+
+INCDIRS = -I/usr/src/linux/include -I$(DRINC) -I$(DRINC)/crypto -I../../include 
+
+CFLAGS += $(INCDIRS) -c -g -DSUNOS -D_REENTRANT
+
+LIB = libcommon.a
+
+DESTDIR = ../lib
+
+OBJS =  queue.o  \
+	list.o \
+	codemap.o \
+	signals.o \
+	packets.o \
+	uiio.o \
+	pef.o \
+	srvrlog.o \
+	ifs.o \
+	get_ifi_info.o \
+	pids.o \
+	shm.o \
+	shmapp.o \
+	ipcerror.o \
+	phonefunc.o
+
+all:	lib
+
+install:	lib
+	cp $(LIB) $(DESTDIR)
+
+lib:	$(OBJS)
+	$(AR) ruv $(LIB) $(OBJS)
+    $(CP) ../codemap_[0-9][0-9][0-9].txt $(BINDIR)
+    $(CP) ../codemap_[0-9][0-9][0-9].dat $(BINDIR)
+
+queue.o:	queue.c
+	$(CC) $(CFLAGS) -c queue.c
+
+list.o:	list.c
+	$(CC) $(CFLAGS) -c list.c
+
+semaphore.o:	semaphore.c
+	$(CC) $(CFLAGS) -c semaphore.c
+
+## Administrative targets.
+
+clean:	
+	rm -f $(OBJS)
+
+deps:
+	makedepend $(CFLAGS) *.c
+
+tim: timer.o $(LIBUTILS)
+	$(CC) -o $@ $^
+
+##
+# DO NOT DELETE

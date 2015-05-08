@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!ELEMENT NexToneMsg (SoftwareVersion, ConfigVersion, RegistrationID, DeviceType, SerialNumber, FQDN, Mode, SpecialID, VendorData?)>
+<!ATTLIST NexToneMsg
+	version CDATA #REQUIRED
+	cmd CDATA #FIXED "Registration"
+>
+<!ELEMENT SoftwareVersion (#PCDATA)>
+<!ELEMENT ConfigVersion (#PCDATA)>
+<!ELEMENT RegistrationID (#PCDATA)>
+<!ELEMENT DeviceType (Manufacturer)>
+<!ATTLIST DeviceType
+	type CDATA #REQUIRED
+>
+<!ELEMENT FQDN (#PCDATA)>
+<!ELEMENT Manufacturer (#PCDATA)>
+<!ELEMENT Mode EMPTY>
+<!ATTLIST Mode
+	mode CDATA #REQUIRED
+>
+<!ELEMENT Name (#PCDATA)>
+<!ELEMENT SerialNumber (#PCDATA)>
+<!ELEMENT SpanStatus EMPTY>
+<!ATTLIST SpanStatus
+	status (OPERATIONAL | MAINTENANCE | NO_STATUS) #REQUIRED
+>
+<!ELEMENT VendorData (#PCDATA)>
+<!ELEMENT SpecialID (#PCDATA)>

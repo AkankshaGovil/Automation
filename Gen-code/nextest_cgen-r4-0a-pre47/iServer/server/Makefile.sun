@@ -1,0 +1,69 @@
+
+#################################################################
+#################################################################
+##
+##			Makefile
+##
+#################################################################
+#################################################################
+
+include ../global.mk
+
+CC=cc -mt
+## WAS: when building on 'worf'
+###INCDIRS = -I/usr/src/linux/include -I$(DRINC) -I/home/medhavi/ssl/openssl-0.9.1c/include -I/usr/include -L/usr/lib -L/lib
+
+VPATH=sunobj
+CFLAGS += -DSUNOS -D_REENTRANT
+
+OBJECTS = daemon.o pktsend.o net.o ipstring.o
+LIBMEMOBJS = mem.o memdb.o gw.o
+LIBDBOBJS = db.o profile.o 
+LIBUTILSOBJS = log.o
+
+##all: $(SERVERLIBS) mem mem2 $(LIBUTILS)
+all: $(SERVERLIBS) $(LIBUTILS)
+
+##
+## Manager level programs.
+##
+$(LIBSRVR):	$(OBJECTS)
+	$(AR) ruv $(LIBSRVR) $(OBJECTS)
+
+install:  $(LIBSRVR) $(LIBUTILS) $(LIBMEM) $(LIBDB)
+
+daemon.o:	daemon.c
+	$(CC) $(CFLAGS) -c daemon.c
+
+pktsend.o:	pktsend.c
+	$(CC) $(CFLAGS) -c pktsend.c
+
+net.o:	net.c
+	$(CC) $(CFLAGS) -c net.c
+
+$(LIBMEM): $(LIBMEMOBJS)
+	$(AR) -r $@ $(LIBMEMOBJS)
+
+$(LIBDB): $(LIBDBOBJS)
+	$(AR) -r $@ $^
+
+$(LIBUTILS): $(LIBUTILSOBJS)
+	$(AR) -r $@ $(LIBUTILSOBJS)
+
+mem: main.o $(LIBMEM) $(LIBUTILS)
+	$(CC) $(CFLAGS) -o $@ main.o $(LIBMEM) $(LIBUTILS) -lpthread
+
+mem2: main2.o $(LIBMEM) $(LIBDB) $(LIBUTILS) $(LIBSRVR)
+	$(CC) $(CFLAGS) -o $@ main2.o $(LIBMEM) $(LIBDB) $(LIBUTILS) $(LIBSRVR) -lpthread
+
+db2: main3.o $(LIBDB) $(LIBUTILS)
+	$(CC) $(CFLAGS) -o $@ $^ -lgdbm
+
+clean:	
+	$(RM) $(OBJECTS) $(LIBMEMOBJS) $(LIBDBOBJS) $(LIBUTILSOBJS)
+
+depend:
+	$(MAKEDEPEND) $(CFLAGS) *.c
+
+
+# DO NOT DELETE

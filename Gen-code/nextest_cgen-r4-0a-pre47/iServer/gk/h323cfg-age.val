@@ -1,0 +1,37 @@
+# RADVision H.323 Stack Configuration File
+#
+# Value encodings:
+#    ''   -  String (and asciiz is not appended)
+#    ""   -  BMP string of ASCII charactes
+#    []   -  Hex octet string
+#    <>   -  IP
+#    {}   -  Object ID
+#   Other -  Integer
+
+
+
+1 system = 0
++  maxCalls = 5
+   maxRasOutTransactions = 100
+   maxRasInTransactions = 100
+
+
+1 RAS = 0
++  responseTimeOut = 10
+   manualRAS = 0
+   maxFail = 2
+   allowCallsWhenNonReg = 0
+   manualRegistration = 0
+   manualDiscovery = 0
++   defaultGatekeeper = 0
++    ipAddress = 0
++     ip = ""
+      port = 1719
+
+2  registrationInfo = 0
+   rasMulticastAddress = 0
++   ipAddress = 0
++    ip = ""
+     port = 1718
+2  rasPort = 1717
+   maxRetries = 2

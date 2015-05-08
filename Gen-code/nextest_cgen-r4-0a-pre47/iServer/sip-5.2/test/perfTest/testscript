@@ -1,0 +1,108 @@
+#!/bin/sh
+
+########################################################
+# 
+# This is the script which asks the user for various
+# options and proceeds to generate and build the
+# relevant test programs
+#
+########################################################
+
+BASEFOLDER="../../"
+
+if [ ! -f ${BASEFOLDER}lib/libsipcore.a ]
+then
+	if [ ! -f ${BASEFOLDER}lib/libsipcore.so ]
+	then
+		echo
+		echo You must make the stack first !
+		exit 
+	fi
+fi
+
+cat ${BASEFOLDER}MakeVars | grep "^CFLAGS" | grep "SIP_VXWORKS"
+if [ "$?" = "0" ]
+then
+	cat ${BASEFOLDER}MakeVars | grep "^CFLAGS" | grep "SIP_TXN_LAYER"
+	if [ "$?" = "0" ]
+	then
+		cat ${BASEFOLDER}MakeVars | grep "^CFLAGS" | grep "SIP_NO_CALLBACK"
+		if [ "$?" = "0" ]
+		then
+			cat ${BASEFOLDER}MakeVars | grep "^CFLAGS" | grep "SIP_BY_REFERENCE"
+			if [ "$?" = "0" ]
+			then
+				echo TxnLayer selected
+				echo Building the perfTest for Txn Layer...for VxWorks
+				make -f Makefile_VxWorks_Txn
+			else
+				echo Select ByRef Mode and then recompile the stack
+			fi
+		else
+			echo Select No CallBack Mode and then recompile the stack
+		fi
+	else
+		cat ${BASEFOLDER}MakeVars | grep "^CFLAGS" | grep "SIP_NO_CALLBACK"
+		if [ "$?" = "0" ]
+		then
+			cat ${BASEFOLDER}MakeVars | grep "^CFLAGS" | grep "SIP_THREAD_SAFE"
+			if [ "$?" = "0" ]
+			then
+				cat ${BASEFOLDER}MakeVars | grep "^CFLAGS" | grep "SIP_BY_REFERENCE"
+				if [ "$?" = "0" ]
+				then
+					echo building the perfTest without TxnLayer...for VxWorks
+					make -f Makefile_VxWorks_WTxn
+				else
+					echo Select ByRef Mode and then recompile the stack
+				fi
+			else
+				echo Select Thread Safe Mode and then recompile the stack
+			fi
+		else
+			echo Select No CallBack Mode and then recompile the stack
+		fi
+	fi
+else
+	cat ${BASEFOLDER}MakeVars | grep "^CFLAGS" | grep "SIP_TXN_LAYER"
+	if [ "$?" = "0" ]
+	then
+		cat ${BASEFOLDER}MakeVars | grep "^CFLAGS" | grep "SIP_NO_CALLBACK"
+		if [ "$?" = "0" ]
+		then
+			cat ${BASEFOLDER}MakeVars | grep "^CFLAGS" | grep "SIP_BY_REFERENCE"
+			if [ "$?" = "0" ]
+			then
+				echo TxnLayer selected
+				echo Building the perfTest for Txn Layer
+				make -f Makefile_Txn
+			else
+				echo Select ByRef Mode and then recompile the stack
+			fi
+		else
+			echo Select No CallBack Mode and then recompile the stack
+		fi
+	else
+		cat ${BASEFOLDER}MakeVars | grep "^CFLAGS" | grep "SIP_NO_CALLBACK"
+		if [ "$?" = "0" ]
+		then
+			cat ${BASEFOLDER}MakeVars | grep "^CFLAGS" | grep "SIP_THREAD_SAFE"
+			if [ "$?" = "0" ]
+			then
+				cat ${BASEFOLDER}MakeVars | grep "^CFLAGS" | grep "SIP_BY_REFERENCE"
+				if [ "$?" = "0" ]
+				then
+					echo building the perfTest without TxnLayer
+					make -f Makefile_WTxn
+				else
+					echo Select ByRef Mode and then recompile the stack
+				fi
+			else
+				echo Select Thread Safe Mode and then recompile the stack
+			fi
+		else
+			echo Select No CallBack Mode and then recompile the stack
+		fi
+	fi
+fi
+

@@ -1,0 +1,146 @@
+<!doctype html public "-//w3c//dtd html 4.0 transitional//en">
+<html>
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   <meta name="GENERATOR" content="Mozilla/4.6 [en] (X11; I; Linux 2.0.36 i686) [Netscape]">
+</head>
+<body text="#000000" bgcolor="#FFFFFF" link="#0000FF" vlink="#FF0000" alink="#FF0000">
+
+<h1>
+Call Forwarding</h1>
+
+<h2>
+Release Notes</h2>
+This contains the release log. The last release should be on top.&nbsp;
+The release log should contain information about:
+<ul>
+<li>
+the author,</li>
+
+<li>
+the date of the release,</li>
+
+<li>
+the release identifier/version information,</li>
+
+<li>
+KeyStone Ids,</li>
+
+<li>
+outstanding problems with this feature</li>
+</ul>
+
+<h2>
+Introduction</h2>
+There are 3 types of call forwarding (in order of decreasing predence):
+<ul>
+<li>
+Proxy forwarding to PC.</li>
+
+<li>
+*4 Forwarding.</li>
+
+<li>
+Call Rollover</li>
+</ul>
+All three types may be simultaneously enabled. However only one is active
+at a given time, based on predence.
+<h4>
+*4 Forwarding</h4>
+&nbsp;
+<table BORDER=3 CELLPADDING=5 COLS=2 WIDTH="500" BGCOLOR="#FFFFFF" NOSAVE >
+<tr NOSAVE>
+<td NOSAVE>*4 VPN Extension #</td>
+
+<td>Forwarding to a VPN number</td>
+</tr>
+
+<tr NOSAVE>
+<td NOSAVE>*4 7 Phone Number #</td>
+
+<td NOSAVE>Forwarding to intranet number (LUS or Gatekeeper), PSTN number
+or ITSP number&nbsp;</td>
+</tr>
+</table>
+
+<p>The phone number entered by the user using the keypad is first looked
+up on the relevent server (depending on the number).
+<br>For example, a vpn number will be looked up on the VPNS. From this
+either the number may be determined as not found, or
+<br>its corresponding phone number will be obtained from the server (if
+it is configured on the VPNS). These numbers obtained
+<br>will be sent to both servers, to enable forwarding.
+<p>iedge <i>E </i>is forwarding to a phone X. X is looked up on the relevent
+server, and returns P
+<br>or V. The fact that X may be also forwarded is irrelevent, as this
+lookup is only one level.
+<table BORDER=3 CELLPADDING=5 COLS=3 WIDTH="500" NOSAVE >
+<tr>
+<td>X is a VPN phone.</td>
+
+<td>X->P, X->V</td>
+
+<td>P is sent to LUS,
+<br>V is sent to VPNS</td>
+</tr>
+
+<tr NOSAVE>
+<td>X is a VPN phone.</td>
+
+<td>X->V</td>
+
+<td NOSAVE>V is sent to VPNS. LUS only knows that the iedge is forwarded.
+The iedge may become unreachable from outside in this case.</td>
+</tr>
+
+<tr NOSAVE>
+<td NOSAVE>X is a phone</td>
+
+<td>X -> P</td>
+
+<td>P is sent to LUS, P is sent to VPNS. If someone from inside a VPN tries
+to call X, it will eventually try P (an external phone).</td>
+</tr>
+</table>
+
+<p>Note: If the iedge has no phone number, no forwarding information will
+be sent to the LUS. Similar case for VPNS.
+<h4>
+Call Rollover</h4>
+Call rollover is a configuration on the iedge, which the iedge registers
+with the server. The rollover number is used in
+<br>situations where the primary number is busy, goes unanswered, is aged
+out, not registered, or down. Call rollover number
+<br>is used by the callee in association with executing its own&nbsp; <a href="lcr.html">LCR</a>&nbsp;
+policy.
+<p>Usage of call rollover numbers by the callee is restricted to just one
+level to prevent unintended rollovers. For example,
+<br>if A looks up P, and P is rolled over to X, and X is rolled over to
+Y, the lookups will stop at X. However if X is forwarded
+<br>to Y the lookup will return Y.
+<h4>
+Proxy Forwarding</h4>
+Proxy forwarding is available for forwarding from an iedge to a PC only.
+<br>The iedge informs the serplex, that someone will proxy for it, using
+a key sequence (*6). For security reasons a PIN
+<br>may be provided, as *6 PIN #. The PIN&nbsp;can be at most 20 characters,
+and is optional.
+<p>The iedge need not specify any phone number at the time of enabling
+proxy forwarding. A PC may be used now,
+<br>to register on behalf of this iedge. The iedge phone number of the
+port on which the proxy is enabled (or the vpn phone
+<br>number) and the PIN&nbsp;(if applicable) is needed, to do proxy registration.
+After this all calls to the iedge will be forwarded
+<br>to the PC, until either the PC unregisters (as proxy), or the iedge
+turns off proxy forwarding by (**6).
+<h2>
+Test and Application guidelines</h2>
+How is the feature to be tested?
+<h2>
+Notes</h2>
+Miscellaneous comments, idiosyncrasies, dependencies on other modules,
+jokes etc.
+<br>&nbsp;
+<br>&nbsp;
+</body>
+</html>

@@ -1,0 +1,43 @@
+.TH tst_search 8 06/11/1999 "Version 1.1" "Ternary Search Trie Functions"
+.SH NAME
+tst_search \- search for string key in tree structure
+.SH SYNOPSIS
+.B cc
+.RI "[ " "flag" " \|.\|.\|. ] " "file" " \|.\|.\|."
+.B "\-ltst"
+.RI "[ " "library" " \|.\|.\|. ]"
+.LP
+#include <tst.h>
+.LP
+.BI "void *tst_search(unsigned char *" "key" , 
+.BI "struct tst *" "tst" ");"
+.SH DESCRIPTION
+tst_search() finds the string
+.I key
+in the tree if it exists and returns the data pointer associated with
+that key.
+.SH "RETURN VALUES"
+If
+.I key
+is not found then NULL is returned, otherwise the data pointer
+associated with
+.I key
+is returned.
+.SH EXAMPLES
+.nf
+char *string = "test string";
+struct tst *tst;
+void *exist_data;
+
+if ( (tst = tst_init(100)) == NULL)
+   exit(1);
+
+tst_insert(string, tst, tst, 0, &exist_data);
+exist_data = tst_search(string, tst);
+.SH "SEE ALSO"
+tst_cleanup(8), tst_delete(8), tst_insert(8), tst_init(8)
+.SH NOTES
+Since the success of the search is indicated by the return of a valid
+data pointer, it is essential that the data argument provided to
+tst_insert() is NEVER NULL. If you just want a simple existence tree,
+use the tst pointer as the data pointer.

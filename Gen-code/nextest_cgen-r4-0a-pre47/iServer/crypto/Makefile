@@ -1,0 +1,210 @@
+#
+# SSLeay/crypto/Makefile
+#
+
+include $(BASE)/global.mk
+
+DIR=		crypto
+TOP=		$(CRYPTOTOP)/$(TARGET)
+MYTOP =		$(CRYPTOTOP)/$(TARGET)
+INCLUDE=	-I$(CRYPTOTOP) -I$(BASE)/include/crypto 
+INCLUDES=	-I$(CRYPTOTOP) -I$(BASE)/include/crypto
+CFLAG=		-DTHIRTY_TWO_BIT -fPIC
+COPTS=		$(INCLUDE) -c
+INSTALLTOP=	/usr/local/ssl
+MAKE=           make -f Makefile.ssl
+MAKEDEPEND=     makedepend -f Makefile.ssl
+MAKEFILE=       Makefile.ssl
+RM=             rm -f
+AR=		ar ruv
+
+MAKE=		make -f Makefile.ssl
+MAKEDEPEND=	makedepend -f Makefile.ssl
+MAKEFILE=	Makefile.ssl
+PEX_LIBS=
+EX_LIBS=
+ 
+CFLAGS= $(INCLUDE) $(CFLAG) -g -DCFLAGS=" \"$(CC) $(CFLAG)\" " -DPLATFORM=" \"$(PLATFORM)\" "
+
+ERR=crypto
+ERRC=cpt_err
+
+LIBS=
+
+#SDIRS=	md2 md5 sha mdc2 hmac ripemd \
+#	des rc2 rc4 rc5 idea bf cast \
+#	bn rsa dsa dh \
+#	buffer bio stack lhash rand err objects \
+#	evp pem x509 \
+#	asn1 conf txt_db pkcs7 comp
+
+SDIRS=	md5 sha \
+	bf rc4 \
+	asn1 \
+	bn dsa dh \
+	buffer bio stack lhash rand err 
+
+GENERAL=Makefile README
+
+LIB= $(MYTOP)/libcrypto.a
+LIBSRC=	cryptlib.c mem.c cversion.c ex_data.c tmdiff.c $(ERRC).c
+#LIBOBJ= cryptlib.o mem.o cversion.o ex_data.o tmdiff.o $(ERRC).o
+#LIBOBJ= cryptlib.o ex_data.o
+LIBOBJ= cryptlib.o
+
+SRC= $(LIBSRC)
+
+EXHEADER= crypto.h cryptall.h tmdiff.h
+HEADER=	cryptlib.h date.h $(EXHEADER)
+
+ALL=    $(GENERAL) $(SRC) $(HEADER)
+
+#top:
+#	@(cd ..; $(MAKE) DIRS=$(DIR) all)
+
+#all: links libobj subdirs
+all: ulink libobj top
+
+top:
+	(cd ..; make subdirs)
+
+ulink:
+	cd $(CRYPTOTOP); $(BASE)/utils/links.sh $(TARGET) util
+
+lib install: all
+	cp $(MYTOP)/libcrypto.a $(LIBCRYPTO)
+
+date.h: ../Makefile.ssl
+	echo "#define DATE	\"`date`\"" >date.h
+
+subdirs:
+	@for i in $(SDIRS) ;\
+	do \
+	(cd $$i; echo "making all in $$i..."; \
+	$(BASE)/utils/links.sh $(TARGET) Makefile.ssl; \
+	cd $(TARGET); $(MAKE) CC='$(CC)' INCLUDES='${INCLUDES}' CFLAG='${CFLAG}' AR='${AR}' TOP='${TOP}' VPATH=.. all ); \
+	done;
+
+commit:
+	@for i in $(SDIRS) ;\
+	do \
+	(cd $$i; echo "making all in $$i..."; \
+	cvs commit *.[ch] Makefile Makefile.ssl ); \
+	done;
+
+add:
+	@for i in $(SDIRS) ;\
+	do \
+	(cd $$i; echo "making all in $$i..."; \
+	cvs add *.[ch] Makefile Makefile.ssl ); \
+	done;
+
+#	$(MAKE) CC='$(CC)' INCLUDES='${INCLUDES}' CFLAG='${CFLAG}' INSTALLTOP='${INSTALLTOP}' PEX_LIBS='${PEX_LIBS}' EX_LIBS='${EX_LIBS}' BN_ASM='${BN_ASM}' DES_ENC='${DES_ENC}' SHA1_ASM_OBJ='${SHA1_ASM_OBJ}' MD5_ASM_OBJ='${MD5_ASM_OBJ}' RMD160_ASM_OBJ='${RMD160_ASM_OBJ}' BF_ENC='${BF_ENC}' CAST_ENC='${CAST_ENC}' RC4_ENC='${RC4_ENC}' RC5_ENC='${RC5_ENC}' AR='${AR}' TOP='${TOP}' all ); 
+
+files:
+	perl $(TOP)/util/files.pl Makefile.ssl >> $(TOP)/MINFO
+	@for i in $(SDIRS) ;\
+	do \
+	(cd $$i; echo "making 'files' in $$i..."; \
+	$(MAKE) files ); \
+	done;
+
+#links:
+#	/bin/rm -f Makefile 
+#	$(TOP)/util/point.sh Makefile.ssl Makefile
+#	$(TOP)/util/mklink.sh ../include $(HEADER)
+#	$(TOP)/util/mklink.sh ../test $(TEST)
+#	$(TOP)/util/mklink.sh ../apps $(APPS)
+#	$(TOP)/util/point.sh Makefile.ssl Makefile
+#	@for i in $(SDIRS) ;\
+#	do \
+#	(cd $$i; echo "making links in $$i..."; \
+#	$(MAKE) links ); \
+#	done;
+
+libobj:	$(LIBOBJ)
+	$(AR) $(LIB) $(LIBOBJ)
+#	sh $(TOP)/util/ranlib.sh $(LIB)
+#	@touch libobj
+
+libs:
+	@for i in $(SDIRS) ;\
+	do \
+	(cd $$i; echo "making libs in $$i..."; \
+	$(MAKE) CC='$(CC)' CFLAG='${CFLAG}' INSTALLTOP='${INSTALLTOP}' PEX_LIBS='${PEX_LIBS}' EX_LIBS='${EX_LIBS}' AR='${AR}' lib ); \
+	done;
+
+tests:
+	@for i in $(SDIRS) ;\
+	do \
+	(cd $$i; echo "making tests in $$i..."; \
+	$(MAKE) CC='$(CC)' CFLAG='${CFLAG}' INSTALLTOP='${INSTALLTOP}' PEX_LIBS='${PEX_LIBS}' EX_LIBS='${EX_LIBS}' AR='${AR}' tests ); \
+	done;
+
+#install for ssleay stuff, we want our own
+#install:
+#	@for i in $(EXHEADER) ;\
+#	do \
+#	(cp $$i $(INSTALLTOP)/include/$$i; \
+#	chmod 644 $(INSTALLTOP)/include/$$i ); \
+#	done;
+#	@for i in $(SDIRS) ;\
+#	do \
+#	(cd $$i; echo "making install in $$i..."; \
+#	$(MAKE) CC='$(CC)' CFLAG='${CFLAG}' INSTALLTOP='${INSTALLTOP}' PEX_LIBS='${PEX_LIBS}' EX_LIBS='${EX_LIBS}' install ); \
+#	done;
+
+lint:
+	@for i in $(SDIRS) ;\
+	do \
+	(cd $$i; echo "making lint in $$i..."; \
+	$(MAKE) CC='$(CC)' CFLAG='${CFLAG}' INSTALLTOP='${INSTALLTOP}' PEX_LIBS='${PEX_LIBS}' EX_LIBS='${EX_LIBS}' lint ); \
+	done;
+
+depend:
+	$(MAKEDEPEND) $(INCLUDE) $(PROGS) $(LIBSRC)
+	@for i in $(SDIRS) ;\
+	do \
+	(cd $$i; echo "making depend in $$i..."; \
+	$(MAKE) MAKEFILE='${MAKEFILE}' INCLUDES='${INCLUDES}' MAKEDEPEND='${MAKEDEPEND}' depend ); \
+	done;
+
+clean:
+	rm -f *.o */*.o *.obj libobj tags core .pure .nfs* *.old *.bak fluff
+	@for i in $(SDIRS) ;\
+	do \
+	(cd $$i; echo "making clean in $$i..."; \
+	if (test -d $(TARGET)); then \
+	(cd $(TARGET); $(MAKE) CC='$(CC)' CFLAG='${CFLAG}' INSTALLTOP='${INSTALLTOP}' PEX_LIBS='${PEX_LIBS}' EX_LIBS='${EX_LIBS}' clean ); \
+	else \
+		$(MAKE) clean; \
+	fi ); \
+	done;
+	rm -f $(LIB)
+
+dclean:
+	perl -pe 'if (/^# DO NOT DELETE THIS LINE/) {print; exit(0);}' $(MAKEFILE) >Makefile.new
+	mv -f Makefile.new $(MAKEFILE)
+	@for i in $(SDIRS) ;\
+	do \
+	(cd $$i; echo "making dclean in $$i..."; \
+	$(MAKE) CC='$(CC)' CFLAG='${CFLAG}' INSTALLTOP='${INSTALLTOP}' PEX_LIBS='${PEX_LIBS}' EX_LIBS='${EX_LIBS}' dclean ); \
+	done;
+
+errors:
+	perl ./err/err_code.pl -conf err/ssleay.ec *.c */*.c ../ssl/*.c ../rsaref/*.c
+	perl $(TOP)/util/err-ins.pl $(ERR).err $(ERR).h
+	perl err/err_genc.pl -s $(ERR).h $(ERRC).c
+	@for i in $(SDIRS) ;\
+	do \
+	(cd $$i; echo "making errors in $$i..."; \
+	$(MAKE) errors ); \
+	done;
+
+#%.o:  %.c
+#	$(CC) $(COPTS) $< -o $@
+
+#cryptlib.o:  cryptlib.c
+#	$(CC) $(COPTS) -o cryptlib.o cryptlib.c
+
+# DO NOT DELETE THIS LINE -- make depend depends on it.

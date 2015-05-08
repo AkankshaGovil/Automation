@@ -1,0 +1,71 @@
+Revision history for Perl extension Mail::Sendmail.
+
+Thanks to the people who helped between versions with suggestions or
+reporting bugs: Chris Nandor, Paul J. Schinder, "kybl", Kenneth Lee,
+Francisco, Chris Hostetter, Perrin Harkins, Tim Ward, ... and many
+others! (I can't any more keep track of all the people who send me
+usefull comments, but I do read them and thank everybody!)
+
+0.78  25.09.2000
+      - Now accepts single-letter host/domain names in addresses. They were
+        previously rejected, due to my misunderstanding of an RFC.
+      - Removed smtp.site1.csi.com from the default servers. That server is
+        not an open relay any more. This leaves only 'localhost' in the
+        servers list.
+0.77  28.03.99
+      - If connection to 1st server failed, the others failed too, but
+        only with certain Perl-version/OS combinations !?!.
+        Fixed (hopefuly).
+0.76  27.03.99
+      - fixed bug which prevented trying other servers in list if
+        connection to first failed.
+      - fixed reporting of server in log.
+0.75  27.03.99
+      - you can now send attachments, html mail etc... your headers will
+        be left alone.
+      - can use a list of possible SMTP servers instead of a single one.
+      - all configuration now grouped in a %mailcfg hash.
+      - removes possible extra line-endings in headers.
+      - e-mail address regex changes:
+        . now accepts user@[xxx.xxx.xxx.xxx]
+        . now refuses commas (they are only valid in quoted strings
+          which $address_rx does not support). Comma separated
+          recipients lists now work even with no space after the comma.
+      - if you used an X-mailer header, the Mail::Sendmail vwersion was
+        appended. It isn't any more.
+      - removed unnecessary BEGIN{} block.
+      - no more warnings on empty Subject.
+      - lots's of cleaning up in the code.
+        
+0.74  Fri Jul 31 14:50:54 1998
+      - Fixed $/ problem: mailing would hang if caller had redefined
+        the record separator. It's now locally set to "\015\012". 
+      - corrected reading of %mail hash passed to sendmail: it would
+        abort on a false value (the trap is clearly mentionned in the
+        perl docs: shame on me!)
+      - added configurable retries when failure to connect to server 
+      - much more error checking
+      - more warnings to STDERR, but only if running with -w flag.
+      - changed $address_rx, so it accepts user@hostname, not only
+        user@host.top, and also accepts weird but legal characters
+      - Message body is now all of Message, Body and Text instead
+        of the first not empty one (if you don't mind the final
+        message being in random order, you can now be really sloppy
+        when filling in the message from your script!).
+      - use strict.
+      - Added Makefile.PL.
+      - updated doc
+
+0.73: - Line endings changed again to be Mac compatible at last.
+      - Automatic time zone detection.
+      - Support for SMTP Port change for single messages.
+      - Always default to quoted-printable encoding if possible.
+      - Added $Mail::Sendmail::default_sender.
+      
+0.72: - Fixed line endings in Body to "\r\n".
+      - MIME quoted-printable encoding is now automatic if needed.
+      - Test script can now run unattended.
+
+0.71: - Fixed Time Zone bug with AS port.
+      - Added half-hour Time Zone support.
+      - Repackaged with \n line endings instead of \r\n.

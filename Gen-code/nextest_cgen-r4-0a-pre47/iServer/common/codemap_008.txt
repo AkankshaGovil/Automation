@@ -1,0 +1,511 @@
+#############################################################################
+NexTone Communications, Inc.
+
+CONFIGURABLE ISDN CAUSE CODE AND SIP RESPONSE CODE MAPPING AND HUNTING
+
+This file contains an ASCII representation of one set of mapping and 
+hunting configuration used for ISDN Cause Codes and SIP Response Codes. 
+The actual configuration is read by the MSW from a binary file corresponding 
+to this ASCII file. The ASCII files are named codemap_xxx.txt and the binary
+files are named codemap_xxx.dat, where xxx can be a number from 001 to 999. 
+
+The following templates and corresponding binary files are provided 
+with the MSW:
+  codemap_001.txt/codemap_001.dat: 
+    Default mapping configuration.
+    Hunting configuration is based on the short list.
+  codemap_002.txt/codemap_002.dat: 
+    Default mapping configuration.
+    Hunting configuration is based on the long list.
+
+The default configuration used by the MSW is contained in codemap_001.dat.
+If this is the configuration you wish to use i.e. default mapping and
+hunting on the short list, there is no additional configuration required
+in server.cfg.
+
+However, if you wish to use the configuration in codemap_002.dat i.e.
+default mapping and long hunt list, add either of the two lines in
+the "cp" section of the "gis" block in the server.cfg file and 
+reconfigure the MSW with "iserver all reconfig": 
+   usecodemap "002"
+       OR
+   huntAllCC
+
+If you wish to use a customized configuration which is different from
+the two default configurations, please contact NexTone customer support 
+and provide them with the desired configuration. You will then be given
+a binary configuration file corresponding to your custom configuration, 
+say codemap_003.dat. To use this file, you will then have to add the 
+following line in the "cp" section of the "gis" block in the server.cfg 
+file and reconfigure the MSW with "iserver all reconfig":
+   usecodemap "003"
+
+Please make sure that the two default binary files as well as the 
+file you eventually decide to use are present in /usr/local/nextone/bin
+and are not manually edited. Please consult NexTone customer support 
+to obtain more information on how to use this new feature.
+
+Terms used in this file
+
+For ISDN Cause Code Configuration Section
+  OrigIsdnCauseCode: 
+    Original ISDN cause code received on leg2 (valid 0-127).
+  HuntOnIsdnCauseCode: 
+    Hunt on original ISDN cause code (valid yes/YES or no/NO).
+  NewIsdnCauseCode: 
+    New mapped ISDN cause code sent on leg1 (valid 0-127).
+  NewSipResponseCode: 
+    SIP response code sent on leg1 for SIP-H323 calls (valid 400-699).
+
+For SIP Response Code Configuration Section
+  OrigSipResponseCode: 
+    Original SIP response code received on leg2 (valid 400-699).
+  HuntOnSipResponseCode: 
+    Hunt on original SIP response code (valid yes/YES or no/NO).
+  NewIsdnCauseCode: 
+    ISDN cause code sent on leg 1 for H323-SIP calls (valid 0-127 or -1).
+    This field is set to -1 for unused or invalid SIP codes in the
+    range 400-699.
+  NewSipResponseCode: 
+    New mapped SIP response code sent on leg 1 (valid 400-699).
+    SIP-SIP response code mapping is currently not done.
+#############################################################################
+
+-----------------------------------------------------------------------------
+MAPPING AND HUNTING CONFIGURATION FOR ISDN CAUSE CODES
+-----------------------------------------------------------------------------
+OrigIsdnCauseCode HuntOnIsdnCauseCode NewIsdnCauseCode NewSipResponseCode
+-----------------------------------------------------------------------------
+          0                yes                  0                500
+          1                yes                 34                404
+          2                yes                 34                404
+          3                yes                  3                404
+          4                yes                  4                500
+          5                 no                  5                500
+          6                yes                  6                500
+          7                yes                  7                500
+          8                 no                  8                500
+          9                 no                  9                500
+         10                 no                 10                500
+         11                 no                 11                500
+         12                 no                 12                500
+         13                 no                 13                500
+         14                 no                 14                500
+         15                 no                 15                500
+         16                 no                 16                500
+         17                 no                 17                486
+         18                yes                 34                480
+         19                 no                 19                480
+         20                yes                 20                480
+         21                yes                 34                403
+         22                 no                 22                410
+         23                 no                 23                500
+         24                 no                 24                500
+         25                 no                 25                500
+         26                yes                 26                404
+         27                yes                 34                404
+         28                yes                 34                484
+         29                yes                 34                501
+         30                yes                 30                500
+         31                yes                 31                404
+         32                 no                 32                500
+         33                 no                 33                500
+         34                yes                 34                503
+         35                 no                 35                500
+         36                 no                 36                500
+         37                 no                 37                500
+         38                yes                 38                503
+         39                 no                 39                500
+         40                 no                 40                500
+         41                yes                 41                503
+         42                yes                 42                503
+         43                yes                 43                500
+         44                yes                 44                500
+         45                 no                 45                500
+         46                 no                 46                500
+         47                yes                 47                503
+         48                 no                 48                500
+         49                yes                 49                500
+         50                yes                 34                500
+         51                 no                 51                500
+         52                 no                 52                500
+         53                 no                 53                500
+         54                 no                 54                500
+         55                 no                 55                403
+         56                 no                 56                403
+         57                yes                 57                403
+         58                yes                 58                501
+         59                 no                 59                500
+         60                 no                 60                500
+         61                 no                 61                500
+         62                 no                 62                500
+         63                yes                 34                500
+         64                 no                 34                500
+         65                yes                 34                501
+         66                yes                 66                500
+         67                 no                 67                500
+         68                 no                 68                500
+         69                yes                 69                500
+         70                yes                 70                500
+         71                 no                 71                500
+         72                 no                 72                500
+         73                 no                 73                500
+         74                 no                 74                500
+         75                 no                 75                500
+         76                 no                 76                500
+         77                 no                 77                500
+         78                 no                 78                500
+         79                yes                 79                501
+         80                 no                 80                500
+         81                yes                 81                500
+         82                yes                 82                500
+         83                yes                 83                500
+         84                yes                 84                500
+         85                yes                 85                500
+         86                yes                 86                500
+         87                 no                 87                503
+         88                yes                 88                400
+         89                 no                 89                500
+         90                 no                 90                500
+         91                yes                 91                500
+         92                 no                 92                500
+         93                 no                 93                500
+         94                 no                 94                500
+         95                yes                 95                400
+         96                yes                 96                488
+         97                yes                 97                500
+         98                yes                 98                500
+         99                yes                 99                500
+        100                yes                100                500
+        101                yes                101                500
+        102                yes                102                408
+        103                 no                103                500
+        104                 no                104                500
+        105                 no                105                500
+        106                 no                106                500
+        107                 no                107                500
+        108                 no                108                500
+        109                 no                109                500
+        110                 no                110                500
+        111                yes                111                400
+        112                 no                112                500
+        113                 no                113                500
+        114                 no                114                500
+        115                 no                115                500
+        116                 no                116                500
+        117                 no                117                500
+        118                 no                118                500
+        119                 no                119                500
+        120                 no                120                500
+        121                 no                121                500
+        122                 no                122                500
+        123                 no                123                500
+        124                 no                124                500
+        125                 no                125                500
+        126                 no                126                500
+        127                yes                127                500
+------------------------------------------------------------------------------
+MAPPING AND HUNTING CONFIGURATION FOR SIP RESPONSE CODES
+------------------------------------------------------------------------------
+OrigSipResponseCode HuntOnSipResponseCode NewIsdnCauseCode NewSipResponseCode
+------------------------------------------------------------------------------
+        400                yes                127                400
+        401                 no                 57                401
+        402                yes                 21                402
+        403                 no                 57                403
+        404                yes                  1                404
+        405                yes                127                405
+        406                yes                127                406
+        407                 no                 21                407
+        408                yes                102                408
+        409                yes                 41                409
+        410                yes                  1                410
+        411                yes                127                411
+        412                 no                 -1                412
+        413                yes                127                413
+        414                yes                127                414
+        415                yes                 79                415
+        416                 no                 -1                416
+        417                 no                 -1                417
+        418                 no                 -1                418
+        419                 no                 -1                419
+        420                yes                127                420
+        421                 no                 -1                421
+        422                 no                 -1                422
+        423                 no                 -1                423
+        424                 no                 -1                424
+        425                 no                 -1                425
+        426                 no                 -1                426
+        427                 no                 -1                427
+        428                 no                 -1                428
+        429                 no                 -1                429
+        430                 no                 -1                430
+        431                 no                 -1                431
+        432                 no                 -1                432
+        433                 no                 -1                433
+        434                 no                 -1                434
+        435                 no                 -1                435
+        436                 no                 -1                436
+        437                 no                 -1                437
+        438                 no                 -1                438
+        439                 no                 -1                439
+        440                 no                 -1                440
+        441                 no                 -1                441
+        442                 no                 -1                442
+        443                 no                 -1                443
+        444                 no                 -1                444
+        445                 no                 -1                445
+        446                 no                 -1                446
+        447                 no                 -1                447
+        448                 no                 -1                448
+        449                 no                 -1                449
+        450                 no                 -1                450
+        451                 no                 -1                451
+        452                 no                 -1                452
+        453                 no                 -1                453
+        454                 no                 -1                454
+        455                 no                 -1                455
+        456                 no                 -1                456
+        457                 no                 -1                457
+        458                 no                 -1                458
+        459                 no                 -1                459
+        460                 no                 -1                460
+        461                 no                 -1                461
+        462                 no                 -1                462
+        463                 no                 -1                463
+        464                 no                 -1                464
+        465                 no                 -1                465
+        466                 no                 -1                466
+        467                 no                 -1                467
+        468                 no                 -1                468
+        469                 no                 -1                469
+        470                 no                 -1                470
+        471                 no                 -1                471
+        472                 no                 -1                472
+        473                 no                 -1                473
+        474                 no                 -1                474
+        475                 no                 -1                475
+        476                 no                 -1                476
+        477                 no                 -1                477
+        478                 no                 -1                478
+        479                 no                 -1                479
+        480                yes                 18                480
+        481                 no                127                481
+        482                yes                127                482
+        483                yes                127                483
+        484                yes                 28                484
+        485                yes                  1                485
+        486                 no                 17                486
+        487                yes                127                487
+        488                yes                127                488
+        489                 no                 -1                489
+        490                 no                 -1                490
+        491                 no                 -1                491
+        492                 no                 -1                492
+        493                 no                 -1                493
+        494                 no                 -1                494
+        495                 no                 -1                495
+        496                 no                 -1                496
+        497                 no                 -1                497
+        498                 no                 -1                498
+        499                 no                 -1                499
+        500                yes                 41                500
+        501                 no                 79                501
+        502                yes                 38                502
+        503                yes                 63                503
+        504                yes                102                504
+        505                yes                127                505
+        506                 no                 -1                506
+        507                 no                 -1                507
+        508                 no                 -1                508
+        509                 no                 -1                509
+        510                 no                 -1                510
+        511                 no                 -1                511
+        512                 no                 -1                512
+        513                 no                 -1                513
+        514                 no                 -1                514
+        515                 no                 -1                515
+        516                 no                 -1                516
+        517                 no                 -1                517
+        518                 no                 -1                518
+        519                 no                 -1                519
+        520                 no                 -1                520
+        521                 no                 -1                521
+        522                 no                 -1                522
+        523                 no                 -1                523
+        524                 no                 -1                524
+        525                 no                 -1                525
+        526                 no                 -1                526
+        527                 no                 -1                527
+        528                 no                 -1                528
+        529                 no                 -1                529
+        530                 no                 -1                530
+        531                 no                 -1                531
+        532                 no                 -1                532
+        533                 no                 -1                533
+        534                 no                 -1                534
+        535                 no                 -1                535
+        536                 no                 -1                536
+        537                 no                 -1                537
+        538                 no                 -1                538
+        539                 no                 -1                539
+        540                 no                 -1                540
+        541                 no                 -1                541
+        542                 no                 -1                542
+        543                 no                 -1                543
+        544                 no                 -1                544
+        545                 no                 -1                545
+        546                 no                 -1                546
+        547                 no                 -1                547
+        548                 no                 -1                548
+        549                 no                 -1                549
+        550                 no                 -1                550
+        551                 no                 -1                551
+        552                 no                 -1                552
+        553                 no                 -1                553
+        554                 no                 -1                554
+        555                 no                 -1                555
+        556                 no                 -1                556
+        557                 no                 -1                557
+        558                 no                 -1                558
+        559                 no                 -1                559
+        560                 no                 -1                560
+        561                 no                 -1                561
+        562                 no                 -1                562
+        563                 no                 -1                563
+        564                 no                 -1                564
+        565                 no                 -1                565
+        566                 no                 -1                566
+        567                 no                 -1                567
+        568                 no                 -1                568
+        569                 no                 -1                569
+        570                 no                 -1                570
+        571                 no                 -1                571
+        572                 no                 -1                572
+        573                 no                 -1                573
+        574                 no                 -1                574
+        575                 no                 -1                575
+        576                 no                 -1                576
+        577                 no                 -1                577
+        578                 no                 -1                578
+        579                 no                 -1                579
+        580                yes                 47                580
+        581                 no                 -1                581
+        582                 no                 -1                582
+        583                 no                 -1                583
+        584                 no                 -1                584
+        585                 no                 -1                585
+        586                 no                 -1                586
+        587                 no                 -1                587
+        588                 no                 -1                588
+        589                 no                 -1                589
+        590                 no                 -1                590
+        591                 no                 -1                591
+        592                 no                 -1                592
+        593                 no                 -1                593
+        594                 no                 -1                594
+        595                 no                 -1                595
+        596                 no                 -1                596
+        597                 no                 -1                597
+        598                 no                 -1                598
+        599                 no                 -1                599
+        600                yes                 17                600
+        601                 no                 -1                601
+        602                 no                 -1                602
+        603                yes                 21                603
+        604                yes                  1                604
+        605                 no                 -1                605
+        606                yes                 58                606
+        607                 no                 -1                607
+        608                 no                 -1                608
+        609                 no                 -1                609
+        610                 no                 -1                610
+        611                 no                 -1                611
+        612                 no                 -1                612
+        613                 no                 -1                613
+        614                 no                 -1                614
+        615                 no                 -1                615
+        616                 no                 -1                616
+        617                 no                 -1                617
+        618                 no                 -1                618
+        619                 no                 -1                619
+        620                 no                 -1                620
+        621                 no                 -1                621
+        622                 no                 -1                622
+        623                 no                 -1                623
+        624                 no                 -1                624
+        625                 no                 -1                625
+        626                 no                 -1                626
+        627                 no                 -1                627
+        628                 no                 -1                628
+        629                 no                 -1                629
+        630                 no                 -1                630
+        631                 no                 -1                631
+        632                 no                 -1                632
+        633                 no                 -1                633
+        634                 no                 -1                634
+        635                 no                 -1                635
+        636                 no                 -1                636
+        637                 no                 -1                637
+        638                 no                 -1                638
+        639                 no                 -1                639
+        640                 no                 -1                640
+        641                 no                 -1                641
+        642                 no                 -1                642
+        643                 no                 -1                643
+        644                 no                 -1                644
+        645                 no                 -1                645
+        646                 no                 -1                646
+        647                 no                 -1                647
+        648                 no                 -1                648
+        649                 no                 -1                649
+        650                 no                 -1                650
+        651                 no                 -1                651
+        652                 no                 -1                652
+        653                 no                 -1                653
+        654                 no                 -1                654
+        655                 no                 -1                655
+        656                 no                 -1                656
+        657                 no                 -1                657
+        658                 no                 -1                658
+        659                 no                 -1                659
+        660                 no                 -1                660
+        661                 no                 -1                661
+        662                 no                 -1                662
+        663                 no                 -1                663
+        664                 no                 -1                664
+        665                 no                 -1                665
+        666                 no                 -1                666
+        667                 no                 -1                667
+        668                 no                 -1                668
+        669                 no                 -1                669
+        670                 no                 -1                670
+        671                 no                 -1                671
+        672                 no                 -1                672
+        673                 no                 -1                673
+        674                 no                 -1                674
+        675                 no                 -1                675
+        676                 no                 -1                676
+        677                 no                 -1                677
+        678                 no                 -1                678
+        679                 no                 -1                679
+        680                 no                 -1                680
+        681                 no                 -1                681
+        682                 no                 -1                682
+        683                 no                 -1                683
+        684                 no                 -1                684
+        685                 no                 -1                685
+        686                 no                 -1                686
+        687                 no                 -1                687
+        688                 no                 -1                688
+        689                 no                 -1                689
+        690                 no                 -1                690
+        691                 no                 -1                691
+        692                 no                 -1                692
+        693                 no                 -1                693
+        694                 no                 -1                694
+        695                 no                 -1                695
+        696                 no                 -1                696
+        697                 no                 -1                697
+        698                 no                 -1                698
+        699                 no                 -1                699

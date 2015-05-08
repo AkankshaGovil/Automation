@@ -1,0 +1,85 @@
+########################################################################
+# 		This is the primary Makefile for the SipStack   	
+########################################################################
+#
+#		Creates libsip and test programs
+#		
+#		Usage: make 
+#	
+#	Please see MakeVars for various compiler settings
+########################################################################
+
+# NEXTONE - added ../ to many places to fit this into our build structure. 
+include ../MakeVars
+include $(BASE)/global.mk		# NEXTONE addition
+
+#all: subdirs test
+lib install: subdirs $(LIBSIPAPI) $(LIBSIPCORE) test		# NEXTONE mod
+subdirs:
+	@cd ../source/accessor;make
+	@cd ../source/parser;make
+	@cd ../source/serialize;make
+
+# NEXTONE added next 2 targets
+$(LIBSIPAPI):	../lib/libsipapi.a
+	cp $^ $@
+
+$(LIBSIPCORE):	../lib/libsipcore.a
+	cp $^ $@
+
+test: ../test/bin/siptest \
+	../test/bin/sendmessage
+performance: ../test/bin/encodetime\
+	../test/bin/parsetime
+
+../lib/libsipapi.a:
+	cd ../source/accessor; make
+../lib/libsipcore.a:
+	cd ../source/parser; make
+../test/bin/siptest: ../lib/libsipcore.a ../lib/libsipapi.a \
+	 ../test/parser/siptest.c
+	$(PURIFYCC) ../test/parser/siptest.c \
+	$(CFLAGS) $(TESTINCLUDES) $(LDFLAGS) -lsipapi -lsipcore -o $@
+../test/bin/sendmessage: ../test/parser/sendmessage.c
+	$(CC) $(CFLAGS) $(LDFLAGS) ../test/parser/sendmessage.c -o $@
+
+
+allclean: clean
+	-rm -f ../test/bin/siptest
+	-rm -f ../test/bin/sendmessage
+	-rm -f ../test/bin/test*
+	-rm -f ../lib/*.so
+	-rm -f ../lib/*.a
+clean:
+	-rm -f ../source/parser/bison/cfiles/* 
+	-rm -f ../source/parser/lex/cfiles/* 
+	-rm -f ../obj/parser/*.o 
+	-rm -f ../obj/parser/lex/*.o 
+	-rm -f ../obj/parser/bison/*.o 
+	-rm -f ../obj/common/rpr/*.o 
+	-rm -f ../obj/common/ccp/*.o 
+	-rm -f ../obj/common/*.o 
+	-rm -f ../obj/accessor/*.o 
+	-rm -f ../test/bin/core
+	-rm -f ../obj/common/rpr/*.o
+	-rm -f ../obj/common/ccp/*.o
+	-rm -f ../obj/accessor/rpr/*.o
+	-rm -f ../obj/accessor/ccp/*.o
+	-rm -f ../obj/serialize/*.o
+
+	-rm -f ../obj/common/dcs/*
+	-rm -f ../obj/accessor/dcs/*
+	-rm -f ../obj/parser/dcs/*
+
+		-rm -f ../tempfiles/*.c
+
+
+../test/bin/%: ../lib/libsipcore.a ../lib/libsipapi.a ../test/accessor/%.c
+	$(PURIFYCC) ../test/accessor/$*.c $(CFLAGS) $(TESTINCLUDES) $(LDFLAGS) -lsipapi -lsipcore -o$@
+
+../test/bin/encodetime: ../lib/libsipcore.a ../lib/libsipapi.a ../test/parser/encodetime.c
+	$(PURIFYCC) ../test/parser/encodetime.c $(CFLAGS) $(TESTINCLUDES) $(LDFLAGS) -lsipapi -lsipcore -o $@
+../test/bin/parsetime: ../lib/libsipcore.a ../lib/libsipapi.a ../test/parser/parsetime.c
+	$(PURIFYCC) ../test/parser/parsetime.c $(CFLAGS) $(TESTINCLUDES) $(LDFLAGS) -lsipapi -lsipcore -o $@
+../test/bin/parsethreaded: ../lib/libsipcore.a ../lib/libsipapi.a ../test/parser/parsethreaded.c
+	$(PURIFYCC) ../test/parser/parsethreaded.c $(CFLAGS) $(TESTINCLUDES) $(LDFLAGS) -lsipapi -lsipcore -o $@

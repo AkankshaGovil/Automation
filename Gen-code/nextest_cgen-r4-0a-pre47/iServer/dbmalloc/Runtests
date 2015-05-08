@@ -1,0 +1,155 @@
+#!/bin/sh
+#
+#
+# (c) Copyright 1990, 1991, 1992 Conor P. Cahill (cpcahil@virtech.vti.com)
+#
+# This software may be distributed freely as long as the following conditions
+# are met:
+# 		* the distribution, or any derivative thereof, may not be
+#		  included as part of a commercial product
+#		* full source code is provided including this copyright
+#		* there is no charge for the software itself (there may be
+#		  a minimal charge for the copying or distribution effort)
+#		* this copyright notice is not modified or removed from any
+#		  source file
+#
+# $Id: Runtests,v 1.1 2002/07/04 12:53:10 agoyal Exp $
+#
+# This shell attempts to run all of the tests distributed with the
+# malloc library and detmine if they pass.
+#
+# The following tests are processed
+#
+#	testmem		- test str* and mem* functions
+#	teststack	- test stack mechanism
+#	testmalloc	- test malloc routines
+#	testerr		- test error conditions
+#
+
+#
+# before we run any tests, lets make sure we have the programs that
+# we intend to test
+#
+
+if [ ! -r testmem -o ! -r teststack -o ! -r testmalloc -o ! -r testerr ]; then
+
+	echo "All of the test programs are not available.  Pleas run"
+	echo "make tests before you run this shell"
+	exit 1
+
+fi
+
+#
+# these tests have to run with the default malloc environment variables,
+# so make sure they are not overridden (otherwise the validation of the
+# results may be incorrect)
+#
+MALLOC_CKCHAIN=0
+MALLOC_DETAIL=0
+MALLOC_WARN=0
+MALLOC_FATAL=1
+MALLOC_CKDATA=1
+MALLOC_LOWFRAG=0
+MALLOC_REUSE=1
+MALLOC_ERRFILE="-"
+MALLOC_FILLAREA=3
+MALLOC_SHOW_LINKS=0
+
+export MALLOC_CKCHAIN MALLOC_DETAIL MALLOC_WARN MALLOC_FATAL MALLOC_CKDATA
+export MALLOC_LOWFRAG MALLOC_REUSE MALLOC_ERRFILE MALLOC_FILLAREA
+export MALLOC_SHOW_LINKS
+
+
+
+OUT=Runtests.out
+TMPOUT=/tmp/err.$$
+TMPFILE=/tmp/ttt.$$
+failed=0
+
+rm -f $OUT
+cat <<endcat > $OUT
+
+This file contains the outputs from the tests run by the Runtests script.
+For more info on a particular test, check the README file
+
+endcat
+
+#
+# run testmem and verify that it had no output and returned a zero exit code
+#
+echo "************ Running testmem test..." >> $OUT
+
+rm -f ${TMPOUT}
+./testmem > ${TMPOUT} 2>&1
+if [ $? != 0 -o -s ${TMPOUT} ]; then
+	echo "FAILED testmem test"
+	echo "FAILED testmem test" >> $OUT
+	failed=`expr $failed + 1`
+fi
+
+cat ${TMPOUT} >> $OUT
+
+#
+# run stack tests and verify the output is correct
+#
+echo "************ Running stack test" >> $OUT
+./teststack > ${TMPOUT} 2>&1
+result=$?
+lines=`grep "\->" ${TMPOUT} | wc -l | sed -e "s/ //g"`
+if [ $result != 0 -o "x$lines" != "x53" ]; then
+	echo "FAILED teststack test"
+	echo "FAILED teststack test" >> $OUT
+	failed=`expr $failed + 1`
+fi
+
+cat ${TMPOUT} >> $OUT
+
+#
+# run the malloc tests.  Note that we only run 5,000 iterations of the test and
+# a real test should be well over 1,000,000 tests.  However, since I don't want
+# the user thinking the system has locked up, I will just run the short test
+# here.  (this can be overridden by passing an arugment to Runtests (any
+# arugment will do))
+#
+echo "************ Running malloc test" >> $OUT
+./testmalloc 5000 > ${TMPOUT} 2>&1
+result=$?
+line="`grep 'Did 5000 iterations' ${TMPOUT}`"
+line2="`grep Warning ${TMPOUT}`"
+if [ $result != 0 -o -z "$line" -o ! -z "$line2" ]; then
+	echo "FAILED malloc test"
+	echo "FAILED malloc test" >> $OUT
+	failed=`expr $failed + 1`
+fi
+
+cat ${TMPOUT} >> $OUT
+
+#
+# run the malloc error test.  Note that this test *should* abort therefore we
+# have to run it in a sub-shell in order to ensure that the user doesn't see
+# an error message
+#
+echo "************ Running error test" >> $OUT
+sh -c "./testerr" > ${TMPOUT} 2>&1 
+sed -e "111,\$ d" -e "/ was /d" < ${TMPOUT} > ${TMPFILE}
+cmp ${TMPFILE} testerr.base
+if [ $? != 0 ]; then
+	echo "FAILED error test"
+	echo "FAILED error test" >> $OUT
+	failed=`expr $failed + 1`
+fi
+
+cat ${TMPOUT} >> $OUT
+
+rm -f ${TMPOUT} ${TMPFILE}
+
+if [ $failed = 0 ]; then
+
+	echo "All tests seem to have passed.  Review $OUT to make sure"
+
+fi
+
+rm -f core a.out
+
+exit $failed
+

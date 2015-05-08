@@ -1,0 +1,11 @@
+#!/bin/sh
+
+##
+## Command set to install this package.
+##
+#gzip -cd libnet-1.0704.tar.gz | tar xvf -
+#cd libnet-1.0704
+#perl Makefile.PL
+#make
+#make install
+

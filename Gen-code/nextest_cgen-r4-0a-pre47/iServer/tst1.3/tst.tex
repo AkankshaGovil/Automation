@@ -1,0 +1,1156 @@
+\input cwebxmac
+
+This is an implementation of the ternary search trie algorithm,
+intended for use with null terminated strings. A package which handles
+arbitrary sequences of unsigned bytes has been done, but I need to clean
+up the code and write some documentation before I will feel comfortable
+making it available. Note that keys are case sensitive, so you should
+force your keys to lower case if you want to deal with things in a case
+insensitive manner. All of this code is mine and not copied from
+anywhere, so all bugs and sloppy code are my doing. Please contact me
+if you have suggestions for changes or corrections.
+
+{\obeylines
+Peter A. Friend
+pafriend@octavian.org
+http://www.octavian.org}
+
+\input pstricks
+\input pst-node
+\input pst-tree
+
+
+\N0 1. Structures.
+This implementation uses a ternary search trie to store the characters
+of a C string. This type of tree works much like a binary tree, yet has
+three child nodes. The additional middle node is used when a character
+of a key string matches the character at the current node in the tree.
+
+\pstree[levelsep=1cm,radius=2pt]{\Tc{3pt}}{\TC*\TC*\TC*}
+\Y\B\4$\X1:Node structure\X\EQ{}$\6
+$\&{struct}~\\{node}$\6
+$\a\{\1\&{unsigned}~\&{char}~\\{value};$\6
+$\&{struct}~\\{node}~\m*\\{left};$\6
+$\&{struct}~\\{node}~\m*\\{middle};$\6
+$\&{struct}~\\{node}~\m*\\{right};\2$\6
+$\};$\par
+\U 48.\fi
+
+\M2.
+All function calls in the TST package refer to a $\&{struct}~\\{tst}$. This
+structure stores various values set during initialization as well as
+the node storage area.
+
+The $\\{node\_line\_width}$ member refers to how many nodes are allocated at
+once when no nodes are available from the free list.
+
+The $\\{node\_lines}$ member is a pointer to a $\&{struct}~\\{node\_lines}$,
+which
+will be explained below. This member exists so that all memory
+allocated for node structures can be freed with a call to
+$\\{tst\_cleanup}(\,)$.
+
+The $\\{free\_list}$ member is a pointer to a $\&{struct}~\\{node}$. This is
+actually a linked list of nodes, linked together by the $\\{middle}$
+pointers. When nodes are needed for the tree, they are removed from the
+head of this list, and during deletion of keys, the nodes are
+inserted.
+
+The $\\{head}$ member is an array of 127 pointers to $\&{struct}~\\{node}$. All
+of
+these pointers are NULL initially, and are filled in as keys are added.
+Having a separate slot for each letter of the alphabet aids in
+balancing the top of the tree.
+
+\Y\B\4$\X2:TST structure\X\EQ{}$\6
+$\&{struct}~\\{tst}$\6
+$\a\{\1\&{int}~\\{node\_line\_width};$\6
+$\&{struct}~\\{node\_lines}~\m*\\{node\_lines};$\6
+$\&{struct}~\\{node}~\m*\\{free\_list};$\6
+$\&{struct}~\\{node}~\m*\\{head}[\T{127}];\2$\6
+$\};$\par
+\U 48.\fi
+
+\M3.
+Nodes are allocated in chunks of size $\\{tst}\MG\\{node\_line\_width}$. Each
+time
+a chunk is allocated, another line of nodes is added to the
+$\\{node\_lines}$ member of the $\&{struct}~\\{tst}$.
+
+The $\\{node\_line}$ member is allocated by a call to calloc(), so it is not
+a linked list of nodes, but nodes in contiguous memory. During each
+allocation, the nodes are added to the $\\{free\_list}$ member of $\&{struct}~%
+\\{tst}$, and the pointers updated.
+
+The $\\{next}$ pointer is just a pointer to the next line of nodes.
+\Y\B\4$\X3:Node lines structure\X\EQ{}$\6
+$\&{struct}~\\{node\_lines}$\6
+$\a\{\1\&{struct}~\\{node}~\m*\\{node\_line};$\6
+$\&{struct}~\\{node\_lines}~\m*\\{next};\2$\6
+$\};$\par
+\U 48.\fi
+
+\N0 4. Constants.
+Some functions return pointers while others return integer values. All
+functions that return a pointer return NULL on failure. All functions
+that return an integer return one of the constants below. There are
+also other constants for use in function calls.
+\Y\B\4$\X4:TST constants\X\EQ{}$\6
+$\&{enum}~\\{tst\_constants}$\5
+$\{~\1\.{TST\_OK},$\5
+$\.{TST\_ERROR},$\5
+$\.{TST\_NULL\_KEY},$\5
+$\.{TST\_DUPLICATE\_KEY},$\5
+$\.{TST\_REPLACE}\2$\5
+$\};$\par
+\U 48.\fi
+
+\N0 5. Functions.
+The definitions for all of the functions are below. Note that
+$\\{tst\_grow\_node\_free\_list}(\,)$ is an internal function used only by
+$\\{tst\_insert}(\,)$.
+
+\fi
+
+\M6.
+This function allocates a $\&{struct}~\\{tst}$ and returns the pointer. The
+$\\{node\_line\_width}$ argument controls how many nodes are allocated during
+initialization and by each call to $\\{tst\_grow\_node\_free\_list}(\,)$. This
+function returns a valid pointer if it succeeds, NULL otherwise.
+\Y\B\4$\X6:Declaration for $\\{tst\_init}(\,)$\X\EQ{}$\6
+$\&{struct}~\\{tst}~\m*\\{tst\_init}$\5
+$(\1\1\1\&{int}~\\{node\_line\_width}\2\2\2);$\par
+\U 48.\fi
+
+\M7.
+This function inserts $\\{key}$ into the the tree and associates $\\{key}$ with
+a pointer to some $\\{data}$. The $\\{data}$ argument must not be NULL, since
+NULL is the value returned when a search or delete fails. If $\\{option}$
+is set to $\.{TST\_REPLACE}$, when an attempt is made to insert a key that
+is already in the tree, the new $\\{data}$ replaces the old. Otherwise,
+$\.{TST\_DUPLICATE\_KEY}$ is returned. If the key is successfully inserted,
+$\.{TST\_OK}$ is returned. If $\\{key}$ is zero length, $\.{TST\_NULL\_KEY}$ is
+returned. A return value of $\.{TST\_ERROR}$ indicates a memory allocation
+failure occurred while tring to grow the node free list.
+
+5/05/1999 - Change made to $\\{tst\_insert}$
+
+When an insert has failed we return $\.{TST\_DUPLICATE\_KEY}$, and if we
+still want to do anything with the data for that key we have to make a
+separate call to $\\{tst\_search}$ to get the pointer which is wasteful. A
+new argument $\\{exist\_ptr}$ has been added to $\\{tst\_insert}$. When
+$\.{TST\_DUPLICATE\_KEY}$ is returned, $\\{exist\_ptr}$ will contain the data
+pointer for the existing key.
+\Y\B\4$\X7:Declaration for $\\{tst\_insert}(\,)$\X\EQ{}$\6
+$\&{int}~\\{tst\_insert}$\5
+$(\1\1\1\&{unsigned}~\&{char}~\m*\\{key},\31~\&{void}~\m*\\{data},\31~%
+\&{struct}~\\{tst}~\m*\\{tst},\31~\&{int}~\\{option},\31~\&{void}~\m*\m*%
+\\{exist\_ptr}\2\2\2);$\par
+\U 48.\fi
+
+\M8.
+This function searches for $\\{key}$ in the tree. If it succeeds, it
+returns the $\\{data}$ pointer associated with the key, NULL otherwise.
+\Y\B\4$\X8:Declaration for $\\{tst\_search}(\,)$\X\EQ{}$\6
+$\&{void}~\m*\\{tst\_search}$\5
+$(\1\1\1\&{unsigned}~\&{char}~\m*\\{key},\31~\&{struct}~\\{tst}~\m*\\{tst}\2\2%
+\2);$\par
+\U 48.\fi
+
+\M9.
+This function deletes $\\{key}$ from the tree and returns the $\\{data}$
+pointer associated with it. NULL is returned if the key is not in the
+tree.
+\Y\B\4$\X9:Declaration for $\\{tst\_delete}(\,)$\X\EQ{}$\6
+$\&{void}~\m*\\{tst\_delete}$\5
+$(\1\1\1\&{unsigned}~\&{char}~\m*\\{key},\31~\&{struct}~\\{tst}~\m*\\{tst}\2\2%
+\2);$\par
+\U 48.\fi
+
+\M10.
+This function is used to grow the free list in the $\&{struct}~\\{tst}$. This
+must not be called by the user. It is only called by $\\{tst\_insert}(\,)$
+when inserting keys. It returns 1 on success, $\.{TST\_ERROR}$ otherwise.
+\Y\B\4$\X10:Declaration for $\\{tst\_grow\_node\_free\_list}(\,)$\X\EQ{}$\6
+$\&{int}~\\{tst\_grow\_node\_free\_list}$\5
+$(\1\1\1\&{struct}~\\{tst}~\m*\\{tst}\2\2\2);$\par
+\U 21.\fi
+
+\M11.
+The function $\\{tst\_cleanup}(\,)$ is used to free the lines of nodes
+allocated, as well as the $\&{struct}~\\{tst}$ itself.
+\Y\B\4$\X11:Declaration for $\\{tst\_cleanup}(\,)$\X\EQ{}$\6
+$\&{void}~\\{tst\_cleanup}$\5
+$(\1\1\1\&{struct}~\\{tst}~\m*\\{tst}\2\2\2);$\par
+\U 48.\fi
+
+\N0 12. Initialization with $\\{tst\_init}(\,)$.
+\Y\B\4$\X12:\.{tst\_init.c}\X\EQ{}$\6
+\8\&\#\&{include}\5
+$\.{"tst.h"}$\6
+\8\&\#\&{include}\5
+$\.{<stdio.h>}$\6
+\8\&\#\&{include}\5
+$\.{<stdlib.h>}$\6
+$\&{struct}~\\{tst}$ $\m*\\{tst\_init}$\5
+$(\1\1\1\&{int}~\\{width}\2\2\2)$\6
+$\a\{\1\&{struct}~\\{tst}~\m*\\{tst};$\6
+$\&{struct}~\\{node}~\m*\\{current\_node};$\6
+$\&{int}~ i;$\7
+$\X13:Allocate tst structure\X$\6
+$\X14:Allocate $\\{node\_lines}$ member\X$\6
+$\X15:Set $\\{node\_line\_width}$ and allocate first chunk of nodes\X$\6
+$\X16:Build free list from just allocated $\\{node\_line}$\X$\2\6
+$\}$\par
+\fi
+
+\M13.
+Allocate space for the $\&{struct}~\\{tst}$. If this fails we return NULL;
+\Y\B\4$\X13:Allocate tst structure\X\EQ{}$\6
+\&{if}~$((\\{tst}\K(\&{struct}~\\{tst}*\,)\,\\{calloc}(\T{1},\31\&{sizeof}(%
+\&{struct}~\\{tst})))\E\NULL)\1$\5
+$\&{return}~\NULL;\2$\par
+\U 12.\fi
+
+\M14.
+Allocate space for the $\\{node\_lines}$ member of $\&{struct}~\\{tst}$. If
+this
+fails we have to free our $\&{struct}~\\{tst}$ and return NULL;
+\Y\B\4$\X14:Allocate $\\{node\_lines}$ member\X\EQ{}$\6
+\&{if}~$((\\{tst}\MG\\{node\_lines}\K(\&{struct}~\\{node\_lines}*\,)\,%
+\\{calloc}(\T{1},\31\&{sizeof}(\&{struct}~\\{node\_lines})))\E\NULL)$\6
+$\a\{\1\\{free}(\\{tst});$\5
+$\&{return}~\NULL;\2$\6
+$\}$\par
+\U 12.\fi
+
+\M15.
+After we have our tst structure and the $\\{node\_lines}$ member allocated,
+we need to set the $\\{node\_line\_width}$ member for this first chunk of
+nodes as well as further allocations. If we fail to allocate our chunk
+of nodes, we must free our $\&{struct}~\\{tst}$ as well as the $\\{node%
+\_lines}$
+member and return NULL.
+\Y\B\4$\X15:Set $\\{node\_line\_width}$ and allocate first chunk of nodes\X%
+\EQ{}$\6
+$\\{tst}\MG\\{node\_line\_width}\K\\{width};$\5
+$\\{tst}\MG\\{node\_lines}\MG\\{next}\K\NULL;$\6
+\&{if}~$((\\{tst}\MG\\{node\_lines}\MG\\{node\_line}\K(\&{struct}~\\{node}*\,)%
+\,\\{calloc}(\\{width},\31\&{sizeof}(\&{struct}~\\{node})))\E\NULL)$\6
+$\a\{\1\\{free}(\\{tst}\MG\\{node\_lines});$\5
+$\\{free}(\\{tst});$\5
+$\&{return}~\NULL;\2$\6
+$\}$\par
+\U 12.\fi
+
+\M16.
+Now we have to step through the just allocated $\\{node\_line}$ and link
+them together in a linked list fashion. Then we set $\\{tst}\MG\\{free\_list}$
+to
+the first node. Finally, we return a pointer to the new $\&{struct}~\\{tst}$.
+\Y\B\4$\X16:Build free list from just allocated $\\{node\_line}$\X\EQ{}$\6
+$\\{current\_node}\K\\{tst}\MG\\{node\_lines}\MG\\{node\_line};$\5
+$\\{tst}\MG\\{free\_list}\K\\{current\_node};$\6
+\&{for}~$( i\K\T{1};$\5
+$ i<\\{width};$\5
+$ i\PP)$\6
+$\a\{\1\\{current\_node}\MG\\{middle}\K\m\AND(\\{tst}\MG\\{node\_lines}\MG%
+\\{node\_line}[ i]);$\5
+$\\{current\_node}\K\\{current\_node}\MG\\{middle};\2$\6
+$\}$\6
+$\\{current\_node}\MG\\{middle}\K\NULL;$\5
+$\&{return}~\\{tst};$\par
+\U 12.\fi
+
+\N0 17. Growing the free list with $\\{tst\_grow\_node\_free\_list}(\,)$.
+\Y\B\4$\X17:\.{tst\_grow\_node\_free\_list.c}\X\EQ{}$\6
+\8\&\#\&{include}\5
+$\.{"tst.h"}$\6
+\8\&\#\&{include}\5
+$\.{<stdio.h>}$\6
+\8\&\#\&{include}\5
+$\.{<stdlib.h>}$\6
+\&{int} $\\{tst\_grow\_node\_free\_list}$\5
+$(\1\1\1\&{struct}~\\{tst}~\m*\\{tst}\2\2\2)$\6
+$\a\{\1\&{struct}~\\{node}~\m*\\{current\_node};$\6
+$\&{struct}~\\{node\_lines}~\m*\\{new\_line};$\6
+$\&{int}~ i;$\7
+$\X18:Allocate $\\{tst}\MG\\{node\_lines}\MG\\{next}$\X$\6
+$\X19:Allocate the $\\{node\_line}$ member of $\\{tst}\MG\\{node\_lines}\MG%
+\\{next}$\X$\6
+$\X20:Add the nodes from $\\{node\_line}$ to $\\{tst}\MG\\{free\_list}$\X$\2\6
+$\}$\par
+\fi
+
+\M18.
+Allocate a struct $\\{node\_lines}$ to fill $\\{new\_line}$. We do this so that
+we can insert the new structure at the beginning of the linked list.
+If the allocation fails we return $\.{TST\_ERROR}$.  We do not reset
+$\\{tst}\MG\\{node\_lines}$ until all of the other allocations have completed
+successfully.
+\Y\B\4$\X18:Allocate $\\{tst}\MG\\{node\_lines}\MG\\{next}$\X\EQ{}$\6
+\&{if}~$((\\{new\_line}\K(\&{struct}~\\{node\_lines}*\,)\,\\{malloc}(%
+\&{sizeof}(\&{struct}~\\{node\_lines})))\E\NULL)\1$\5
+$\&{return}~\.{TST\_ERROR};\2$\par
+\U 17.\fi
+
+\M19.
+Now that we have a new $\\{node\_lines}$ placeholder, we allocate its
+$\\{node\_line}$ member with the number of nodes specified in
+$\\{tst}\MG\\{node\_line\_width}$. If this fails, we have to deallocate the
+$\\{node\_lines}$ structure we just allocated, and return $\.{TST\_ERROR}$.
+If the allocation goes okay, we can then update $\\{tst}\MG\\{node\_lines}$.
+\Y\B\4$\X19:Allocate the $\\{node\_line}$ member of $\\{tst}\MG\\{node\_lines}%
+\MG\\{next}$\X\EQ{}$\6
+\&{if}~$((\\{new\_line}\MG\\{node\_line}\K(\&{struct}~\\{node}*\,)\,\\{calloc}(%
+\\{tst}\MG\\{node\_line\_width},\31\&{sizeof}(\&{struct}~\\{node})))\E\NULL)$\6
+$\a\{\1\\{free}(\\{new\_line});$\5
+$\&{return}~\.{TST\_ERROR};\2$\6
+$\}$\6
+\&{else}\6
+$\a\{\1\\{new\_line}\MG\\{next}\K\\{tst}\MG\\{node\_lines};$\5
+$\\{tst}\MG\\{node\_lines}\K\\{new\_line};\2$\6
+$\}$\par
+\U 17.\fi
+
+\M20.
+Finally, we need to step through $\\{tst}\MG\\{node\_lines}\MG\\{node\_line}$
+and
+insert the nodes into $\\{tst}\MG\\{free\_list}$. We use the local variable
+$\\{current\_node}$ to move the pointers from $\\{node\_line}$ to
+$\\{tst}\MG\\{free\_list}$. Note the essential assumption that $\\{free\_list}$
+is empty. Therefore, allocation of nodes with this function must only
+be done when the free list is empty. When done, we set the last pointer
+to NULL so we know when the list is empty later, and return 1 to
+indicate true.
+\Y\B\4$\X20:Add the nodes from $\\{node\_line}$ to $\\{tst}\MG\\{free\_list}$\X%
+\EQ{}$\6
+$\\{current\_node}\K\\{tst}\MG\\{node\_lines}\MG\\{node\_line};$\5
+$\\{tst}\MG\\{free\_list}\K\\{current\_node};$\6
+\&{for}~$( i\K\T{1};$\5
+$ i<\\{tst}\MG\\{node\_line\_width};$\5
+$ i\PP)$\6
+$\a\{\1\\{current\_node}\MG\\{middle}\K\m\AND(\\{tst}\MG\\{node\_lines}\MG%
+\\{node\_line}[ i]);$\5
+$\\{current\_node}\K\\{current\_node}\MG\\{middle};\2$\6
+$\}$\6
+$\\{current\_node}\MG\\{middle}\K\NULL;$\5
+$\&{return}~\T{1};$\par
+\U 17.\fi
+
+\N0 21. Inserting keys with $\\{tst\_insert}(\,)$.
+This function inserts a key into the symbol table. The main idea is to
+follow the nodes of the tree until we hit a NULL node. Once we do, we
+can skip to $\\{found\_null\_branch}$ and allocate nodes freely since we know
+that we will not collide with nodes for previously entered keys. If we
+end up going through the entire tree without hitting a NULL node, then
+the key is either a proper prefix of a previously entered key, or we
+have a duplicate key. For the proper prefix, all we have to do is tack
+on a terminating node. For the duplicate, if $\\{option}$ is set to
+$\.{TST\_REPLACE}$ we replace the overwite the old data with $\\{data}$,
+otherwise, we return $\.{TST\_DUPLICATE\_KEY}$. A return value of $\.{TST%
+\_ERROR}$
+indicates a memory allocation failure while trying to grow the node
+free list.
+
+5/05/1999 - Change made to $\\{tst\_insert}$
+
+When an insert has failed we return $\.{TST\_DUPLICATE\_KEY}$, and if we
+still want to do anything with the data for that key we have to make a
+separate call to $\\{tst\_search}$ to get the pointer which is wasteful. A
+new argument $\\{exist\_ptr}$ has been added to $\\{tst\_insert}$. When
+$\.{TST\_DUPLICATE\_KEY}$ is returned, $\\{exist\_ptr}$ will contain the data
+pointer for the existing key.
+
+11/03/1999 - Change made to $\\{tst\_insert}$
+
+If a $\NULL$ is passed as the $\\{exist\_ptr}$ argument bad things could
+happen. Before setting this pointer with an existing item, it must be
+checked to see if it is $\NULL$. In addition, previously a call to
+$\\{tst\_insert}(\,)$ with the $\.{TST\_REPLACE}$ argument specified would NOT
+return the existing data for the key. Now, the existing data pointer is
+placed in $\\{exist\_ptr}$ before it is overwritten. The check for a $\NULL$
+$\\{exist\_ptr}$ is done there as well.
+
+\Y\B\4$\X21:\.{tst\_insert.c}\X\EQ{}$\6
+\8\&\#\&{include}\5
+$\.{"tst.h"}$\6
+\8\&\#\&{include}\5
+$\.{<stdio.h>}$\6
+\8\&\#\&{include}\5
+$\.{<stdlib.h>}$\6
+$\X10:Declaration for $\\{tst\_grow\_node\_free\_list}(\,)$\X$\6
+\&{int} $\\{tst\_insert}$\5
+$(\1\1\1\&{unsigned}~\&{char}~\m*\\{key},\31~\&{void}~\m*\\{data},\31~%
+\&{struct}~\\{tst}~\m*\\{tst},\31~\&{int}~\\{option},\31~\&{void}~\m*\m*%
+\\{exist\_ptr}\2\2\2)$\6
+$\a\{\1\&{struct}~\\{node}~\m*\\{current\_node};$\6
+$\&{struct}~\\{node}~\m*\\{new\_node\_tree\_begin}\K\NULL;$\6
+$\&{int}~\\{key\_index};$\6
+$\&{int}~\\{perform\_loop}\K\T{1};$\7
+$\X22:Check for NULL key\X$\6
+$\X23:Check head entry to see if it is NULL\X$\6
+$\X24:Traverse tree when head entry is not NULL\X$\6
+$\X28:Found null branch so insert rest of key\X$\2\6
+$\}$\par
+\fi
+
+\M22.
+The first thing we need to do is check for a NULL, or zero length key,
+which is an error.
+\Y\B\4$\X22:Check for NULL key\X\EQ{}$\6
+\&{if}~$(\\{key}\E\NULL)\1$\5
+$\&{return}~\.{TST\_NULL\_KEY};\2$\6
+\&{if}~$(\\{key}[\T{0}]\E\T{0})\1$\5
+$\&{return}~\.{TST\_NULL\_KEY};\2$\par
+\U 21.\fi
+
+\M23.
+Here, we look at the first character of $\\{key}$, and use it to index into
+$\\{tst}\MG\\{head}$. If the indexed node is NULL, then we know that this key
+is
+not in the tree. The entries in $\\{tst}\MG\\{head}$ represent all of the
+possible starting points for keys. The actual node in the $\\{head}$ array
+store the value of the {\it second} character of $\\{key}$, because the
+first character is indicated implicitly by $\\{head}[\\{key}[\T{0}]]$ not being
+NULL. This is why we set the $\\{value}$ member of the very first node to
+$\\{key}[\T{1}]$.
+
+If we the head entry is NULL, then there are several things we must
+perform. First, we have to allocate a node then set the $\\{value}$ member
+to $\\{key}[\T{1}]$. Then we have to check the length of the key. If the length
+is 1, then we set the $\\{middle}$ pointer to $\\{data}$ and return $\.{TST%
+\_OK}$.
+Otherwise, we set $\\{perform\_loop}$ to 0 to disable the loop and insert
+the rest of the key.
+\Y\B\4$\X23:Check head entry to see if it is NULL\X\EQ{}$\6
+\&{if}~$(\\{tst}\MG\\{head}[(\&{int})\,\\{key}[\T{0}]]\E\NULL)$\6
+$\a\{\1\X29:Check $\\{tst}\MG\\{free\_list}$ and grow if necessary\X$\6
+$\\{tst}\MG\\{head}[(\&{int})\,\\{key}[\T{0}]]\K\\{tst}\MG\\{free\_list};$\5
+$\X30:Update free list after taking a node\X$\6
+$\\{current\_node}\K\\{tst}\MG\\{head}[(\&{int})\,\\{key}[\T{0}]];$\5
+$\\{current\_node}\MG\\{value}\K\\{key}[\T{1}];$\6
+\&{if}~$(\\{key}[\T{1}]\E\T{0})$\6
+$\a\{\1\\{current\_node}\MG\\{middle}\K\\{data};$\5
+$\&{return}~\.{TST\_OK};\2$\6
+$\}$\6
+\&{else}\1\5
+$\\{perform\_loop}\K\T{0};\2$\2\6
+$\}$\par
+\U 21.\fi
+
+\M24.
+All we do here is traverse the tree based on characters in $\\{key}$. We
+handle cases where we have to take the left, middle or right branch,
+and the code for each is explained in their own section. The odd
+looking test for the left and right branches is there so we can avoid
+one way branching at terminating nodes. If we are at a terminating
+node, then we take a branch by comparing the character in $\\{key}$ with
+64, which is basically the 127 valid ASCII characters divided by 2. If
+the node is not a terminating node, then we can just compare the
+character in $\\{key}$ with $\\{current\_node}\MG\\{value}$.
+\Y\B\4$\X24:Traverse tree when head entry is not NULL\X\EQ{}$\6
+$\\{current\_node}\K\\{tst}\MG\\{head}[(\&{int})\,\\{key}[\T{0}]];$\5
+$\\{key\_index}\K\T{1};$\6
+\&{while}~$(\\{perform\_loop}\E\T{1})$\6
+$\a\{\1\&{if}~(\\{key}[\\{key\_index}]\E\\{current\_node}\MG\\{value})$\6
+$\a\{\1\X25:Key is equal to node value\X$\2\6
+$\}$\6
+\&{if}~$(((\\{current\_node}\MG\\{value}\E\T{0})\W(\\{key}[\\{key\_index}]<%
+\T{64}))\V((\\{current\_node}\MG\\{value}\I\T{0})\W(\\{key}[\\{key\_index}]<%
+\\{current\_node}\MG\\{value})))$\6
+$\a\{\1\X26:Key is less than node value\X$\2\6
+$\}$\6
+\&{else}\6
+$\a\{\1\X27:Key is greater than node value\X$\2\6
+$\}$\2\6
+$\}$\par
+\U 21.\fi
+
+\M25.
+When the value of $\\{key}[\\{key\_index}]$ is equal to $\\{current\_node}\MG%
+\\{value}$,
+we must check first to see if we are looking at the NULL terminator for
+the string. It so, we have a duplicate key, and return
+$\.{TST\_DUPLICATE\_KEY}$ unlees the $\\{option}$ is set to $\.{TST\_REPLACE}$,
+and in
+that case we replace overwrite the old data with $\\{data}$.
+
+If we are not looking at the NULL terminator, then we have to check the
+$\\{middle}$ pointer of the current node to see if it is NULL. If it is, we
+allocate a node, set the pointers, and break out of the loop. If the
+$\\{middle}$ pointer is not NULL, then we increment $\\{key\_index}$ and set
+$\\{current\_node}$ to $\\{current\_node}\MG\\{middle}$.
+\Y\B\4$\X25:Key is equal to node value\X\EQ{}$\6
+\&{if}~$(\\{key}[\\{key\_index}]\E\T{0})$\6
+$\a\{\1\&{if}~(\\{option}\E\.{TST\_REPLACE})$\6
+$\a\{\1\&{if}~(\\{exist\_ptr}\I\NULL)\1$\5
+$\m*\\{exist\_ptr}\K\\{current\_node}\MG\\{middle};\2$\6
+$\\{current\_node}\MG\\{middle}\K\\{data};$\5
+$\&{return}~\.{TST\_OK};\2$\6
+$\}$\6
+\&{else}\6
+$\a\{\1\&{if}~(\\{exist\_ptr}\I\NULL)\1$\5
+$\m*\\{exist\_ptr}\K\\{current\_node}\MG\\{middle};\2$\6
+$\&{return}~\.{TST\_DUPLICATE\_KEY};\2$\6
+$\}$\2\6
+$\}$\6
+\&{else}\6
+$\a\{\1\&{if}~(\\{current\_node}\MG\\{middle}\E\NULL)$\6
+$\a\{\1\X29:Check $\\{tst}\MG\\{free\_list}$ and grow if necessary\X$\6
+$\\{current\_node}\MG\\{middle}\K\\{tst}\MG\\{free\_list};$\5
+$\X30:Update free list after taking a node\X$\6
+$\\{new\_node\_tree\_begin}\K\\{current\_node};$\5
+$\\{current\_node}\K\\{current\_node}\MG\\{middle};$\5
+$\\{current\_node}\MG\\{value}\K\\{key}[\\{key\_index}];$\5
+$\&{break};\2$\6
+$\}$\6
+\&{else}\6
+$\a\{\1\\{current\_node}\K\\{current\_node}\MG\\{middle};$\5
+$\\{key\_index}\PP;$\5
+$\&{continue};\2$\6
+$\}$\2\6
+$\}$\par
+\U 24.\fi
+
+\M26.
+Here we handle the case when the character $\\{key}[\\{key\_index}]$ is less
+than $\\{current\_node}\MG\\{value}$. This means that we need to take the left
+branch of the tree. Before we can take this branch, we must check to
+see if the left branch is NULL. If it is, allocate a new node, set the
+values and break out of the loop. Otherwise, take the branch, and note
+that we do not increment $\\{key\_index}$ becuase we are still moving
+through the tree, looking for the current character.
+
+If we do happen to allocate a new node for the left branch, we also
+have to check if we are at the end of $\\{key}$. If so, we set the $\\{middle}$
+pointer to $\\{data}$ and return $\.{TST\_OK}$.
+\Y\B\4$\X26:Key is less than node value\X\EQ{}$\6
+\&{if}~$(\\{current\_node}\MG\\{left}\E\NULL)$\6
+$\a\{\1\X29:Check $\\{tst}\MG\\{free\_list}$ and grow if necessary\X$\6
+$\\{current\_node}\MG\\{left}\K\\{tst}\MG\\{free\_list};$\5
+$\X30:Update free list after taking a node\X$\6
+$\\{new\_node\_tree\_begin}\K\\{current\_node};$\5
+$\\{current\_node}\K\\{current\_node}\MG\\{left};$\5
+$\\{current\_node}\MG\\{value}\K\\{key}[\\{key\_index}];$\6
+\&{if}~$(\\{key}[\\{key\_index}]\E\T{0})$\6
+$\a\{\1\\{current\_node}\MG\\{middle}\K\\{data};$\5
+$\&{return}~\.{TST\_OK};\2$\6
+$\}$\6
+\&{else}\1\5
+$\&{break};\2$\2\6
+$\}$\6
+\&{else}\6
+$\a\{\1\\{current\_node}\K\\{current\_node}\MG\\{left};$\5
+$\&{continue};\2$\6
+$\}$\par
+\U 24.\fi
+
+\M27.
+Here we handle the case where $\\{key}[\\{key\_index}]$ is greater than
+$\\{current\_node}\MG\\{value}$. This means that we need to take the right
+branch
+of the tree. Before we can take this branch, we must check to see if
+the right branch is NULL. If it is, allocate a new node, set the values
+and break out of the loop. Otherwise, take the branch, and note that we
+do not increment $\\{key\_index}$ becuase we are still moving through the
+tree, looking for the current character.
+
+Note that in this case we are not checking to see if $\\{key}[\\{key\_index}]$
+is
+0, meaning that we have reached the end of $\\{key}$. This is because 0
+will always be less than $\\{current\_node}\MG\\{value}$, and the equality case
+in handled in another module.
+\Y\B\4$\X27:Key is greater than node value\X\EQ{}$\6
+\&{if}~$(\\{current\_node}\MG\\{right}\E\NULL)$\6
+$\a\{\1\X29:Check $\\{tst}\MG\\{free\_list}$ and grow if necessary\X$\6
+$\\{current\_node}\MG\\{right}\K\\{tst}\MG\\{free\_list};$\5
+$\X30:Update free list after taking a node\X$\6
+$\\{new\_node\_tree\_begin}\K\\{current\_node};$\5
+$\\{current\_node}\K\\{current\_node}\MG\\{right};$\5
+$\\{current\_node}\MG\\{value}\K\\{key}[\\{key\_index}];$\5
+$\&{break};\2$\6
+$\}$\6
+\&{else}\6
+$\a\{\1\\{current\_node}\K\\{current\_node}\MG\\{right};$\5
+$\&{continue};\2$\6
+$\}$\par
+\U 24.\fi
+
+\M28.
+When this code is reached, we have broken out of the while loop, so we
+must have reached a NULL branch. We insert new nodes into the tree
+until the end of the key is reached, then we store $\\{data}$ and return
+success.
+
+03/23/200 There is potentially nasty problem with how this section of
+code was implemented. If we get a memory error somewhere in the middle
+of adding the new nodes, we return return an error but leave the nodes
+we were able to allocate hanging off in space, which can cause lots of
+problems. We solve this by saving the node where we hit a $\NULL$ link
+and are going to start adding the rest of the nodes for the key one
+after the other. If there is a failure, we put the nodes back on the
+free list and reset the middle pointer of the saved node to $\NULL$.
+\Y\B\4$\X28:Found null branch so insert rest of key\X\EQ{}$\6
+\&{do}\6
+$\a\{\1\\{key\_index}\PP;$\6
+\&{if}~$(\\{tst}\MG\\{free\_list}\E\NULL)$\6
+$\a\{\1\&{if}~(\\{tst\_grow\_node\_free\_list}(\\{tst})\I\T{1})$\6
+$\a\{\1\\{current\_node}\K\\{new\_node\_tree\_begin}\MG\\{middle};$\6
+\&{while}~$(\\{current\_node}\MG\\{middle}\I\NULL)\1$\5
+$\\{current\_node}\K\\{current\_node}\MG\\{middle};\2$\6
+$\\{current\_node}\MG\\{middle}\K\\{tst}\MG\\{free\_list};$\5
+$\\{tst}\MG\\{free\_list}\K\\{new\_node\_tree\_begin}\MG\\{middle};$\5
+$\\{new\_node\_tree\_begin}\MG\\{middle}\K\NULL;$\5
+$\&{return}~\.{TST\_ERROR};\2$\6
+$\}$\2\6
+$\}$\6
+$\X29:Check $\\{tst}\MG\\{free\_list}$ and grow if necessary\X$\6
+$\\{current\_node}\MG\\{middle}\K\\{tst}\MG\\{free\_list};$\5
+$\X30:Update free list after taking a node\X$\6
+$\\{current\_node}\K\\{current\_node}\MG\\{middle};$\5
+$\\{current\_node}\MG\\{value}\K\\{key}[\\{key\_index}];\2$\6
+$\}~\&{while}~(\\{key}[\\{key\_index}]\I\T{0});$\6
+$\\{current\_node}\MG\\{middle}\K\\{data};$\5
+$\&{return}~\.{TST\_OK};$\par
+\U 21.\fi
+
+\M29.
+This is code that is used throughout this function that checks to see
+if $\\{tst}\MG\\{free\_list}$ is empty. If it is, then we call
+$\\{tst\_grow\_node\_free\_list}(\,)$.
+\Y\B\4$\X29:Check $\\{tst}\MG\\{free\_list}$ and grow if necessary\X\EQ{}$\6
+\&{if}~$(\\{tst}\MG\\{free\_list}\E\NULL)$\6
+$\a\{\1\&{if}~(\\{tst\_grow\_node\_free\_list}(\\{tst})\I\T{1})\1$\5
+$\&{return}~\.{TST\_ERROR};\2$\2\6
+$\}$\par
+\Us 23, 25, 26, 27\ETs28.\fi
+
+\M30.
+This is only one line of code, but it is included here as a module to
+make it stand out more, so hopefully it will not be forgotten. This
+code updates $\\{tst}\MG\\{free\_list}$ to the next node in the free list. This
+{\it must} be called after a node is taken off of the free list.
+\Y\B\4$\X30:Update free list after taking a node\X\EQ{}$\6
+$\\{tst}\MG\\{free\_list}\K\\{tst}\MG\\{free\_list}\MG\\{middle};$\par
+\Us 23, 25, 26, 27\ETs28.\fi
+
+\N0 31. Searching for keys with $\\{tst\_search}(\,)$.
+\Y\B\4$\X31:\.{tst\_search.c}\X\EQ{}$\6
+\8\&\#\&{include}\5
+$\.{"tst.h"}$\6
+\8\&\#\&{include}\5
+$\.{<stdio.h>}$\6
+\8\&\#\&{include}\5
+$\.{<stdlib.h>}$\6
+\&{void} $\m*\\{tst\_search}$\5
+$(\1\1\1\&{unsigned}~\&{char}~\m*\\{key},\31~\&{struct}~\\{tst}~\m*\\{tst}\2\2%
+\2)$\6
+$\a\{\1\&{struct}~\\{node}~\m*\\{current\_node};$\6
+$\&{int}~\\{key\_index};$\7
+$\X32:Fail if $\\{key}$ is NULL\X$\6
+$\X33:Return NULL if head is NULL\X$\6
+$\X34:Initialize $\\{current\_node}$, $\\{key\_index}$, start search loop and
+return NULL on failure\X$\2\6
+$\}$\par
+\fi
+
+\M32.
+Here we check for the NULL key, which is not allowed.
+\Y\B\4$\X32:Fail if $\\{key}$ is NULL\X\EQ{}$\6
+\&{if}~$(\\{key}[\T{0}]\E\T{0})\1$\5
+$\&{return}~\NULL;\2$\par
+\U 31.\fi
+
+\M33.
+Here we simply check the head node to see if it is NULL. If it is, then
+we know that the key cannot exist in the tree so we return NULL to
+indicate failure.
+\Y\B\4$\X33:Return NULL if head is NULL\X\EQ{}$\6
+\&{if}~$(\\{tst}\MG\\{head}[(\&{int})\,\\{key}[\T{0}]]\E\NULL)\1$\5
+$\&{return}~\NULL;\2$\par
+\U 31.\fi
+
+\M34.
+Here we set $\\{current\_node}$ node to the head node and set our index to
+1. The loop runs until we hit a NULL node, in which case we return NULL
+to indicate failure, otherwise, we return the data stored in the
+terminating node.
+\Y\B\4$\X34:Initialize $\\{current\_node}$, $\\{key\_index}$, start search loop
+and return NULL on failure\X\EQ{}$\6
+$\\{current\_node}\K\\{tst}\MG\\{head}[(\&{int})\,\\{key}[\T{0}]];$\5
+$\\{key\_index}\K\T{1};$\6
+\&{while}~$(\\{current\_node}\I\NULL)$\6
+$\a\{\1\&{if}~(\\{key}[\\{key\_index}]\E\\{current\_node}\MG\\{value})$\6
+$\a\{\1\&{if}~(\\{current\_node}\MG\\{value}\E\T{0})\1$\5
+$\&{return}~\\{current\_node}\MG\\{middle};\2$\6
+\&{else}\6
+$\a\{\1\\{current\_node}\K\\{current\_node}\MG\\{middle};$\5
+$\\{key\_index}\PP;$\5
+$\&{continue};\2$\6
+$\}$\2\6
+$\}$\6
+\&{else}~\&{if}~$(((\\{current\_node}\MG\\{value}\E\T{0})\W(\\{key}[\\{key%
+\_index}]<\T{64}))\V((\\{current\_node}\MG\\{value}\I\T{0})\W(\\{key}[\\{key%
+\_index}]<\\{current\_node}\MG\\{value})))$\6
+$\a\{\1\\{current\_node}\K\\{current\_node}\MG\\{left};$\5
+$\&{continue};\2$\6
+$\}$\6
+\&{else}\6
+$\a\{\1\\{current\_node}\K\\{current\_node}\MG\\{right};$\5
+$\&{continue};\2$\6
+$\}$\2\6
+$\}$\6
+$\&{return}~\NULL;$\par
+\U 31.\fi
+
+\N0 35. Deleting keys with $\\{tst\_delete}(\,)$.
+This is the most complex function of the package. If the $\\{key}$ is
+found, the $\\{data}$ associated with the key is returned, otherwise the
+return value is NULL. The basic task of this function is to find
+something I call the $\\{last\_branch}$. This node is the last node in the
+path for a key which has non-NULL children, or is a node branched off
+of another. We also have to store the parent of this node, because we
+have to NULL the branch that leads to $\\{last\_branch}$.
+
+\pstree[levelsep=1cm,radius=6pt]
+{\Tcircle{t}~[tnpos=r]{t is implied by the existence of $\\{tst}\MG\\{head}[%
+\\{key}[\T{0}]]$}}
+{
+\pstree{\Tcircle{e}~[tnpos=r]{this is the actual node stored in $\\{tst}\MG%
+\\{head}[\\{key}[\T{0}]]$}}
+{
+\pstree{\Tcircle{s}}
+{
+\pstree{\Tcircle{t}}
+{
+\pstree{\Tcircle{0}~[tnpos=r]{$\\{last\_branch}$ when deleting ``test''}}
+{
+\Tn
+\Tn
+\pstree{\Tcircle{i}~[tnpos=r]{$\\{last\_branch}$ when deleting ``testing''}}
+{
+\pstree{\Tcircle{n}}
+{
+\pstree{\Tcircle{g}}
+{
+\Tcircle{0}
+}
+}
+}
+}
+}
+}
+}
+}
+\Y\B\4$\X35:\.{tst\_delete.c}\X\EQ{}$\6
+\8\&\#\&{include}\5
+$\.{"tst.h"}$\6
+\8\&\#\&{include}\5
+$\.{<stdio.h>}$\6
+\8\&\#\&{include}\5
+$\.{<stdlib.h>}$\6
+\&{void} $\m*\\{tst\_delete}$\5
+$(\1\1\1\&{unsigned}~\&{char}~\m*\\{key},\31~\&{struct}~\\{tst}~\m*\\{tst}\2\2%
+\2)$\6
+$\a\{\1\&{struct}~\\{node}~\m*\\{current\_node};$\6
+$\&{struct}~\\{node}~\m*\\{current\_node\_parent};$\6
+$\&{struct}~\\{node}~\m*\\{last\_branch};$\6
+$\&{struct}~\\{node}~\m*\\{last\_branch\_parent};$\6
+$\&{struct}~\\{node}~\m*\\{next\_node};$\6
+$\&{struct}~\\{node}~\m*\\{last\_branch\_replacement};$\6
+$\&{struct}~\\{node}~\m*\\{last\_branch\_dangling\_child};$\6
+$\&{int}~\\{key\_index};$\7
+$\X36:NULL keys and head nodes return failure\X$\6
+$\X37:Find last branch\X$\6
+\&{if}~$(\\{current\_node}\E\NULL)\1$\5
+$\&{return}~\NULL;\2$\6
+$\X39:Handle key deletion\X$\2\6
+$\}$\par
+\fi
+
+\M36.
+Here we check for the NULL key, which is not allowed.
+
+We also check the head node to see if it is NULL. If it is, then
+we know that the key cannot exist in the tree so we return NULL to
+indicate failure.
+\Y\B\4$\X36:NULL keys and head nodes return failure\X\EQ{}$\6
+\&{if}~$(\\{key}[\T{0}]\E\T{0})\1$\5
+$\&{return}~\NULL;\2$\6
+\&{if}~$(\\{tst}\MG\\{head}[(\&{int})\,\\{key}[\T{0}]]\E\NULL)\1$\5
+$\&{return}~\NULL;\2$\par
+\U 35.\fi
+
+\M37.
+Here is where we look for $\\{last\_branch}$.
+\Y\B\4$\X37:Find last branch\X\EQ{}$\6
+$\\{last\_branch}\K\NULL;$\5
+$\\{last\_branch\_parent}\K\NULL;$\5
+$\\{current\_node}\K\\{tst}\MG\\{head}[(\&{int})\,\\{key}[\T{0}]];$\5
+$\\{current\_node\_parent}\K\NULL;$\5
+$\\{key\_index}\K\T{1};$\6
+\&{while}~$(\\{current\_node}\I\NULL)$\6
+$\a\{\1\&{if}~(\\{key}[\\{key\_index}]\E\\{current\_node}\MG\\{value})$\6
+$\a\{\1\X38:Check node for branches\X$\6
+\&{if}~$(\\{key}[\\{key\_index}]\E\T{0})\1$\5
+$\&{break};\2$\6
+\&{else}\6
+$\a\{\1\\{current\_node\_parent}\K\\{current\_node};$\5
+$\\{current\_node}\K\\{current\_node}\MG\\{middle};$\5
+$\\{key\_index}\PP;$\5
+$\&{continue};\2$\6
+$\}$\2\6
+$\}$\6
+\&{else}~\&{if}~$(((\\{current\_node}\MG\\{value}\E\T{0})\W(\\{key}[\\{key%
+\_index}]<\T{64}))\V((\\{current\_node}\MG\\{value}\I\T{0})\W(\\{key}[\\{key%
+\_index}]<\\{current\_node}\MG\\{value})))$\6
+$\a\{\1\\{last\_branch\_parent}\K\\{current\_node};$\5
+$\\{current\_node\_parent}\K\\{current\_node};$\5
+$\\{current\_node}\K\\{current\_node}\MG\\{left};$\5
+$\\{last\_branch}\K\\{current\_node};$\5
+$\&{continue};\2$\6
+$\}$\6
+\&{else}\6
+$\a\{\1\\{last\_branch\_parent}\K\\{current\_node};$\5
+$\\{current\_node\_parent}\K\\{current\_node};$\5
+$\\{current\_node}\K\\{current\_node}\MG\\{right};$\5
+$\\{last\_branch}\K\\{current\_node};$\5
+$\&{continue};\2$\6
+$\}$\2\6
+$\}$\par
+\U 35.\fi
+
+\M38.
+Here we check whether one or both of the children of $\\{current\_node}$ are
+not NULL, which means that $\\{key}$ up to this point is a proper prefix of
+another key in the tree, so we can delete this node, but we have to
+balance the tree first. We therefore set $\\{last\_branch}$ to
+$\\{current\_node}$ and $\\{last\_branch\_parent}$ to $\\{current\_node%
+\_parent}$.
+\Y\B\4$\X38:Check node for branches\X\EQ{}$\6
+\&{if}~$((\\{current\_node}\MG\\{left}\I\NULL)\V(\\{current\_node}\MG\\{right}%
+\I\NULL))$\6
+$\a\{\1\\{last\_branch}\K\\{current\_node};$\5
+$\\{last\_branch\_parent}\K\\{current\_node\_parent};\2$\6
+$\}$\par
+\U 37.\fi
+
+\M39.
+\Y\B\4$\X39:Handle key deletion\X\EQ{}$\6
+\&{if}~$(\\{last\_branch}\E\NULL)$\6
+$\a\{\1\X40:$\\{last\_branch}$ is NULL so we can remove the whole key and set
+the head to NULL\X$\2\6
+$\}$\6
+\&{else}~\&{if}~$((\\{last\_branch}\MG\\{left}\E\NULL)\W(\\{last\_branch}\MG%
+\\{right}\E\NULL))$\6
+$\a\{\1\X41:Both children are NULL so we can delete from $\\{last\_branch}$\X$%
+\2\6
+$\}$\6
+\&{else}\6
+$\a\{\1\X42:Determine values for $\\{last\_branch\_replacement}$ and $\\{last%
+\_branch\_dangling\_child}$\X$\6
+$\X43:Deal with case where $\\{last\_branch\_parent}$ is NULL\X$\6
+$\X44:Move $\\{last\_branch\_dangling\_child}$ to new slot in left subtree of $%
+\\{last\_branch\_replacement}$\X$\2\6
+$\}$\6
+$\X45:Free nodes from $\\{next\_node}$ onward and return data\X$\par
+\U 35.\fi
+
+\M40.
+When $\\{last\_branch}$ is NULL, we set $\\{next\_node}$ to the head node, NULL
+the head, then fall through the statements so we can remove the entire
+key.
+\Y\B\4$\X40:$\\{last\_branch}$ is NULL so we can remove the whole key and set
+the head to NULL\X\EQ{}$\6
+$\\{next\_node}\K\\{tst}\MG\\{head}[(\&{int})\,\\{key}[\T{0}]];$\5
+$\\{tst}\MG\\{head}[(\&{int})\,\\{key}[\T{0}]]\K\NULL;$\par
+\U 39.\fi
+
+\M41.
+When both children of $\\{last\_branch}$ are NULL, we can safely remove all
+nodes from that point on without having to balance any other nodes. All
+we have to do is set the path out of $\\{last\_branch\_parent}$ to NULL.
+\Y\B\4$\X41:Both children are NULL so we can delete from $\\{last\_branch}$\X%
+\EQ{}$\6
+\&{if}~$(\\{last\_branch\_parent}\MG\\{left}\E\\{last\_branch})\1$\5
+$\\{last\_branch\_parent}\MG\\{left}\K\NULL;\2$\6
+\&{else}\1\5
+$\\{last\_branch\_parent}\MG\\{right}\K\NULL;\2$\6
+$\\{next\_node}\K\\{last\_branch};$\par
+\U 39.\fi
+
+\M42.
+At this point we know that $\\{last\_branch}$ has one or more children, so
+we have to move nodes around before we can start deleting them. Since
+the node at $\\{last\_branch}$ is going to be removed, we have the variable
+$\\{last\_branch\_replacement}$. When both children are valid, we arbitrarily
+set this to the right child, otherwise, we set it to the child that is
+not NULL. Also in the case where both children are valid, we use the
+variable $\\{last\_branch\_dangling\_child}$ to store the extra child.
+\Y\B\4$\X42:Determine values for $\\{last\_branch\_replacement}$ and $\\{last%
+\_branch\_dangling\_child}$\X\EQ{}$\6
+\&{if}~$((\\{last\_branch}\MG\\{left}\I\NULL)\W(\\{last\_branch}\MG\\{right}\I%
+\NULL))$\6
+$\a\{\1\\{last\_branch\_replacement}\K\\{last\_branch}\MG\\{right};$\5
+$\\{last\_branch\_dangling\_child}\K\\{last\_branch}\MG\\{left};\2$\6
+$\}$\6
+\&{else}~\&{if}~$(\\{last\_branch}\MG\\{right}\I\NULL)$\6
+$\a\{\1\\{last\_branch\_replacement}\K\\{last\_branch}\MG\\{right};$\5
+$\\{last\_branch\_dangling\_child}\K\NULL;\2$\6
+$\}$\6
+\&{else}\6
+$\a\{\1\\{last\_branch\_replacement}\K\\{last\_branch}\MG\\{left};$\5
+$\\{last\_branch\_dangling\_child}\K\NULL;\2$\6
+$\}$\par
+\U 39.\fi
+
+\M43.
+If $\\{last\_branch\_parent}$ is NULL, then wee have a situation where
+$\\{last\_branch}$ is actually equal to $\\{tst}\MG\\{head}[\\{key}[\T{0}]]$,
+or in other
+words, it is the head node and we need to handle this in a special way.
+We do this by setting the head node to $\\{last\_branch\_replacement}$. On
+the other hand, if $\\{last\_branch\_parent}$ is not NULL, then we need to
+find which path was taken out of $\\{last\_branch\_parent}$ to $\\{last%
+\_branch}$.
+We set this path, or rather pointer, to $\\{last\_branch\_replacement}$.
+\Y\B\4$\X43:Deal with case where $\\{last\_branch\_parent}$ is NULL\X\EQ{}$\6
+\&{if}~$(\\{last\_branch\_parent}\E\NULL)\1$\5
+$\\{tst}\MG\\{head}[(\&{int})\,\\{key}[\T{0}]]\K\\{last\_branch\_replacement};%
+\2$\6
+\&{else}\6
+$\a\{\1\&{if}~(\\{last\_branch\_parent}\MG\\{left}\E\\{last\_branch})\1$\5
+$\\{last\_branch\_parent}\MG\\{left}\K\\{last\_branch\_replacement};\2$\6
+\&{else}~\&{if}~$(\\{last\_branch\_parent}\MG\\{right}\E\\{last\_branch})\1$\5
+$\\{last\_branch\_parent}\MG\\{right}\K\\{last\_branch\_replacement};\2$\6
+\&{else}\1\5
+$\\{last\_branch\_parent}\MG\\{middle}\K\\{last\_branch\_replacement};\2$\2\6
+$\}$\par
+\U 39.\fi
+
+\M44.
+At this point we have replaced $\\{last\_branch}$ with
+$\\{last\_branch\_replacement}$ in the tree, and now we have to handle the
+case where both children of $\\{last\_branch}$ were valid. If
+$\\{last\_branch\_dangling\_child}$ is NULL, then we have nothing to do.
+Otherwise, we need to find an open slot in the left subtree of
+$\\{last\_branch\_replacement}$ to put $\\{last\_branch\_dangling\_child}$.
+\Y\B\4$\X44:Move $\\{last\_branch\_dangling\_child}$ to new slot in left
+subtree of $\\{last\_branch\_replacement}$\X\EQ{}$\6
+\&{if}~$(\\{last\_branch\_dangling\_child}\I\NULL)$\6
+$\a\{\1\\{current\_node}\K\\{last\_branch\_replacement};$\6
+\&{while}~$(\\{current\_node}\MG\\{left}\I\NULL)\1$\5
+$\\{current\_node}\K\\{current\_node}\MG\\{left};\2$\6
+$\\{current\_node}\MG\\{left}\K\\{last\_branch\_dangling\_child};\2$\6
+$\}$\6
+$\\{next\_node}\K\\{last\_branch};$\par
+\U 39.\fi
+
+\M45.
+This puts the nodes back on the free list and returns the data
+associated with a key. To use, set $\\{next\_node}$ to the value of
+$\\{last\_branch}$ or whichever node the deletion needs to
+start from.
+\Y\B\4$\X45:Free nodes from $\\{next\_node}$ onward and return data\X\EQ{}$\6
+\&{do}\6
+$\a\{\1\\{current\_node}\K\\{next\_node};$\5
+$\\{next\_node}\K\\{current\_node}\MG\\{middle};$\5
+$\X46:Return node to free list\X$\2\6
+$\}~\&{while}~(\\{current\_node}\MG\\{value}\I\T{0});$\6
+$\&{return}~\\{next\_node};$\par
+\U 39.\fi
+
+\M46.
+This code returns a node to the free list and makes sure that the child
+pointers are set to NULL.
+\Y\B\4$\X46:Return node to free list\X\EQ{}$\6
+$\\{current\_node}\MG\\{left}\K\NULL;$\5
+$\\{current\_node}\MG\\{right}\K\NULL;$\5
+$\\{current\_node}\MG\\{middle}\K\\{tst}\MG\\{free\_list};$\5
+$\\{tst}\MG\\{free\_list}\K\\{current\_node};$\par
+\U 45.\fi
+
+\N0 47. Freeing all node space with $\\{tst\_cleanup}(\,)$.
+\Y\B\4$\X47:\.{tst\_cleanup.c}\X\EQ{}$\6
+\8\&\#\&{include}\5
+$\.{"tst.h"}$\6
+\8\&\#\&{include}\5
+$\.{<stdio.h>}$\6
+\8\&\#\&{include}\5
+$\.{<stdlib.h>}$\6
+\&{void} $\\{tst\_cleanup}$\5
+$(\1\1\1\&{struct}~\\{tst}~\m*\\{tst}\2\2\2)$\6
+$\a\{\1\&{struct}~\\{node\_lines}~\m*\\{current\_line};$\6
+$\&{struct}~\\{node\_lines}~\m*\\{next\_line};$\7
+$\\{next\_line}\K\\{tst}\MG\\{node\_lines};$\6
+\&{do}\6
+$\a\{\1\\{current\_line}\K\\{next\_line};$\5
+$\\{next\_line}\K\\{current\_line}\MG\\{next};$\5
+$\\{free}(\\{current\_line}\MG\\{node\_line});$\5
+$\\{free}(\\{current\_line});\2$\6
+$\}~\&{while}~(\\{next\_line}\I\NULL);$\6
+$\\{free}(\\{tst});\2$\6
+$\}$\par
+\fi
+
+\N0 48. Header file.
+\Y\B\4$\X48:\.{tst.h}\X\EQ{}$\6
+$\X1:Node structure\X$\6
+$\X2:TST structure\X$\6
+$\X3:Node lines structure\X$\6
+$\X4:TST constants\X$\6
+$\X6:Declaration for $\\{tst\_init}(\,)$\X$\6
+$\X7:Declaration for $\\{tst\_insert}(\,)$\X$\6
+$\X8:Declaration for $\\{tst\_search}(\,)$\X$\6
+$\X9:Declaration for $\\{tst\_delete}(\,)$\X$\6
+$\X11:Declaration for $\\{tst\_cleanup}(\,)$\X$\par
+\fi
+
+
+\inx
+\@m\\{calloc}, 13, 14, 15, 19.
+\@m\\{current\_line}, \[47].
+\@m\\{current\_node}, \[12], 16, \[17], 20, \[21], 23, 24, 25, 26, 27, 28,
+\[31], 34, \[35], 37, 38, 44, 45, 46.
+\@m\\{current\_node\_parent}, \[35], 37, 38.
+\@m\\{data}, \[7], 8, 9, \[21], 23, 25, 26, 28, 35.
+\@m\\{exist\_ptr}, \[7], \[21], 25.
+\@m\\{found\_null\_branch}, 21.
+\@m\\{free}, 14, 15, 19, 47.
+\@m\\{free\_list}, \[2], 3, 16, 20, 23, 25, 26, 27, 28, 29, 30, 46.
+\@m\\{head}, \[2], 23, 24, 33, 34, 35, 36, 37, 40, 43.
+\@m i, \[12], \[17].
+\@m\\{key}, \[7], \[8], \[9], \[21], 22, 23, 24, 25, 26, 27, 28, \[31], 32, 33,
+34, \[35], 36, 37, 38, 40, 43.
+\@m\\{key\_index}, \[21], 24, 25, 26, 27, 28, \[31], 34, \[35], 37.
+\@m\\{last\_branch}, \[35], 37, 38, 39, 40, 41, 42, 43, 44, 45.
+\@m\\{last\_branch\_dangling\_child}, \[35], 42, 44.
+\@m\\{last\_branch\_parent}, \[35], 37, 38, 41, 43.
+\@m\\{last\_branch\_replacement}, \[35], 42, 43, 44.
+\@m\\{left}, \[1], 26, 34, 37, 38, 39, 41, 42, 43, 44, 46.
+\@m\\{malloc}, 18.
+\@m\\{middle}, \[1], 2, 16, 20, 23, 25, 26, 28, 30, 34, 37, 43, 45, 46.
+\@m\\{new\_line}, \[17], 18, 19.
+\@m\\{new\_node\_tree\_begin}, \[21], 25, 26, 27, 28.
+\@m\\{next}, \[3], 15, 19, 47.
+\@m\\{next\_line}, \[47].
+\@m\\{next\_node}, \[35], 40, 41, 44, 45.
+\@m\\{node}, \[1], 2, 3, 12, 15, 17, 19, 21, 31, 35.
+\@m\\{node\_line}, \[3], 15, 16, 19, 20, 47.
+\@m\\{node\_line\_width}, \[2], 3, \[6], 15, 19, 20.
+\@m\\{node\_lines}, \[2], \[3], 14, 15, 16, 17, 18, 19, 20, 47.
+\@m\\{option}, \[7], \[21], 25.
+\@m\\{perform\_loop}, \[21], 23, 24.
+\@m\\{right}, \[1], 27, 34, 37, 38, 39, 41, 42, 43, 46.
+\@m\\{tst}, \[2], 3, 6, \[7], \[8], \[9], \[10], \[11], \[12], 13, 14, 15, 16,
+\[17], 18, 19, 20, \[21], 23, 24, 25, 26, 27, 28, 29, 30, \[31], 33, 34, \[35],
+36, 37, 40, 43, 46, \[47].
+\@m\\{tst\_cleanup}, 2, \[11], \[47].
+\@m\\{tst\_constants}, 4.
+\@m\\{tst\_delete}, \[9], \[35].
+\@m\.{TST\_DUPLICATE\_KEY}, \[4], 7, 21, 25.
+\@m\.{TST\_ERROR}, \[4], 7, 10, 18, 19, 21, 28, 29.
+\@m\\{tst\_grow\_node\_free\_list}, 5, 6, \[10], \[17], 28, 29.
+\@m\\{tst\_init}, \[6], \[12].
+\@m\\{tst\_insert}, 5, \[7], 10, \[21].
+\@m\.{TST\_NULL\_KEY}, \[4], 7, 22.
+\@m\.{TST\_OK}, \[4], 7, 23, 25, 26, 28.
+\@m\.{TST\_REPLACE}, \[4], 7, 21, 25.
+\@m\\{tst\_search}, 7, \[8], 21, \[31].
+\@m\\{value}, \[1], 23, 24, 25, 26, 27, 28, 34, 37, 45.
+\@m\\{width}, \[12], 15, 16.
+\fin
+\@$\X20:Add the nodes from $\\{node\_line}$ to $\\{tst}\MG\\{free\_list}$\X$
+\U 17.
+\@$\X19:Allocate the $\\{node\_line}$ member of $\\{tst}\MG\\{node\_lines}\MG%
+\\{next}$\X$
+\U 17.
+\@$\X13:Allocate tst structure\X$
+\U 12.
+\@$\X14:Allocate $\\{node\_lines}$ member\X$
+\U 12.
+\@$\X18:Allocate $\\{tst}\MG\\{node\_lines}\MG\\{next}$\X$
+\U 17.
+\@$\X41:Both children are NULL so we can delete from $\\{last\_branch}$\X$
+\U 39.
+\@$\X16:Build free list from just allocated $\\{node\_line}$\X$
+\U 12.
+\@$\X22:Check for NULL key\X$
+\U 21.
+\@$\X23:Check head entry to see if it is NULL\X$
+\U 21.
+\@$\X38:Check node for branches\X$
+\U 37.
+\@$\X29:Check $\\{tst}\MG\\{free\_list}$ and grow if necessary\X$
+\Us 23, 25, 26, 27\ETs28.
+\@$\X43:Deal with case where $\\{last\_branch\_parent}$ is NULL\X$
+\U 39.
+\@$\X11:Declaration for $\\{tst\_cleanup}(\,)$\X$
+\U 48.
+\@$\X9:Declaration for $\\{tst\_delete}(\,)$\X$
+\U 48.
+\@$\X10:Declaration for $\\{tst\_grow\_node\_free\_list}(\,)$\X$
+\U 21.
+\@$\X6:Declaration for $\\{tst\_init}(\,)$\X$
+\U 48.
+\@$\X7:Declaration for $\\{tst\_insert}(\,)$\X$
+\U 48.
+\@$\X8:Declaration for $\\{tst\_search}(\,)$\X$
+\U 48.
+\@$\X42:Determine values for $\\{last\_branch\_replacement}$ and $\\{last%
+\_branch\_dangling\_child}$\X$
+\U 39.
+\@$\X32:Fail if $\\{key}$ is NULL\X$
+\U 31.
+\@$\X37:Find last branch\X$
+\U 35.
+\@$\X28:Found null branch so insert rest of key\X$
+\U 21.
+\@$\X45:Free nodes from $\\{next\_node}$ onward and return data\X$
+\U 39.
+\@$\X39:Handle key deletion\X$
+\U 35.
+\@$\X34:Initialize $\\{current\_node}$, $\\{key\_index}$, start search loop and
+return NULL on failure\X$
+\U 31.
+\@$\X25:Key is equal to node value\X$
+\U 24.
+\@$\X27:Key is greater than node value\X$
+\U 24.
+\@$\X26:Key is less than node value\X$
+\U 24.
+\@$\X44:Move $\\{last\_branch\_dangling\_child}$ to new slot in left subtree of
+$\\{last\_branch\_replacement}$\X$
+\U 39.
+\@$\X36:NULL keys and head nodes return failure\X$
+\U 35.
+\@$\X3:Node lines structure\X$
+\U 48.
+\@$\X1:Node structure\X$
+\U 48.
+\@$\X33:Return NULL if head is NULL\X$
+\U 31.
+\@$\X46:Return node to free list\X$
+\U 45.
+\@$\X15:Set $\\{node\_line\_width}$ and allocate first chunk of nodes\X$
+\U 12.
+\@$\X4:TST constants\X$
+\U 48.
+\@$\X2:TST structure\X$
+\U 48.
+\@$\X24:Traverse tree when head entry is not NULL\X$
+\U 21.
+\@$\X30:Update free list after taking a node\X$
+\Us 23, 25, 26, 27\ETs28.
+\@$\X48:\.{tst.h}\X$
+\@$\X47:\.{tst\_cleanup.c}\X$
+\@$\X35:\.{tst\_delete.c}\X$
+\@$\X17:\.{tst\_grow\_node\_free\_list.c}\X$
+\@$\X12:\.{tst\_init.c}\X$
+\@$\X21:\.{tst\_insert.c}\X$
+\@$\X31:\.{tst\_search.c}\X$
+\@$\X40:$\\{last\_branch}$ is NULL so we can remove the whole key and set the
+head to NULL\X$
+\U 39.
+\con

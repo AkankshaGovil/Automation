@@ -1,0 +1,14 @@
+#!/bin/sh
+
+##
+## Commands to install cdrpp package.
+##
+
+mkdir Statistics
+mv Descriptive.pm Statistics
+
+mkdir Mail
+mv Sendmail.pm Mail
+
+mkdir Date
+mv EzDate.pm Date

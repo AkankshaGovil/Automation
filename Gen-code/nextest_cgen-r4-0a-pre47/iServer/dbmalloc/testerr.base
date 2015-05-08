@@ -1,0 +1,98 @@
+-------------------------------------
+Testing malloc_inuse()...OK
+-------------------------------------
+Testing malloc_mark()...OK
+-------------------------------------
+Testing malloc_size()...OK
+-------------------------------------
+Testing memalign()...OK
+-------------------------------------
+Error from strcpy() - out of bounds
+MALLOC Warning from strncpy() (called from testerr.c line 127):
+Pointer within malloc region, but outside of malloc data bounds
+This error is *probably* associated with the following allocation:
+
+	A call to malloc for 10 bytes in testerr.c on line 122.
+
+-------------------------------------
+Error from memset() - out of bounds (beyond)
+MALLOC Warning from memset() (called from testerr.c line 132):
+Pointer within malloc region, but outside of malloc data bounds
+This error is *probably* associated with the following allocation:
+
+	A call to malloc for 20 bytes in testerr.c on line 120.
+
+-------------------------------------
+Error from free() - overrun
+MALLOC Warning from free() (called from testerr.c line 137):
+Data has overrun beyond requested number of bytes
+This error is *probably* associated with the following allocation:
+
+	A call to malloc for 20 bytes in testerr.c on line 120.
+
+MALLOC Warning from free() (called from testerr.c line 137):
+Data has overrun beyond requested number of bytes
+This error is *probably* associated with the following allocation:
+
+	A call to malloc for 10 bytes in testerr.c on line 122.
+
+-------------------------------------
+Error from free() - double free
+MALLOC Warning from free() (called from testerr.c line 142):
+Data area is not in use (can't be freed or realloced, or used)
+This error is *probably* associated with the following allocation:
+
+	A call to malloc for 20 bytes in testerr.c on line 120.
+
+	in testerr.c on line 137.
+
+-------------------------------------
+NO error from bzero
+-------------------------------------
+Error from bzero() - out of bounds
+MALLOC Warning from bzero() (called from testerr.c line 152):
+Pointer within malloc region, but outside of malloc data bounds
+This error is *probably* associated with the following allocation:
+
+	A call to malloc for 10 bytes in testerr.c on line 122.
+
+-------------------------------------
+Error from free() - overrun
+MALLOC Warning from free() (called from testerr.c line 157):
+Data has overrun beyond requested number of bytes
+This error is *probably* associated with the following allocation:
+
+	A call to malloc for 10 bytes in testerr.c on line 122.
+
+-------------------------------------
+Error from memset() - out of bounds (before)
+MALLOC Warning from memset() (called from testerr.c line 164):
+Pointer within malloc region, but outside of malloc data bounds
+This error is *probably* associated with the following allocation:
+
+	A call to malloc for 1 bytes in testerr.c on line 159.
+
+-------------------------------------
+Error from free() - underrun
+MALLOC Warning from free() (called from testerr.c line 169):
+Data has written before beginning of requested bytes
+This error is *probably* associated with the following allocation:
+
+	A call to malloc for 1 bytes in testerr.c on line 159.
+
+-------------------------------------
+Error from memset() - out of bounds
+MALLOC Warning from memset() (called from testerr.c line 177):
+Pointer within malloc region, but outside of malloc data bounds
+This error is *probably* associated with the following allocation:
+
+	A call to malloc for 10 bytes in testerr.c on line 171.
+
+-------------------------------------
+Error from malloc() - chain broken
+MALLOC Warning from malloc() (called from testerr.c line 183):
+Pointers between this segment and adjoining segments are invalid
+This error is *probably* associated with the following allocation:
+
+	A call to malloc for 10 bytes in testerr.c on line 171.
+

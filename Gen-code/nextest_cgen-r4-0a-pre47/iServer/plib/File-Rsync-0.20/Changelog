@@ -1,0 +1,221 @@
+Fri Sep  7 15:18:58 CDT 2001  Lee Eakin  <leakin@dfw.nostrum.com>
+
+      * version 0.20: made changes to test.pl so failed tests would
+      return non-zero exit and actually fail the tests.  Also corrected
+      several type-os in the POD documentation (thanks to Joe SMith
+      <Joe.Smith@wcom.com> for pointing them out).
+
+Wed May 16 21:11:31 CDT 2001  Lee Eakin  <leakin@dfw.nostrum.com>
+
+      * version 0.19: discovered the new makefile was installing
+      into the wrong path.  It should follow the proper naming convention
+      now.
+
+Thu May 10 22:28:28 CDT 2001  Lee Eakin  <leakin@dfw.nostrum.com>
+
+      * version 0.18: Many thanks to Andreas Koenig
+      <andreas.koenig@dubravka.kbx.de> for setting me straight on the
+      architecture specific versus the arch-independent directory usage,
+      and for explaining why this wasn't showing up in the by-module
+      listings.  The tar file now has a recognizable .pm file in it for
+      proper CPAN distribution.  There is also a File::Rsync::Config.pm
+      in the arch-specific dir where the build process stores the path
+      to the rsync executable.
+
+Mon May  7 01:07:44 CDT 2001  Lee Eakin  <leakin@dfw.nostrum.com>
+
+      * version 0.17: I decided it is better for the out and err methods
+      to return any collected output regardless of whther or not an output
+      function has been defined.  This way you can process each line yourself
+      and still print the entire output in bulk if desired.  This also
+      keeps me from having to work out what these methods should return
+      if called when an output function has been defined.
+
+Thu Feb 15 21:25:23 CST 2001  Lee Eakin  <leakin@dfw.nostrum.com>
+
+      * version 0.16: James Mello <kingjamm@colltech.com> submitted a patch
+      to add a 'list' function, and educated me on the interesting aspect
+      of calling rsync without a destination in order to obtain an 'ls -l'
+      or 'ls -lr' (with -r or -a) style output.  Rather than duplicating
+      the exec function I made modifications to it and built a wrapper
+      to get the list functionality.  This has all kinds of possibilities.
+      Many thanks to James for the great idea and the education on an
+      option I had never explored.
+
+      use File::Rsync;$rs=File::Rsync->new(srchost => 'localhost:');
+      print $rs->list; will list available modules on the local daemon.
+      
+Tue Nov 28 10:22:50 CST 2000  Lee Eakin  <leakin@dfw.nostrum.com>
+
+      * version 0.15: After more thought and discussion with Boris we decided
+      a second arg of either 'out' or 'err' should be passed to the functions
+      so a single user-defined function could be used and it will be able to
+      determine the source of the text in arg 1.  Simple functions can ignore
+      the second arg.  The examples below would need to change to 'outfun =>
+      sub {print shift}' and 'errfun => sub {print shift}' to keep from
+      printing the source string. (version 0.14 was not released to CPAN)
+
+Fri Nov 17 23:03:00 CST 2000  Lee Eakin  <leakin@dfw.nostrum.com>
+
+      * version 0.14: Per suggestion from Boris Goldowsky
+      <boris@range.infoplease.com>, added 'outfun' and 'errfun' options.
+      If you supply a function (CODE) reference to these the stderr and stdout
+      from rsync is passed to these functions one output line at a time and
+      is not collected internally for post examination.  Providing a function
+      like 'outfun => sub {print @_}' will cause each line to be printed as
+      they arrive.  A function like 'outfun => sub {print "."}' will simply
+      shows progress dots like cpio's -V option.  Thanks to Boris for the
+      suggestion.  Sorry it took me so long to get it added.
+
+Sat Sep 16 23:32:59 CDT 2000  Lee Eakin  <leakin@dfw.nostrum.com>
+
+      * version 0.13: added suport for new flags blocking-io and ignore-errors,
+      as well as scalars bwlimit, max-delete, and modify-window.  I also
+      rearranged the options hashes into a vertical sort similar to 'ls'.
+      This makes additions a bit more difficult, but makes reading and
+      verifying the options much easier (at least for me).
+
+Tue Feb 29 17:41:14 CST 2000  Lee Eakin  <leakin@dfw.nostrum.com>
+
+      * version 0.12: pervious version fixed blocking, but was not clean
+      and caused the tests to fail in odd ways.  This should be better.
+
+      * also added code to treat underscore the same as hyphen in option keys
+      similar to Tk.  This allows the use of bareword keys in hashes without
+      being mis-interpreted as subraction.
+
+Fri Feb 18 17:45:13 CST 2000  Lee Eakin  <leakin@dfw.nostrum.com>
+
+      * version 0.11: fixed a blocking problem in the exec function
+      If one of the output pipes filled up it hung forever (oops).
+
+Mon Feb  7 14:05:37 CST 2000  Lee Eakin  <leakin@dfw.nostrum.com>
+
+      * version 0.10: removed comments about rsync not considering some things
+      to be errors.  This appears to be a bug in 2.3.2 on Linux.  It has been
+      submitted to the rsync team.  On Solaris rsync properly returns a non-zero
+      exit status if the source path does not exist.  The bug was fixed in the
+      CVS tree, and in the release 2.4.1.
+
+      * added support for --backup-dir and --existing options (new in 2.4.1)
+
+      * Since I've not heard from anyone about keeping the command-line style
+      options, I've dropped them.  The hash-style affords more flexibility
+      anyway.  I also removed some duplicate code in parseopts since I can now
+      treat all args as a hash.
+
+      * After some discussion on the rsync mailing list I was told about a
+      method of passing multiple source arguments for a remote server.  I've
+      added a new hash key 'srchost' to be used in combination with the 'source'
+      array to make it easier to use this capability.  If the source host is
+      remote, and you have multiple source paths, you can put the source
+      hostname in 'srchost', and the paths in the 'source' array.  The module
+      will assemble them as a single argument to rsync.  If 'srchost' is null
+      then the 'source' array is passed to exec as seperate arguments.
+
+Wed Dec  1 21:55:44 CST 1999  Lee Eakin  <leakin@dfw.nostrum.com>
+
+      * version 0.09: removed bareword keys in hashes (5.00404 doesn't like
+      my use of 'scalar' as a key)
+
+      * version 0.08: changed test 5 in test.pl to account for different
+      return status between Solaris and Linux.  I'll need to look into why
+      one detects the error and the other doesn't (rsync itself, not perl).
+
+Tue Nov 30 20:46:00 CST 1999  Lee Eakin  <leakin@dfw.nostrum.com>
+
+      * version 0.07:
+
+      * removed global $pkgname, now uses 'my $pkgname=ref $self' instead.
+      I also had to bless $self earlier in 'new' so defopts, and parseopts can
+      use 'ref $self' to determine the package name.  It was not too bright
+      to hardcode the package name (vacations can have odd effects on the brain)
+
+      * changed saveopts and parseopts to begin with underscore since they
+      are for internal use only.
+
+Sun Nov 28 19:41:31 CST 1999  Lee Eakin  <leakin@dfw.nostrum.com>
+
+      * version 0.06:
+
+      * added $pkgname for 'carp' messages to make it clearer where they came
+      from.
+
+      * added missing check for 'include' in exec method
+
+      * other misc cleanup and clarification of code and documentation
+
+Sun Nov 28 02:47:34 CST 1999  Lee Eakin  <leakin@dfw.nostrum.com>
+
+      * version 0.05: major re-organization and re-writing of internal
+      functions to add the ability to pass a hash reference for perl-style
+      options handling.  (Thanks to Greg Ward for the suggestion)  This gives
+      increased flexibility including the ability to turn off boolean flags,
+      and to build your own include or exclude list as an array and pass a
+      reference to the array to the module.  The same can be done for source
+      paths.  
+
+      * removed leading double-dashes from the option keys.  It is easier to
+      add them in the parser for command-line style than to remove them for
+      perl-style hashes.
+
+      * changed 'err' and 'out' methods to return an empty string or an empty
+      list if no output was generated.  If there was output they return it as
+      an array or a reference to an array as before.  This should make testing
+      for the existance of output more efficient.  Before you had to call them
+      in a scalar context and dereference the return in order to check.  Now
+      you can use a simple truth test.  Also added a note about conditions
+      where rsync itself can return a true (0) exit but the programmer may
+      consider it an error.  In these situations you need to check stderr for
+      error messages (such as 'no such file or directory').  See 'exec' method
+      in the manpage.
+
+      * removed newlines from carp messages so the 'at <prog> line ##' is on
+      the same line as the rest of the error message (bad habit from die).
+
+      * changed all return values except 'new' to zero instead of undef so
+      -w won't complain about use of un-initialized values.  If anyone has
+      a good reason to put this back (like good/standard coding practices) let
+      me know.
+
+      * added test.pl script for 'make test'.
+
+Sun Nov 21 02:18:56 CST 1999  Lee Eakin  <leakin@dfw.nostrum.com>
+
+      * version 0.04: added missing 'next' that would cause a parsing
+      error if -P was used.
+
+      * Renamed module to File::Rsync (Thanks to Tim Bunce for the suggestion)
+      It really fits better here than in Net::, but once I thought of it
+      as a network-based program I had a mental block when considering other
+      groups.
+
+Fri Nov 19 13:25:18 CST 1999  Lee Eakin  <leakin@dfw.nostrum.com>
+
+      * version 0.03: --address should be a scalar, not a flag (the
+      rsync man page is unclear on this).
+
+Wed Nov 17 21:20:16 CST 1999  Lee Eakin  <leakin@dfw.nostrum.com>
+
+      * version 0.02:
+
+      * wrote first draft of Makefile.PL and makepm.PL to wrap it all up
+      as a real perl module.
+
+      * added new options for rsync 2.3.2 (-P, --delete-after, and
+      --address)
+      -P is short for --partial and --progress. --address is only
+      used in server mode.  I don't know what good these are inside
+      this module, but you should still be able to pass them if you
+      want.
+      --delete-after allows the user to delay any --delete actions
+      until after all other files are synced.  The default is to
+      perform any deletes before in order help insure sufficient disk
+      space is available.  See the rsync (1) man page for more
+      details.
+
+      * remove any chance of clobbering $_ (mostly paranoia I hope)
+
+Tue Jun 15 15:27:20 CDT 1999  Lee Eakin  <leakin@dfw.nostrum.com>
+
+      * version 0.01: (initial) based on rsync 2.3.1

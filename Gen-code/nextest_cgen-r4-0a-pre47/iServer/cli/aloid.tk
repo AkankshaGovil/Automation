@@ -1,0 +1,385 @@
+#!/usr/local/bin/wish8.0
+#
+# ALoid User Interface
+#
+set my_ip_addr "138.120.226.107"
+set my_tel_no "(703) 435 9213"
+set my_status_val "Connected"
+
+set netoid_list ""
+set netoid_scroll ""
+abracadabra
+abracadabra
+abracadabra
+abracadabra
+abracadabra
+abracadabra
+abracadabra
+abracadabra
+wm resizable . 0 0
+wm title . ALUI
+proc create_menubar { top } {
+	menubutton $top.netoids -text Netoids -menu $top.netoids.menu
+	menubutton $top.options -text Options -menu $top.options.menu
+
+	menu $top.netoids.menu
+	netoids_menu $top.netoids.menu
+	
+	menu $top.options.menu
+	
+	pack $top.netoids -side left -anchor nw -fill x
+	pack $top.options -side left -anchor nw -fill x
+}
+
+proc refresh_netoids { } {
+    	global netoid_list netoid_scroll
+    	ALUI_PopulateNetoidList $netoid_list $netoid_scroll
+}
+
+proc netoids_menu { nm } {
+#	$nm add command -label database -command { display_netoids_db }
+#	$nm add command -label cache -command { display_netoids_cache }
+	$nm add command -label refresh -command { refresh_netoids }
+	$nm add command -label profile -command { set w [netoid_op prof_netoid PROF]; $w configure -command { prof_netoid "" $reg_no } }
+	
+	$nm add command -label add -command { set w [add_netoid_op add_netoid ADD]; $w configure -command { add_netoid "" $reg_no $port_no $vpn_no $ext_no $phone_no } }
+	$nm add command -label delete -command { set w [netoid_op delete_netoid DELETE]; $w configure -command { delete_netoid "" $reg_no } }
+	$nm add command -label find -command { set w [netoid_op find_netoid FIND]; $w configure -command { find_netoid "" $reg_no } }
+	
+}
+
+proc display_netoids_db { } {
+}
+
+proc display_netoids_cache { } {
+}
+
+proc prof_netoid { w reg_no } {
+    if {$reg_no == ""} {
+	return;
+    }
+
+    set x [open_profile_win $reg_no]
+    ALUI_ProfileNetoid $x $reg_no
+}
+
+proc add_netoid { w reg_no port_no vpn_no ext_no phone_no } {
+    global netoid_list netoid_scroll
+    if [ALUI_AddNetoid $reg_no $port_no $vpn_no $ext_no $phone_no] {
+    	ALUI_PopulateNetoidList $netoid_list $netoid_scroll
+    }
+#    disp_netoid $w "" "" "" "" "" "" ""
+}
+
+proc delete_netoid { w reg_no } {
+    global netoid_list netoid_scroll
+    if {$reg_no == ""} {
+	return;
+    }
+    ALUI_DeleteNetoid $reg_no
+    ALUI_PopulateNetoidList $netoid_list $netoid_scroll
+}
+
+proc find_netoid { w reg_no } {
+    if {$reg_no == ""} {
+	return;
+    }
+    set r [split [ALUI_FindNetoid $reg_no] *]
+    
+    if {[lindex $r 0] == 0} {
+	disp_netoid .find_netoid "" "" "" "" "" ""
+	return;
+    }
+
+    disp_netoid .find_netoid $reg_no [lindex $r 1] [lindex $r 2] [lindex $r 3] [lindex $r 4] [lindex $r 5] [lindex $r 6]
+}
+
+proc detail_netoid { w reg_no } {
+    if {$reg_no == ""} {
+	return;
+    }
+
+    if ![ winfo exists $w ] {
+	toplevel $w
+	wm title $w DETAIL
+	wm resizable $w 0 0
+    }
+    set r [split [ALUI_FindNetoid $reg_no] *]
+	puts $r
+    if {[lindex $r 0] == 0} {
+	disp_netoid $w "" "" "" ""
+	return;
+    }
+
+    disp_netoid $w $reg_no [lindex $r 1] [lindex $r 2] [lindex $r 3] [lindex $r 4] [lindex $r 5] [lindex $r 6]
+}
+
+proc add_netinfo { w } {
+	set i [lsearch [winfo children $w] $w.netinfo]
+	if { $i == -1} {
+		frame $w.netinfo; set d $w.netinfo
+		frame $d.l1; set l1 $d.l1
+		frame $d.l2; set l2 $d.l2
+		frame $d.l3; set l3 $d.l3
+		frame $d.l4; set l4 $d.l4
+		
+		label $d.ip -text "IP ADDRESS" -anchor w -relief flat 
+		label $d.status -text STATUS -anchor w -relief flat
+#		label $d.tel -text TEL -anchor w -relief flat
+
+		label $d.ip_addr -textvariable my_ip_addr -anchor e -relief sunken -width 15
+		label $d.status_val -textvariable my_status_val -anchor e -relief sunken \
+										    -width 15
+#		label $d.tel_no -textvariable my_tel_no -anchor e -relief sunken -width 15
+
+		grid $d.ip $d.ip_addr
+		grid $d.status $d.status_val -pady 3
+#		grid $d.tel $d.tel_no -pady 3
+		
+		grid $d.ip -sticky w
+		grid $d.status -sticky w
+#		grid $d.tel -sticky w
+		
+		grid $d.ip_addr -sticky e
+		grid $d.status_val -sticky e
+#		grid $d.tel_no -sticky e
+
+#Use the following packs if needed
+#		pack $l1.ip -side left -fill both -expand true -anchor e
+#		pack $l1.ip_addr -side right -fill both -expand true -anchor w
+#		pack $l4.tel -side left -fill both -expand true -anchor e
+#		pack $l4.tel_no -side right -fill both -expand true -anchor w
+#		pack $l3.status -side left -fill both -expand true -anchor e
+#		pack $l3.status_val -side right -fill both -expand true -anchor w
+#		pack $l1 $l2 $l3 $l4 -side top -expand true -fill both
+		pack $d -side bottom -expand true -fill both -pady 10
+	}
+}
+		
+proc disp_netoid { w reg_no vpn_no ext_no phone_no ip state itime} {
+	set i [lsearch [winfo children $w] $w.disp]
+	if { $i == -1} {
+		frame $w.disp; set d $w.disp
+		frame $d.l1; set l1 $d.l1
+		frame $d.l2; set l2 $d.l2
+		frame $d.l3; set l3 $d.l3
+		frame $d.l4; set l4 $d.l4
+		frame $d.l5; set l5 $d.l5
+		frame $d.l6; set l6 $d.l6
+		frame $d.l7; set l7 $d.l7
+
+		label $l1.reg -text "REG #" -anchor w -relief flat -width 8
+		label $l2.vpn -text "VPN #" -anchor w -relief flat -width 8
+		label $l3.ext -text "EXTN #" -anchor w -relief flat -width 8
+		label $l4.phone -text "PHONE #" -anchor w -relief flat -width 8
+		label $l5.ip -text "IP" -anchor w -relief flat -width 8
+		label $l6.state -text "STATE" -anchor w -relief flat -width 8
+		label $l7.itime -text "BIRTH" -anchor w -relief flat -width 8
+		label $l1.reg_no -width 25
+		label $l2.vpn_no -width 25
+		label $l3.ext_no -width 25
+		label $l4.phone_no -width 25
+		label $l5.ip_addr -width 25
+		label $l6.state_val -width 25
+		label $l7.itime_val -width 25
+	} else {
+		set d $w.disp
+		set l1 $d.l1
+		set l2 $d.l2
+		set l3 $d.l3
+		set l4 $d.l4
+		set l5 $d.l5
+		set l6 $d.l6
+		set l7 $d.l7
+	}
+
+	$l1.reg_no configure -text $reg_no -anchor e -relief sunken
+	$l2.vpn_no configure -text $vpn_no -anchor e -relief sunken
+	$l3.ext_no configure -text $ext_no -anchor e -relief sunken
+	$l4.phone_no configure -text $phone_no -anchor e -relief sunken
+	$l5.ip_addr configure -text $ip -anchor e -relief sunken
+	$l6.state_val configure -text $state -anchor e -relief sunken
+	$l7.itime_val configure -text $itime -anchor e -relief sunken
+
+
+	pack $l1.reg -side left -fill both -expand true -anchor e -padx 2 -pady 2
+	pack $l1.reg_no -side right -fill both -expand true -anchor w -padx 2 -pady 2
+
+	pack $l2.vpn -side left -fill both -expand true -anchor e -padx 2 -pady 2
+	pack $l2.vpn_no -side right -fill both -expand true -anchor w -padx 2 -pady 2
+
+	pack $l3.ext -side left -fill both -expand true -anchor e -padx 2 -pady 2
+	pack $l3.ext_no -side right -fill both -expand true -anchor w -padx 2 -pady 2
+
+	pack $l4.phone -side left -fill both -expand true -anchor e -padx 2 -pady 2
+	pack $l4.phone_no -side right -fill both -expand true -anchor w -padx 2 -pady 2
+
+	pack $l5.ip -side left -fill both -expand true -anchor e -padx 2 -pady 2
+	pack $l5.ip_addr -side right -fill both -expand true -anchor w -padx 2 -pady 2
+	pack $l6.state -side left -fill both -expand true -anchor e -padx 2 -pady 2
+	pack $l6.state_val -side right -fill both -expand true -anchor w -padx 2 -pady 2
+	pack $l7.itime -side left -fill both -expand true -anchor e -padx 2 -pady 2
+	pack $l7.itime_val -side right -fill both -expand true -anchor w -padx 2 -pady 2
+	
+	pack $l1 $l2 $l3 $l4 $l5 $l6 $l7 -side top -expand true -fill both 
+	pack $d -side bottom -expand true -fill both -pady 10 
+}
+
+proc netoid_op { comm name} {
+	set w .$comm
+	if [ winfo exists $w ] {
+		return $w.l2.$comm;
+	}
+
+	toplevel $w
+	wm title $w $name
+	wm resizable $w 0 0
+	set reg_no 0
+
+	focus $w
+	frame $w.l1; set l1 $w.l1
+	frame $w.l2; set l2 $w.l2
+	entry $l1.reg_no -relief sunken -bd 2 -textvariable reg_no -width 25
+	label $l1.reg -text "REG #" -anchor w -width 8
+
+	button $l2.$comm 
+	button $l2.cancel
+
+	pack $l1.reg -side left -anchor w -fill both -expand true -padx 2 -pady 2
+	pack $l1.reg_no -side right -anchor e -fill both -expand true -padx 2 -pady 2
+	pack $l2.$comm -side right -anchor e -pady 2
+	pack $l2.cancel -side right -anchor e -padx 2 -pady 2
+	pack $l1 $l2 -side top -fill both -expand true
+
+	$l2.$comm configure -text $name -relief groove
+	$l2.cancel configure -text CANCEL -command " destroy $w; return " -relief groove
+	
+	return $l2.$comm
+}
+
+proc add_netoid_op { comm name } {
+	set w .$comm
+	if [ winfo exists $w ] {
+		return $w.l2.$comm;
+	}
+
+	toplevel $w
+	wm title $w $name
+	wm resizable $w 0 0
+	set reg_no 0
+	set port_no 0
+	set vpn_no 0
+	set ext_no 0
+	set phone_no 0
+
+	focus $w
+	frame $w.l1; set l1 $w.l1
+	frame $w.l2; set l2 $w.l2
+	frame $w.l3; set l3 $w.l3
+	frame $w.l4; set l4 $w.l4
+
+	entry $l1.reg_no -relief sunken -bd 2 -textvariable reg_no -width 10
+	label $l1.reg -text "REG #" -anchor w -width 8
+
+	entry $l1.port_no -relief sunken -bd 2 -textvariable port_no -width 10
+	label $l1.port -text "PORT #" -anchor w -width 8
+
+	entry $l2.vpn_no -relief sunken -bd 2 -textvariable vpn_no -width 10
+	label $l2.vpn -text "VPN #" -anchor w -width 8
+
+	entry $l2.ext_no -relief sunken -bd 2 -textvariable ext_no -width 10
+	label $l2.ext -text "EXTN #" -anchor w -width 8
+
+	entry $l3.phone_no -relief sunken -bd 2 -textvariable phone_no -width 32
+	label $l3.phone -text "PHONE #" -anchor w -width 8
+
+	button $l4.$comm 
+	button $l4.cancel
+
+	pack $l1.reg -side left -anchor w -fill both -expand true -padx 2 -pady 2
+	pack $l1.reg_no -side left -anchor e -fill both -expand true -padx 2 -pady 2
+
+	pack $l1.port -side left -anchor w -fill both -expand true -padx 2 -pady 2
+	pack $l1.port_no -side left -anchor e -fill both -expand true -padx 2 -pady 2
+
+	pack $l2.vpn -side left -anchor w -fill both -expand true -padx 2 -pady 2
+	pack $l2.vpn_no -side left -anchor e -fill both -expand true -padx 2 -pady 2
+
+	pack $l2.ext -side left -anchor w -fill both -expand true -padx 2 -pady 2
+	pack $l2.ext_no -side left -anchor e -fill both -expand true -padx 2 -pady 2
+
+	pack $l3.phone -side left -anchor w -fill both -expand true -padx 2 -pady 2
+	pack $l3.phone_no -side left -anchor e -fill both -expand true -padx 2 -pady 2
+
+	pack $l4.$comm -side right -anchor e  -pady 2
+	pack $l4.cancel -side right -anchor e -padx 2 -pady 2
+	pack $l1 $l2 $l3 $l4 -side top -fill both -expand true
+
+	$l4.$comm configure -text $name -relief groove
+	$l4.cancel configure -text CANCEL -command " destroy $w; return " -relief groove
+	
+	return $l4.$comm
+}
+
+proc create_netoid_list { w } {
+    global netoid_list netoid_scroll
+    listbox $w.netoid_list -relief sunken -borderwidth 2 -yscrollcommand "$w.netoid_scroll set" -width 30
+    scrollbar $w.netoid_scroll -command "$w.netoid_list yview"
+    pack $w.netoid_list -side left -expand true -fill both
+    pack $w.netoid_scroll -side right -fill y
+
+    set netoid_list $w.netoid_list
+    set netoid_scroll $w.netoid_scroll
+    
+    ALUI_PopulateNetoidList $netoid_list $netoid_scroll
+}
+
+proc select_netoid {} {
+    global active_netoid netoid_list
+    
+    set active_elem [ $netoid_list get active ]
+    set active_netoid [lindex [split $active_elem] 0]
+}
+
+proc open_profile_win { s } {
+    set w .$s
+
+    if ![ winfo exists $w] {
+	toplevel $w
+	wm title $w $s
+	wm iconname $w $s
+	
+	text $w.profile -wrap word -relief ridge -setgrid 1 -bd 2 -yscrollcommand "$w.scroll set" -height 10 -width 90
+	scrollbar $w.scroll -command "$w.profile yview"
+	
+	pack $w.profile -side left -fill both -expand 1
+	pack $w.scroll -side right -fill y
+    } else {
+	$w.profile delete 1.0 end
+    }
+    
+    return $w
+}
+
+proc create_netoid_controls { w } {
+    button $w.detail -text DETAIL -relief raised -command {select_netoid; detail_netoid .detail_netoid $active_netoid} -width 8
+    button $w.delete -text DELETE -relief raised -command {select_netoid; $netoid_list delete active; ALUI_DeleteNetoid $active_netoid} -width 8
+    button $w.profile -text PROFILE -relief raised -command {select_netoid; set w [open_profile_win $active_netoid]; ALUI_ProfileNetoid $w $active_netoid} -width 8
+    pack $w.detail $w.delete $w.profile -side left -fill both -expand true
+}
+
+frame .menubar
+create_menubar .menubar
+pack .menubar -anchor nw
+
+frame .body
+create_netoid_list .body
+pack .body -side top
+
+frame .control
+create_netoid_controls .control
+pack .control -side top
+
+frame .footer
+#add_netinfo .footer
+pack .footer -side top

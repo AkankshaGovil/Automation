@@ -1,0 +1,20 @@
+<!--
+#
+# This file contains a sample pool configuration
+#
+-->
+
+<PoolCfg>
+<!--
+
+  <Pool id="1" name="customer A">
+    <PortAlloc interface="e1000g1" signaling="true" address="1.2.3.4" mask="255.255.255.0" low="20000" high="30000" />
+  </Pool>
+
+  <Pool id="2" name="customer B">
+    <PortAlloc interface="e1000g2" signaling="false" address="4.3.2.1" mask="255.255.255.0" low="30000" high="40000" />
+    <PortAlloc interface="e1000g2" signaling="false" address="4.3.2.2"  mask="255.255.255.0" low="30000" high="40000" />
+  </Pool>
+-->
+
+</PoolCfg>

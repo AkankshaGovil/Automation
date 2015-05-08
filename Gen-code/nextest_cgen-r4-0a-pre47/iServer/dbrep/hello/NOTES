@@ -1,0 +1,7 @@
+Few things that are important for the Hello Protocol -
+Each neigbour maintains a record of other neighbour's
+records. It contains - 
+	priority -	group
+				own
+				timestart
+	primary's address.	

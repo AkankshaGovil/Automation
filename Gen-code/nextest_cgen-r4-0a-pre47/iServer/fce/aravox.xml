@@ -1,0 +1,69 @@
+<!--
+#
+# This file contains the configuration parameters pertinent to the aravox
+# firewall
+#
+-->
+
+<!-- Start of XML definition for Aravox configuration. -->
+<AravoxCfg>
+
+  <!-- Firewall definitions. -->
+  <!-- Each firewall required needs a definition similar to the following. -->
+  <!-- The id must be unique -->
+  <Firewall id="1">
+    <!-- The address of the MP card on the firewall -->
+    <IpAddress>1.2.3.4</IpAddress>
+
+	<!-- Authorization data -->
+    <!-- This must match a USER configured on the Firewall -->
+    <!-- The type can be MD%, SHA1 or NONE. -->
+    <Auth type="MD5">
+      <UserId>2</UserId>
+      <AuthData>aaaaaaaaaaaaaaaa</AuthData>
+    </Auth>
+
+    <!-- NAT:Setting this value to TRUE enables NAT (Internal) -->
+    <NAT enable="TRUE"/>
+
+    <!-- Packet steering to ensure packets flow through the same peering point -->
+    <!-- Enable packet steering TRUE or FALSE -->
+    <PacketSteering enable="TRUE"/>
+
+    <!-- Media routing allows external peers to communicate through -->
+    <!-- the firewall. This requires NAT and Packet Steering enabled -->
+    <MediaRouting enable="FALSE"/>
+
+    <!-- 
+      The PPC Role can be {MASTER|ACTIVE|STANDBY]
+      Master: There can only be on emaster per firewall.
+      Active: The PPC will be used in the load balancing 
+      Standby: The PPC will be added to the load balancing when a unit fails 
+      The PPC adminStatus can be {UP | DOWN}
+    -->
+    <PPC role="MASTER" adminStatus="UP">
+      <!-- The PPC ID is the ID (position) of the PPC within the box -->
+      <id>1</id>
+
+      <!-- Signaling enabled. TRUE if this card is to be used for signaling. -->
+      <Signaling enable="TRUE"/>
+
+      <!-- The address to be used for accessing the FCP -->
+      <!-- Same as FCP address when NAT is not running -->
+      <PublicAddress>4.3.2.1</PublicAddress>
+	  <PortAlloc IpAddress="1.2.3.4" low="20000" high="30000"/>
+    </PPC>
+    <PPC role="ACTIVE" adminStatus="DOWN">
+      <id>2</id>
+
+      <!-- Signaling enabled. TRUE if this card is to be used for signaling. -->
+      <Signaling enable="FALSE"/>
+
+      <!-- The address to be used for accessing the FCP -->
+      <!-- Same as FCP address when NAT is not running -->
+      <PublicAddress>4.3.2.2</PublicAddress>
+	  <PortAlloc IpAddress="1.2.3.5" low="40000" high="50000"/>
+    </PPC>
+  </Firewall>
+
+</AravoxCfg>

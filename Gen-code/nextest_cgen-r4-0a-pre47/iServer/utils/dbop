@@ -1,0 +1,1053 @@
+#!/usr/bin/perl
+
+
+###############################################################
+###############################################################
+## dbop
+## Program to parse XML to input into iServer database.
+##
+## Copyright 2002, NexTone Communications, Inc.
+###############################################################
+###############################################################
+
+
+## Preliminary
+use English;
+
+my $CurrentVersion = sprintf "%vd", $PERL_VERSION;
+
+if ($CurrentVersion lt "5.6")
+{
+	use lib "/usr/local/nextone/lib/perl5/site_perl/5.005";
+}
+else
+{
+	use lib "/usr/local/nextone/lib/perl5/site_perl";
+}
+
+## search for libraries under this path
+#use lib "/usr/local/nextone/lib/perl5/site_perl";
+
+if ($ENV{BASE})
+{
+	use lib "$ENV{BASE}/lib/perl5/site_perl";
+}
+
+## Packages.
+use Getopt::Std;
+use XML::Simple;
+use Data::Dumper;
+use English;
+
+## Other variables.
+$Prompt = "=> ";
+$pVersion = "0.25, 05/16/02";
+$pName = $0;
+$CLIprog = "./cli";
+$CLIdir = "/usr/local/nextone/bin";
+$prevdir = "";
+
+## Counts of objects we know.
+$E_count   = 0;
+$CR_count  = 0;
+$CP_count  = 0;
+$CPB_count = 0;
+
+$verbose = 1;
+$output_opt = "";
+$head = "head -1";
+$RM = "/bin/rm -f ";
+
+## start
+getopts "vhqa:d:u:g:";
+
+if ($opt_v)
+{
+	PrintVersion ();
+	exit 0;
+}
+
+if ($opt_h)
+{
+	PrintHelp ();
+}
+
+if ($opt_q)
+{
+## Be quiet
+	$verbose = 0;
+}
+
+
+if (! $verbose)
+{
+	$output_opt = ' > tt ';
+}
+
+
+## Add a file
+if ($opt_a)
+{
+	$AddFile = $opt_a;
+	print "Adding file $AddFile\n";
+
+	AddProc ($AddFile);
+}
+
+## Delete a file
+if ($opt_d)
+{
+	$DeleteFile = $opt_d;
+	print "Deleting file $DeleteFile \n";
+
+	DeleteProc ($DeleteFile);
+}
+
+## Edit (really update) a file
+if ($opt_u)
+{
+	$EditFile = $opt_e;
+	print "Editing records in file $EditFile\n";
+
+	EditProc ($EditFile);
+}
+
+## Generate a file
+if ($opt_g)
+{
+	$GenFile = $opt_g;
+	print "Generating records in file $GenFile \n";
+
+	GenProc ($GenFile);
+}
+
+##
+## AddProc
+## 
+## Main procedure that is called to add a file.
+##
+sub AddProc ($)
+{
+	my ($infile) = @_;
+
+	my $res = ParseFile ($infile);
+
+##	print Dumper ($res);
+
+	PreCommands ();
+
+	AddEP ($res->{E});
+
+	AddRoutes ($res->{CR});
+
+	## Add CPs
+	AddCallPlans ($res->{CP});
+
+	## Add CPBs
+	AddCallPlanBindings ($res->{CPB});
+
+	PostCommands ();
+}
+
+sub DeleteProc ($)
+{
+	my ($infile) = @_;
+
+	my $res = ParseFile ($infile);
+
+	PreCommands ();
+
+	DeleteCallPlanBindings ($res->{CPB});
+
+	DeleteRoutes ($res->{CR});
+
+	DeleteCallPlans ($res->{CP});
+
+	DeleteEP ($res->{E});
+
+	PostCommands ();
+}
+
+sub EditProc ($)
+{
+	my ($infile) = @_;
+
+	my $res = ParseFile ($infile);
+
+	PreCommands ();
+
+	EditEP ($res->{E});
+
+	EditCallPlanBindings ($res->{CPB});
+
+	EditRoutes ($res->{CR});
+
+### This need not be called.
+###	EditCallPlans ($res->{CP});
+###
+
+	PostCommands ();
+}
+
+
+sub GenProc ($)
+{
+	my ($infile) = @_;
+	my $sbuf = "";
+	my $savefile = "dbsave";
+	my $result;
+
+	$sbuf .= "/usr/local/nextone/bin/cli db export $savefile";
+
+	$result = system ("$sbuf $output_opt");
+	$result = $result >> 8;
+	if ($result != 0)
+	{
+		print "Error in command: $sbuf\n";
+		## tt is created only in quiet mode.
+		if (! $verbose)
+		{
+			system ("$head tt");
+		}
+	}
+
+	
+	open (F, $infile) or die "Cannot open $infile : $! ";
+
+}
+
+
+sub AddEP ($)
+{
+	my ($i) = @_;
+	my $j;
+
+	## Add EP.
+	for $j (0 .. $#$i)
+	{
+		my $srno = @$i[$j]->{SRNO}[0];
+		my $uport = @$i[$j]->{UPORT}[0];
+		my $sbuf;
+
+		# initialize
+		$sbuf = "";
+
+		$sbuf .= "$CLIprog iedge add $srno $uport";
+		print "$sbuf \n";
+
+		$result = system ("$sbuf $output_opt");
+		$result = $result >> 8;
+		if ($result != 0)
+		{
+			print "Error in command: $sbuf\n";
+			## tt is created only in quiet mode.
+			if (! $verbose)
+			{
+				system ("$head tt");
+			}
+		}
+
+		my $phone        = @$i[$j]->{PHONE}[0];
+		my $vpn_phone    = @$i[$j]->{VPN_PHONE}[0];
+		my $vpn_extlen   = @$i[$j]->{VPN_EXTLEN}[0];
+		my $h323id       = @$i[$j]->{H323ID}[0];
+		my $et           = @$i[$j]->{ET}[0];
+		my $vendor       = @$i[$j]->{VENDOR}[0];
+		my $xcalls       = @$i[$j]->{XCALLS}[0];
+		my $prio         = @$i[$j]->{PRIO}[0];
+		my $fname        = @$i[$j]->{FNAME}[0];
+		my $lname        = @$i[$j]->{LNAME}[0];
+		my $location     = @$i[$j]->{LOCATION}[0];
+		my $country      = @$i[$j]->{COUNTRY}[0];
+		my $comments     = @$i[$j]->{COMMENTS}[0];
+		my $uri          = @$i[$j]->{URI}[0];
+		my $ipaddr       = @$i[$j]->{IPADDR}[0];
+		my $contact      = @$i[$j]->{CONTACT}[0];
+		my $subnetip     = @$i[$j]->{SUBNETIP}[0];
+		my $subnetmask   = @$i[$j]->{SUBNETMASK}[0];
+
+		# initialize
+		$sbuf = "";
+
+		$sbuf .= "$CLIprog iedge edit $srno $uport ";
+		$sbuf .= "/ ";	## delimiter
+		if ($phone)
+		{
+			$sbuf .= "phone $phone ";
+		}
+		if ($vpn_phone)
+		{
+			$sbuf .= "vpn_phone $vpn_phone ";
+		}
+		if ($vpn_extlen)
+		{
+			$sbuf .= "vpn_extlen $vpn_extlen ";
+		}
+		if ($h323id)
+		{
+			## Enable H323 first
+			$sbuf .= "h323 enable ";
+			$sbuf .= "h323id $h323id ";
+		}
+		if ($et)
+		{
+			$sbuf .= "type $et ";
+		}
+		if ($vendor =~ m/"0"/)
+		{
+			$sbuf .= "vendor generic ";
+		}
+		else
+		{
+			$sbuf .= "vendor $vendor ";
+		}
+		if ($xcalls)
+		{
+			$sbuf .= "xcalls $xcalls ";
+		}
+		if ($prio)
+		{
+			$sbuf .= "prio $prio ";
+		}
+		if ($fname)
+		{
+			$sbuf .= "fname $fname ";
+		}
+		if ($lname)
+		{
+			$sbuf .= "lname $lname ";
+		}
+		if ($location)
+		{
+			$sbuf .= "location $location ";
+		}
+		if ($country)
+		{
+			$sbuf .= "country $country ";
+		}
+		if ($comments)
+		{
+			$sbuf .= "comments $comments ";
+		}
+		if ($uri)
+		{
+			## enable SIP first
+			$sbuf .= "sip enable ";
+			$sbuf .= "uri $uri ";
+		}
+		if ($ipaddr)
+		{
+			$sbuf .= "ip $ipaddr ";
+		}
+		if ($subnetip)
+		{
+			$sbuf .= "subnetip $subnetip ";
+		}
+		if ($subnetmask)
+		{
+			$sbuf .= "subnetmask $subnetmask ";
+		}
+		if ($contact)
+		{
+			$sbuf .= "contact $contact ";
+		}
+		$sbuf .= "/ ";	## delimiter
+
+		print "$sbuf \n";
+
+		$result = system ("$sbuf $output_opt");
+		$result = $result >> 8;
+		if ($result != 0)
+		{
+			print "Error in command: $sbuf\n";
+			## tt is created only in quiet mode.
+			if (! $verbose)
+			{
+				system ("$head tt");
+			}
+		}
+
+
+		# initialize
+		$sbuf = "";
+
+		$sbuf .= "$CLIprog iedge phones $srno $uport ";
+		if ($phone)
+		{
+			$sbuf .= "$phone ";
+		}
+		print "$sbuf \n";
+
+		$result = system ("$sbuf $output_opt");
+		$result = $result >> 8;
+		if ($result != 0)
+		{
+			print "Error in command: $sbuf\n";
+			## tt is created only in quiet mode.
+			if (! $verbose)
+			{
+				system ("$head tt");
+			}
+		}
+
+
+#		if ($vpn_phone)
+#		{
+#			$sbuf .= "vpn_phone $vpn_phone ";
+#		}
+#		if ($vpn_extlen)
+#		{
+#			$sbuf .= "vpn_extlen $vpn_extlen ";
+#		}
+
+
+
+	}
+
+}
+
+
+
+
+
+
+sub AddRoutes ($)
+{
+	my ($i) = @_;
+	my $j;
+
+	## Add CRs.
+	for $j (0 .. $#$i)
+	{
+		my $cr_name = @$i[$j]->{CR_NAME}[0];
+		my $sbuf;
+
+		# initialize
+		$sbuf = "";
+
+		$sbuf .= "$CLIprog cr add $cr_name ";
+		print "$sbuf \n";
+
+		$result = system ("$sbuf $output_opt");
+		$result = $result >> 8;
+		if ($result != 0)
+		{
+			print "Error in command: $sbuf\n";
+			## tt is created only in quiet mode.
+			if (! $verbose)
+			{
+				system ("$head tt");
+			}
+		}
+
+
+		my $cr_prefix = @$i[$j]->{CR_PREFIX}[0];
+		my $cr_dest = @$i[$j]->{CR_DEST}[0];
+		my $cr_destlen = @$i[$j]->{CR_DESTLEN}[0];
+		my $cr_calltype = @$i[$j]->{CR_FLAGS}[0];
+
+		# initialize
+		$sbuf = "";
+
+		$sbuf .= "$CLIprog cr edit $cr_name ";
+		$sbuf .= "/ ";	## delimiter
+		$sbuf .= "prefix $cr_prefix ";
+		$sbuf .= "dest $cr_dest ";
+		$sbuf .= "destlen $cr_destlen ";
+		$sbuf .= "calltype $cr_calltype ";
+		$sbuf .= "/ ";	## delimiter
+
+		print "$sbuf \n";
+
+		$result = system ("$sbuf $output_opt");
+		$result = $result >> 8;
+		if ($result != 0)
+		{
+			print "Error in command: $sbuf\n";
+			## tt is created only in quiet mode.
+			if (! $verbose)
+			{
+				system ("$head tt");
+			}
+		}
+
+	}
+
+}
+
+
+sub AddCallPlans ($)
+{
+	my ($i) = @_;
+	my $j;
+	## Add CPs
+	for $j (0 .. $#$i)
+	{
+		my $cp_name = @$i[$j]->{CP_NAME}[0];
+		my $sbuf = "";
+
+		$sbuf .= "$CLIprog cp add $cp_name ";
+		print "$sbuf \n";
+		
+		$result = system ("$sbuf $output_opt");
+		$result = $result >> 8;
+		if ($result != 0)
+		{
+			print "Error in command: $sbuf\n";
+			## tt is created only in quiet mode.
+			if (! $verbose)
+			{
+				system ("$head tt");
+			}
+		}
+
+	}
+
+}
+
+sub AddCallPlanBindings ($)
+{
+	my ($i) = @_;
+	my $j;
+
+	## Add CPBs
+	for $j (0 .. $#$i)
+	{
+		my $cr_name = @$i[$j]->{CR_NAME}[0];
+		my $cp_name = @$i[$j]->{CP_NAME}[0];
+		my $sbuf = "";
+
+		$sbuf .= "$CLIprog cp add $cp_name $cr_name ";
+		print "$sbuf \n";
+
+		$result = system ("$sbuf $output_opt");
+		$result = $result >> 8;
+		if ($result != 0)
+		{
+			print "Error in command: $sbuf\n";
+			## tt is created only in quiet mode.
+			if (! $verbose)
+			{
+				system ("$head tt");
+			}
+		}
+
+	}
+
+}
+
+
+
+sub DeleteEP ($)
+{
+	my ($i) = @_;
+
+	my $j;
+	for $j (0 .. $#$i)
+	{
+		my $srno = @$i[$j]->{SRNO}[0];
+		my $uport = @$i[$j]->{UPORT}[0];
+		my $sbuf;
+
+		# initialize
+		$sbuf = "";
+
+		$sbuf .= "$CLIprog iedge delete $srno $uport";
+		print "$sbuf \n";
+
+		$result = system ("$sbuf $output_opt");
+		$result = $result >> 8;
+		if ($result != 0)
+		{
+			print "Error in command: $sbuf\n";
+			## tt is created only in quiet mode.
+			if (! $verbose)
+			{
+				system ("$head tt");
+			}
+		}
+
+	}
+
+}
+
+
+
+sub DeleteRoutes ($)
+{
+	my ($i) = @_;
+
+	## Deal with the Call routes first.
+	my $j;
+	for $j (0 .. $#$i)
+	{
+		my $cr_name = @$i[$j]->{CR_NAME}[0];
+		my $sbuf;
+
+		# initialize
+		$sbuf = "";
+
+		$sbuf .= "$CLIprog cr delete $cr_name";
+		print "$sbuf \n";
+
+		$result = system ("$sbuf $output_opt");
+		$result = $result >> 8;
+		if ($result != 0)
+		{
+			print "Error in command: $sbuf\n";
+			## tt is created only in quiet mode.
+			if (! $verbose)
+			{
+				system ("$head tt");
+			}
+		}
+
+	}
+
+}
+
+
+sub DeleteCallPlanBindings ($)
+{
+	my ($i) = @_;
+
+	my $j;
+	for $j (0 .. $#$i)
+	{
+		my $cp_name = @$i[$j]->{CP_NAME}[0];
+		my $cr_name = @$i[$j]->{CR_NAME}[0];
+		my $sbuf = "";
+
+		$sbuf .= "$CLIprog cp delete $cp_name $cr_name ";
+
+		print "$sbuf \n";
+		
+		$result = system ("$sbuf $output_opt");
+		$result = $result >> 8;
+		if ($result != 0)
+		{
+			print "Error in command: $sbuf\n";
+			## tt is created only in quiet mode.
+			if (! $verbose)
+			{
+				system ("$head tt");
+			}
+		}
+
+	}
+}
+
+
+sub DeleteCallPlans ($)
+{
+	my ($i) = @_;
+
+	my $j;
+	for $j (0 .. $#$i)
+	{
+		my $cp_name = @$i[$j]->{CP_NAME}[0];
+		my $sbuf = "";
+
+		$sbuf .= "$CLIprog cp delete $cp_name ";
+
+		print "$sbuf \n";
+		
+		$result = system ("$sbuf $output_opt");
+		$result = $result >> 8;
+		if ($result != 0)
+		{
+			print "Error in command: $sbuf\n";
+			## tt is created only in quiet mode.
+			if (! $verbose)
+			{
+				system ("$head tt");
+			}
+		}
+
+	}
+}
+
+
+
+
+
+sub EditEP ($)
+{
+	my ($i) = @_;
+	my $j;
+
+	## Add EP.
+	for $j (0 .. $#$i)
+	{
+		my $srno = @$i[$j]->{SRNO}[0];
+		my $uport = @$i[$j]->{UPORT}[0];
+		my $sbuf;
+
+		# initialize
+		$sbuf = "";
+
+		my $phone           = @$i[$j]->{PHONE}[0];
+		my $ipaddr          = @$i[$j]->{IPADDR}[0];
+
+		my $vpn_phone       = @$i[$j]->{VPN_PHONE}[0];
+		my $vpn_extlen      = @$i[$j]->{VPN_EXTLEN}[0];
+		my $vpn_name        = @$i[$j]->{VPN_NAME}[0];
+		my $h323id          = @$i[$j]->{H323ID}[0];
+		my $pgkid           = @$i[$j]->{PGKID}[0];
+		my $techp           = @$i[$j]->{TECHP}[0];
+		my $cap             = @$i[$j]->{CAP}[0];
+		my $password        = @$i[$j]->{PASSWORD}[0];
+
+		my $et              = @$i[$j]->{ET}[0];
+		my $vendor          = @$i[$j]->{VENDOR}[0];
+		my $xcalls          = @$i[$j]->{XCALLS}[0];
+		my $prio            = @$i[$j]->{PRIO}[0];
+		my $fname           = @$i[$j]->{FNAME}[0];
+		my $lname           = @$i[$j]->{LNAME}[0];
+		my $location        = @$i[$j]->{LOCATION}[0];
+		my $country         = @$i[$j]->{COUNTRY}[0];
+		my $comments        = @$i[$j]->{COMMENTS}[0];
+
+		my $uri             = @$i[$j]->{URI}[0];
+		my $contact         = @$i[$j]->{CONTACT}[0];
+		my $sipuser         = @$i[$j]->{SIPUSER}[0];
+
+		my $subnetip        = @$i[$j]->{SUBNETIP}[0];
+		my $subnetmask      = @$i[$j]->{SUBNETMASK}[0];
+
+		my $rasip           = @$i[$j]->{RASIP}[0];
+		my $rasport         = @$i[$j]->{RASPORT}[0];
+		my $sigport         = @$i[$j]->{SIGPORT}[0];
+
+		my $nphone          = @$i[$j]->{NPHONE}[0];
+		my $zone            = @$i[$j]->{ZONE}[0];
+		my $email           = @$i[$j]->{EMAIL}[0];
+		my $cp_name         = @$i[$j]->{CP_NAME}[0];
+
+
+		# initialize
+		$sbuf = "";
+
+		$sbuf .= "$CLIprog iedge edit $srno $uport ";
+		$sbuf .= "/ ";	## delimiter
+		if ($phone)
+		{
+			$sbuf .= "phone $phone ";
+		}
+		if ($vpn_phone)
+		{
+			$sbuf .= "vpn_phone $vpn_phone ";
+		}
+		if ($vpn_extlen)
+		{
+			$sbuf .= "vpn_extlen $vpn_extlen ";
+		}
+		if ($h323id)
+		{
+			## Enable H323 first
+			$sbuf .= "h323 enable ";
+			$sbuf .= "h323id $h323id ";
+		}
+		if ($et)
+		{
+			$sbuf .= "type $et ";
+		}
+		if ($vendor =~ m/"0"/)
+		{
+			$sbuf .= "vendor generic ";
+		}
+		else
+		{
+			$sbuf .= "vendor $vendor ";
+		}
+		if ($xcalls)
+		{
+			$sbuf .= "xcalls $xcalls ";
+		}
+		if ($prio)
+		{
+			$sbuf .= "prio $prio ";
+		}
+		if ($fname)
+		{
+			$sbuf .= "fname $fname ";
+		}
+		if ($lname)
+		{
+			$sbuf .= "lname $lname ";
+		}
+		if ($location)
+		{
+			$sbuf .= "location $location ";
+		}
+		if ($country)
+		{
+			$sbuf .= "country $country ";
+		}
+		if ($comments)
+		{
+			$sbuf .= "comments $comments ";
+		}
+		if ($uri)
+		{
+			## enable SIP first
+			$sbuf .= "sip enable ";
+			$sbuf .= "uri $uri ";
+		}
+		if ($ipaddr)
+		{
+			$sbuf .= "ip $ipaddr ";
+		}
+		if ($subnetip)
+		{
+			$sbuf .= "subnetip $subnetip ";
+		}
+		if ($subnetmask)
+		{
+			$sbuf .= "subnetmask $subnetmask ";
+		}
+		if ($contact)
+		{
+			$sbuf .= "contact $contact ";
+		}
+		if ($rasip)
+		{
+			$sbuf .= "rasip $rasip ";
+		}
+		if ($rasport)
+		{
+			$sbuf .= "rasport $rasport ";
+		}
+		if ($sigport)
+		{
+			$sbuf .= "q931port $sigport ";
+		}
+		if ($cp_name)
+		{
+			$sbuf .= "cp $cp_name ";
+		}
+		if ($pgkid)
+		{
+			$sbuf .= "pgkid $pgkid ";
+		}
+		if ($techp)
+		{
+			$sbuf .= "techp $techp ";
+		}
+		$sbuf .= "/ ";	## delimiter
+
+		print "$sbuf \n";
+
+		$result = system ("$sbuf $output_opt");
+		$result = $result >> 8;
+		if ($result != 0)
+		{
+			print "Error in command: $sbuf\n";
+			## tt is created only in quiet mode.
+			if (! $verbose)
+			{
+				system ("$head tt");
+			}
+		}
+
+	}
+
+}
+
+
+
+
+sub EditRoutes ($)
+{
+	my ($i) = @_;
+
+	## Deal with the Call routes first.
+	my $j;
+	for $j (0 .. $#$i)
+	{
+		my $cr_name = @$i[$j]->{CR_NAME}[0];
+		my $sbuf;
+
+		my $cr_prefix = @$i[$j]->{CR_PREFIX}[0];
+		my $cr_dest = @$i[$j]->{CR_DEST}[0];
+		my $cr_destlen = @$i[$j]->{CR_DESTLEN}[0];
+		my $cr_calltype = @$i[$j]->{CR_FLAGS}[0];
+
+		# initialize
+		$sbuf = "";
+
+		$sbuf .= "$CLIprog cr edit $cr_name ";
+		$sbuf .= "/ ";	## delimiter
+		$sbuf .= "prefix $cr_prefix ";
+		$sbuf .= "dest $cr_dest ";
+		$sbuf .= "destlen $cr_destlen ";
+		$sbuf .= "calltype $cr_calltype ";
+		$sbuf .= "/ ";	## delimiter
+
+		print "$sbuf \n";
+
+		$result = system ("$sbuf $output_opt");
+		$result = $result >> 8;
+		if ($result != 0)
+		{
+			print "Error in command: $sbuf\n";
+			## tt is created only in quiet mode.
+			if (! $verbose)
+			{
+				system ("$head tt");
+			}
+		}
+
+	}
+
+}
+
+
+sub EditCallPlanBindings ($)
+{
+	my ($i) = @_;
+
+	my $j;
+	for $j (0 .. $#$i)
+	{
+		my $cp_name = @$i[$j]->{CP_NAME}[0];
+		my $cr_name = @$i[$j]->{CR_NAME}[0];
+		my $cr_flags = @$i[$j]->{CR_FLAGS}[0];
+		my $cr_stime = @$i[$j]->{CR_STIME}[0];
+		my $cr_ftime = @$i[$j]->{CR_FTIME}[0];
+		my $cr_prio = @$i[$j]->{PRIO}[0];
+		my $sbuf = "";
+
+		$sbuf .= "$CLIprog cp edit $cp_name $cr_name ";
+		$sbuf .= "/ ";
+###		$sbuf .= "flags $cr_flags ";
+		$sbuf .= "stime $cr_stime ";
+		$sbuf .= "ftime $cr_ftime ";
+		$sbuf .= "priority $cr_prio ";
+		$sbuf .= "/ ";
+
+		print "$sbuf \n";
+		
+		$result = system ("$sbuf $output_opt");
+		$result = $result >> 8;
+		if ($result != 0)
+		{
+			print "Error in command: $sbuf\n";
+			## tt is created only in quiet mode.
+			if (! $verbose)
+			{
+				system ("$head tt");
+			}
+		}
+
+	}
+}
+
+
+##
+## EditCallPlans ()
+##
+## This is a weird call. Not implemented yet.
+##
+sub EditCallPlans ($)
+{
+	my ($i) = @_;
+
+	my $j;
+	for $j (0 .. $#$i)
+	{
+		my $cp_name = @$i[$j]->{CP_NAME}[0];
+		my $sbuf = "";
+
+		$sbuf .= "$CLIprog cp edit $cp_name ";
+
+		print "$sbuf \n";
+		
+		$result = system ("$sbuf $output_opt");
+		$result = $result >> 8;
+		if ($result != 0)
+		{
+			print "Error in command: $sbuf\n";
+			## tt is created only in quiet mode.
+			if (! $verbose)
+			{
+				system ("$head tt");
+			}
+		}
+
+	}
+}
+
+
+sub PreCommands ()
+{
+	## save current directory
+	$prevdir = `pwd`;
+	chop $prevdir;
+	## cd into the directory
+	chdir $CLIdir;
+}
+
+sub PostCommands ()
+{
+	## remove temporary files, if any
+	system ("$RM tt");
+
+	## restore directory;
+	chdir $prevdir;
+	$prevdir = "";
+}
+
+##
+## Parses given file and returns hashref pointing to data.
+##
+sub ParseFile ($)
+{
+	my ($arg) = @_;
+	## Basic engine for doing work.
+	##
+	my $xs = new XML::Simple();
+
+	## Forcearray changes the whole paradigm.
+	my $ref = $xs->XMLin( $arg, forcearray => 1 );
+
+	##print Dumper ($ref);
+
+	return $ref;
+}
+
+
+sub PrintVersion ()
+{
+	print "DB Operations Utility, v$pVersion \n";
+	print "Copyright 2002, NexTone Communications, Inc.\n";
+}
+
+
+##
+## Print out some help.
+##
+sub PrintHelp ()
+{
+	PrintVersion ();
+	print "\n";
+
+	print <<eEOF
+dbop -a <XML_file> for adding records in XML_file
+dbop -d <XML_file> for deleting records in XML_file
+dbop -u <XML_file> for updating records in XML_file
+Add option -q to the above command lines for "quiet" mode.
+
+Notes:
+1. All options (-a, -d & -u) can be used at the same time.
+2. -d and -u options do not verify that the records actually exist before
+   updating them.
+3. Error handling is currently primitive.
+
+What the future holds:
+1. Generation of XML records.
+2. Better querying interface.
+eEOF
+;
+}
+

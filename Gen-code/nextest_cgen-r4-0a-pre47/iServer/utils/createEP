@@ -1,0 +1,47 @@
+#!/usr/local/bin/perl
+my $line;
+
+for ($i = 0; $line = <>; $i++) {
+    chomp($line);
+    $line =~ s/\015$//;    
+    if ($i == 0) {
+        @colname = split(',', $line);
+    }
+    else {
+        my @a = split(',', $line);
+        my $h = {};
+        foreach $j (0..$#colname) {
+            $h->{$colname[$j]} = $a[$j] if (defined($a[$j]) and ($a[$j] ne ''));
+        }
+        push(@colvals, $h);
+    }
+}
+
+foreach $i (0..$#colvals) {
+    my $ep = $colvals[$i];
+    if ( (!defined($ep->{regid})) or ($ep->{regid} eq '') or
+         (!defined($ep->{port})) or ($ep->{port} eq '')) {
+        next;
+    }
+    print "cli iedge add '$ep->{regid}' $ep->{port}\n";
+    my $clicmd = "cli iedge edit '$ep->{regid}' $ep->{port} ";        
+
+    my $zonecmd='';    
+    foreach my $k (keys(%$ep)) {
+                SWITCH: for ($k) {
+                /^regid$/    && do { 
+                            last SWITCH; 
+                             };    
+                /^port$/    && do { 
+                            last SWITCH; 
+                             };    
+                /^zone$/    && do { 
+                            $zonecmd = "cli iedge zone '$ep->{regid}' $ep->{port} '$ep->{$k}'";
+                            last SWITCH; 
+                             };    
+                $clicmd .= "$k '$ep->{$k}' " if (defined($ep->{$k}) and ($ep->{$k} ne ''));    
+                }
+    }
+    print "$clicmd\n";
+    print "$zonecmd\n" if ($zonecmd);
+}

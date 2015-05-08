@@ -1,0 +1,42 @@
+#!/usr/bin/perl
+
+# simple perl script to bring the logical interfaces up or down
+
+$updown = shift;
+
+if (($updown =~ /[Uu][Pp]/) || ($updown =~ /[Dd][Oo][Ww][Nn]/ )) {
+    $updown =~ tr/A-Z/a-z/;	# Canonicalize $updown to lowercase
+
+    local( @ifconfig_a ) = `/sbin/ifconfig -a`;
+    
+# get logical network devices
+    foreach $line ( @ifconfig_a )
+    {
+	if ( $line =~ /^[a-z]/ ) # only lines that start with a character
+	{
+	    if ( $line !~ /^lo/ ) # disregard loopback devices
+	    {
+		( $cur_iface, $junk ) = split( / /,  $line );
+		$cur_iface =~ s/:$//;           # Remove trailing ':'
+		if ( $cur_iface =~ /[a-f].*\d+:\d+/ ) # only logical devices
+		{
+		    push(@ifaces, $cur_iface);
+
+		}
+	    }
+	}
+    }
+
+    # sort to make sure the first up/down is the lowest interface instance number
+    foreach $iface (sort @ifaces) {
+	#bring up/down the logical interface
+	`/sbin/ifconfig $iface $updown`;
+    }
+
+} else {
+    print "Usage: $0 up|down\n";
+}
+
+
+
+

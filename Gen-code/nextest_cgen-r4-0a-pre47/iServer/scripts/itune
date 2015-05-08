@@ -1,0 +1,128 @@
+#!/usr/bin/perl
+
+#
+#	itune
+#
+#	Purpose:
+#		Configure network tunables for optimum
+#		performance. Adds rc script to /etc/init.d
+#		and links it into run-level scripts.
+#
+
+generate_nettune();
+
+printf "\nPlease reboot your system for changes to take effect !!\n\n";
+
+exit(0);
+
+#
+#	Subroutine:
+#		generate_nettune()
+#
+#	Arguments:
+#		None
+#
+#			Note: uses globals preset prior to call
+#
+#	Description:
+#		Generates the file "/etc/init.d/nettune".
+#		Template file used for generation is inline
+#		to script.
+#
+sub generate_nettune
+{
+		local( @input_file, $line );
+
+		# Place lines after chop and before "^EOP" into
+		# @input_file array
+
+		chop( @input_file = <<'EOP' );
+#!/sbin/sh
+
+#
+# The following settings are for performance purposes
+# Also several tunables are set in /etc/system
+#
+
+# TCP settings
+
+/usr/sbin/ndd -set /dev/tcp tcp_conn_req_max_q 4096
+/usr/sbin/ndd -set /dev/tcp tcp_conn_req_max_q0 4096
+/usr/sbin/ndd -set /dev/tcp tcp_smallest_anon_port 25000
+/usr/sbin/ndd -set /dev/tcp tcp_largest_anon_port 49999
+
+/usr/sbin/ndd -set /dev/tcp tcp_time_wait_interval 60000
+/usr/sbin/ndd -set /dev/tcp tcp_fin_wait_2_flush_interval 67500
+/usr/sbin/ndd -set /dev/tcp tcp_keepalive_interval 60000
+
+/usr/sbin/ndd -set /dev/tcp     tcp_rexmit_interval_initial 500
+/usr/sbin/ndd -set /dev/tcp     tcp_rexmit_interval_min 200
+
+/usr/sbin/ndd -set /dev/tcp     tcp_max_buf 4194304
+/usr/sbin/ndd -set /dev/tcp     tcp_cwnd_max 2097152
+
+/usr/sbin/ndd -set /dev/tcp     tcp_xmit_hiwat 65536
+/usr/sbin/ndd -set /dev/tcp     tcp_recv_hiwat 65536
+
+/usr/sbin/ndd -set /dev/tcp tcp_wscale_always 1
+/usr/sbin/ndd -set /dev/tcp tcp_tstamp_always 1
+
+# UDP settings
+
+/usr/sbin/ndd -set /dev/udp udp_smallest_anon_port 25000
+/usr/sbin/ndd -set /dev/udp udp_largest_anon_port 49999
+/usr/sbin/ndd -set /dev/udp udp_recv_hiwat 65535
+/usr/sbin/ndd -set /dev/udp udp_xmit_hiwat 65535
+/usr/sbin/ndd -set /dev/udp udp_max_buf 262144
+
+#
+# The following settings are for security purposes
+#
+
+/usr/sbin/ndd -set /dev/ip ip_forward_src_routed 0
+/usr/sbin/ndd -set /dev/ip ip6_forward_src_routed 0
+/usr/sbin/ndd -set /dev/ip ip_forward_directed_broadcasts 0
+/usr/sbin/ndd -set /dev/ip ip6_respond_to_echo_multicast 0
+/usr/sbin/ndd -set /dev/ip ip_respond_to_echo_broadcast 0
+/usr/sbin/ndd -set /dev/ip ip_send_redirects 0
+/usr/sbin/ndd -set /dev/ip ip6_send_redirects 0
+/usr/sbin/ndd -set /dev/ip ip_ignore_redirect 0
+/usr/sbin/ndd -set /dev/ip ip6_ignore_redirect 0
+
+EOP
+
+	open( OUTPUT_FILE, ">/etc/init.d/nettune" );
+
+	$\ = "\n";	# automatically add newline on print
+
+	#
+	#	The following loop alters each line of the inline
+	#	input template specified above prior to output.
+	#	Operation is akin to a sed script.
+	#
+
+	foreach ( @input_file )		# place an input line in $_
+	{
+		# Alter $_ if need be
+
+		chop;
+
+		# Output altered $_ to file
+
+		print(OUTPUT_FILE);
+	}
+
+	close( OUTPUT_FILE );
+
+	system( "/usr/bin/chown root /etc/init.d/nettune" );
+	system( "/usr/bin/chgrp sys /etc/init.d/nettune" );
+	system( "/usr/bin/chmod 755 /etc/init.d/nettune" );
+
+	system( "/usr/bin/rm -f /etc/rcS.d/S31nettune" );
+	system( "/usr/bin/rm -f /etc/rc3.d/S99nettune" );
+
+	system( "/usr/bin/ln /etc/init.d/nettune /etc/rcS.d/S31nettune" );
+	system( "/usr/bin/ln /etc/init.d/nettune /etc/rc3.d/S99nettune" );
+
+	$\ = "";	# reset to normal
+}

@@ -1,0 +1,1116 @@
+#!/usr/bin/perl
+
+#
+#	nsfconfig 
+#
+#	Purpose:
+#		Configure nsf configuration files in "/etc/opt/ipf"
+#		Data files used are inline to the script.
+#
+
+use Getopt::Std;
+
+#
+#	Global arrays populated when the script is started
+#	as read using /usr/sbin/ifconfig
+#		
+#	devices    - contains names of valid device interfaces
+#
+#	The other arrays are associative keyed by device.
+#
+
+@devices, @excluded_devices, @signaling_interfaces;
+
+%ipaddr, %broadcast, %netmask, %network, 
+%dindex, %in_group, %out_group, %opts;
+
+$config_type, $interface;
+
+$argcount = $#ARGV;
+
+#
+# Main procedure logic
+#
+#	  -d	 disable nsf. Note : in a media routing environment
+#			 only the signaling interface is opened. We dont want multiple
+#			 routes into the box over the same network.
+#
+#     -b     means no prompting. called at bootup from ipfboot script
+#
+#     -i     interactive mode
+#
+#     -s     specifies a comma seperated list of signaling interfaces
+#
+
+&getopts('dbis:', \%opts );		# list of possible options
+
+if ( $argcount == -1 )
+{
+	usage();
+	exit(0);
+}
+
+collect_network_config(	*devices,
+						*ipaddr,
+						*broadcast,
+						*netmask,
+						*network,
+						*dindex );
+
+if ( $opts{ s } )
+{
+	@signaling_interfaces = split( /,/, $opts{ s } );
+
+	foreach $device ( @signaling_interfaces )
+	{
+		if ( !$ipaddr{ $device } )
+		{
+			printf( "invalid network interface name, %s\n", $device );
+			exit(-1);
+		}
+	}
+}
+elsif ( $opts{ i } )
+{
+	$config_type = select_config_type();
+
+	$interface = "";
+
+	do
+	{
+		$interface = select_interface(	"Signaling",
+										*excluded_devices,
+										1 );
+
+		if ( $interface !~ /^$/ )
+		{
+			push( @signaling_interfaces, $interface );
+			push( @excluded_devices, $interface );
+		}
+
+	} until ( $interface eq "" );
+}
+else
+{
+	get_ipf_conf_settings();
+}
+
+if ( $opts{ d } )
+{
+	generate_ipf_open();
+	system( "/etc/init.d/ipfboot reload" ); 
+}
+else
+{
+	generate_ipf_firewall();
+	system( "/etc/init.d/ipfboot reload" ); 
+}
+
+generate_static_routes();
+
+exit(0);
+
+#
+#	Subroutine:
+#		collect_network_config()
+#
+#	Arguments:
+#		devices		-	pointer to array which will be populated
+#						by names of devices found via "ifconfig -a"
+#
+#		ipaddr		-	pointer to associative array which will
+#						contain ip addresses of devices. Key
+#						is device name.
+#
+#		broadcast	-	pointer to associative array which will
+#						contain broadcast addresses of devices. Key
+#						is device name.
+#
+#		netmask		-	pointer to associative array which will
+#						contain netmask of devices. Key
+#						is device name.
+#
+#		network		-	pointer to associative array which will
+#						contain network address of devices. Key
+#						is device name.
+#
+#		dindex		-	pointer to associative array which will
+#						contain index value of devices. Key
+#						is device name.
+#
+#	Description:
+#		Fills in arrays passed in from "ipconfig" information
+#
+sub collect_network_config
+{
+
+	local( @ifconfig_a ) = `/usr/sbin/ifconfig -a`;
+	local( $cur_iface, $device, $line );
+	local(	*devices, *ipaddr, *broadcast, *netmask,
+			*network, *dindex ) = @_;
+
+	# get network devices
+
+	foreach $line ( @ifconfig_a )
+	{
+		if ( $line =~ /^[^ 	]/ )
+		{
+			if ( $line !~ /^lo/ ) # disregard loopback devices
+			{
+				( $cur_iface, $junk ) = split( /[ 	]/,  $line );
+				$cur_iface =~ s/:$//;		# Remove trailing ':'
+
+				if ( $cur_iface !~ /.*:\d+/ ) # disregard logical devices
+				{
+					push( @devices, $cur_iface );
+				}
+			}
+		}
+	}
+
+	foreach $device ( @devices )
+	{
+		local( @ifconfig ) = `/usr/sbin/ifconfig $device`;
+
+		foreach $line ( @ifconfig )
+		{
+			if ( $line =~ /[ 	]inet[ 	]/ )
+			{
+				local( $temp ) = $line =~ /^.*[ 	]*inet[ 	]*([^ 	]*)[ 	]*.*$/;
+				$temp =~ s/\n//;		# Remove trailing '\n'
+				$ipaddr{ $device } = $temp;
+			}
+
+			if ( $line =~ /[ 	]netmask[ 	]/ )
+			{
+				local( $temp ) = $line =~ /^.*[ 	]*netmask[ 	]*([^ 	]*)[ 	]*.*$/;
+				$temp =~ s/\n//;		# Remove trailing '\n'
+				$temp = hex2ipaddr( $temp );
+				$netmask{ $device } = $temp;
+			}
+
+			if ( $line =~ /[ 	]broadcast[ 	]/ )
+			{
+				local( $temp ) = $line =~ /^.*[ 	]*broadcast[ 	]*([^ 	]*)[ 	]*.*$/;
+				$temp =~ s/\n//;		# Remove trailing '\n'
+				$broadcast{ $device } = $temp;
+			}
+
+			if ( $line =~ /[ 	]index[ 	]/ )
+			{
+				local( $temp ) = $line =~ /^.*[ 	]*index[ 	]*([^ 	]*)[ 	]*.*$/;
+				$temp =~ s/\n//;		# Remove trailing '\n'
+				$dindex{ $device } = $temp;
+				$in_group{ $device } = $temp;
+				$out_group{ $device } = $temp * 10;
+			}
+
+			$network{ $device } = networkaddr( $ipaddr{ $device }, $netmask{ $device } );
+		}
+	}
+}
+
+#
+#	Subroutine:
+#		hex2ipaddr()
+#
+#	Arguments:
+#		addr		ip address string in hex (0xffffff00)
+#
+#	Description:
+#		Converts the input hexidecimal string to 
+#		ip dot format ( 255.255.255.0 )
+#
+#		Note: only for ip4 at this time
+#
+sub hex2ipaddr
+{
+	local( $addr ) = @_;
+
+	if ( $addr =~ /^0x.*/ ) # strip off leading 0x if there
+	{
+		local( $temp ) = $addr =~ /^0x(.*)$/;
+		$addr = $temp;
+	}
+
+	local( $ip );
+
+	local( @arr ) = (	hex(substr($addr, 0, 2)),
+						hex(substr($addr, 2, 2)), 
+   						hex(substr($addr, 4, 2)),
+						hex(substr($addr, 6, 2)) );
+
+	$ip = join('.', @arr);
+    
+	$ip;
+}
+
+#
+#	Subroutine:
+#		ipaddr2hex()
+#
+#	Arguments:
+#		addr		ip address string in dot format ( 255.255.255.0 )
+#
+#	Description:
+#		Converts the input ipaddress string to 
+#		ip hex format ( 0xffffff00 )
+#
+#		Note: only for ip4 at this time
+#
+sub ipaddr2hex
+{
+	local( $addr ) = @_;
+
+	local( @arr ) = split( /\./, $addr );
+
+	local( $ip ) = sprintf( "0x%02x%02x%02x%02x", @arr );
+	
+	$ip;
+}
+
+#
+#	Subroutine:
+#		aton()
+#
+#	Arguments:
+#		addr	ip address in ascii format
+#
+#	Description:
+#		Converts ipaddr from ascii to network format
+#
+#		Note: only for ip4 at this time
+#
+sub aton($) 
+{
+    my @bytes = split /\./, $_[0];
+
+	if ( @bytes != 4 )
+	{
+		return undef;
+	}
+
+	my $res = 0;
+
+    for my $i (@bytes) 
+	{
+		$res = ($res << 8) | $i;
+	}
+	return $res;
+}
+
+#
+#	Subroutine:
+#		ntoa()
+#
+#	Arguments:
+#		addr	ip address in network format
+#
+#	Description:
+#		Converts ipaddr from network to ascii format
+#
+#		Note: only for ip4 at this time
+#
+sub ntoa($) 
+{
+    my $n = $_[0];
+    my @res = ();
+    for (0..3) {
+        unshift @res, $n & 0xFF;
+        $n >>= 8;
+	}
+	return join '.', @res;
+}
+
+#
+#	Subroutine:
+#		maskbits()
+#
+#	Arguments:
+#		netmask   a network mask in ip addr dot format ( 255.255.255.0 )
+#
+#	Description:
+#		returns the number of bits set in the netmask
+#
+#		Note: only for ip4 at this time
+#
+sub maskbits
+{
+	local( $netmask ) = @_;
+
+	local( $netmask ) = aton( $netmask );
+	local( $target ) = 0;
+	local( $setbits ) = 0;
+	local( $bit ) = 31;
+
+	local( $temp ) = 2 ** 31;
+
+	while ( $netmask != $target )
+	{
+		$target = $target + ( 2 ** $bit );
+
+		$bit--;
+		$setbits++;
+	}
+
+	$setbits;
+}
+
+#
+#	Subroutine:
+#		networkaddr()
+#
+#	Arguments:
+#		ipaddr		an ipaddr in ip addr dot format ( 64.80.221.55 )
+#
+#		netmask		a network mask in ip addr dot format ( 255.255.255.0 )
+#
+#	Description:
+#		returns the network on which the ip address resides
+#
+#		Note: only for ip4 at this time
+#
+sub networkaddr
+{
+	local( $ipaddr, $netmask ) = @_;
+
+	local( $lipaddr ) = aton( $ipaddr );
+	local( $lnetmask ) = aton( $netmask );
+
+	local( $temp ) = $lipaddr & $lnetmask;
+
+	$result = ntoa( $temp );
+}
+
+#
+#	Subroutine:
+#		select_interface()
+#
+#	Arguments:
+#		interface_type  -	name of interface type to prompt for
+#
+#		exclude			-	list of devices to be excluded from selection
+#
+#		none_allowed	-	boolean indicating "None" should be allowed
+#							as a selection
+#
+#	Description:
+#		Prompts user for an interface of type $interface_type.
+#		returns name selected interface.
+#
+#
+sub select_interface
+{
+	local( $interface_type, *exclude, $none_allowed  ) = @_;
+
+	local( $ans, $count, @selections, $excluded_device );
+
+	# build @selections from @devices removing @exlude devices
+
+	foreach $device ( @devices )
+	{
+		foreach $excluded_device ( @exclude )
+		{
+			if ( $device eq $excluded_device  )
+			{
+				goto skip_device;
+			}
+		}
+
+		push( @selections, $device );
+
+	  skip_device:
+	}
+
+	# If  nothing to be selected return ""
+
+	if ( !@selections )
+	{
+		return ""; 
+	}
+
+	tryagain:
+
+	system 'clear';
+
+	printf "Interface Name     Network         ip address        NetMask\n";
+	printf "______________  _______________  _______________  _______________\n";
+
+	foreach $device ( @selections )
+	{
+		printf	"%-14s  %-15s  %-15s  %-15s\n",
+				$device,
+				$network{ $device },
+				$ipaddr{ $device },
+				$netmask{ $device };
+	}
+
+	$prompt = sprintf( "\nSelect $interface_type interface :\n", $interface_type );
+
+	print $prompt;
+
+	$count = 1;
+
+	foreach $device ( @selections )
+	{
+		printf "   %1d) %s\n",  $count, $device;
+		$count++;
+	}
+
+	if ( $none_allowed )
+	{
+		printf "   %1d) %s\n",  $count, "None";
+		$count++;
+	}
+
+	if ( $none_allowed )
+	{
+		printf "select interface index or \"None\" : ";
+	}
+	else
+	{
+		printf "select interface index : ";
+	}
+
+	$ans = substr( <STDIN>, 0, 1 );
+
+	if ( $ans < 1 || $ans > $count )
+	{
+		goto tryagain;
+	}
+
+	if ( $none_allowed && $ans == $count )
+	{
+		return "";
+	}
+	elsif ( $ans == $count )
+	{
+		goto tryagain;
+	}
+
+	return $selections[ ($ans - 1) ];
+}
+
+#
+#	Subroutine:
+#		select_config_type()
+#
+#	Arguments:
+#		None
+#
+#	Description:
+#		Prompts user for configuration type. returns name selected.
+#
+#
+sub select_config_type
+{
+	local( $ans, $count, $retval );
+
+	tryagain:
+
+	system 'clear';
+
+	chop( $prompt = <<'EOP' );
+
+Select NSF configuration type :
+
+EOP
+
+	print $prompt;
+
+	$count = 1;
+
+	printf( "   %1d) %s\n",
+			$count++,
+			"open" );
+
+	printf(	"   %1d) %s\n", 
+			$count++,
+			"firewall" );
+
+	printf "   %1d) %s\n",  $count, "Quit";
+	printf "select interface index or quit : ";
+
+	$ans = substr( <STDIN>, 0, 1 );
+
+	if ( $ans < 1 || $ans > $count )
+	{
+		goto tryagain;
+	}
+
+	exit(0) if ( $ans == $count );
+
+	if ( $ans == 1 )
+	{
+		$retval = "open";
+	}
+	elsif ( $ans == 2 )
+	{
+		$retval = "firewall";
+	}
+
+	return $retval;
+}
+
+#
+#	Subroutine:
+#		generate_ipf_open()
+#
+#	Arguments:
+#		None
+#
+#			Note: uses globals preset prior to call
+#
+#	Description:
+#		Generates the file "/etc/opt/ipf/ipf.conf.open"
+#		based on script and system inputs. Template file
+#		used for generation is inline to script.
+#
+sub generate_ipf_open
+{
+	# open file to be generated
+
+	open( OUTPUT_FILE, ">/etc/opt/ipf/ipf.conf" );
+
+	printf(	OUTPUT_FILE "#\n" );
+	printf(	OUTPUT_FILE "# Config Type:       open\n" );
+	printf(	OUTPUT_FILE "#\n" );
+
+	foreach $device ( @signaling_interfaces )
+	{
+		printf(	OUTPUT_FILE 
+				"# Signaling  interface: %s\n",
+				$device );
+		printf(	OUTPUT_FILE
+				"#            address:   %s\n",
+				$ipaddr{ $device } );
+		printf(	OUTPUT_FILE
+				"#            network:   %s/%d\n",
+				$network{ $device },
+				maskbits( $netmask{ $device } ) );
+		printf(	OUTPUT_FILE
+				"#\n" );
+	}
+
+	foreach $device ( @signaling_interfaces )
+	{
+		printf(	OUTPUT_FILE
+				"\n" );
+		printf(	OUTPUT_FILE
+				"# Group %d rules govern anything coming in via %s\n",
+				$in_group{ $device },
+				$device );
+		printf(	OUTPUT_FILE
+				"\n" );
+		printf(	OUTPUT_FILE
+				"pass in quick on %s all head %d\n",
+				$device,
+				$in_group{ $device } );
+		printf(	OUTPUT_FILE
+				"\n" );
+		printf(	OUTPUT_FILE
+				"    pass in  on %s all group %d\n",
+				$device,
+				$in_group{ $device } );
+		printf(	OUTPUT_FILE
+				"\n" );
+		printf(	OUTPUT_FILE
+				"# Group %d rules govern anything going out via %s\n",
+				$out_group{ $device },
+				$device );
+		printf(	OUTPUT_FILE
+				"\n" );
+		printf(	OUTPUT_FILE
+				"pass out quick on %s all head %d\n",
+				$device,
+				$out_group{ $device } );
+		printf(	OUTPUT_FILE
+				"\n" );
+		printf(	OUTPUT_FILE
+				"    pass out on %s all group %d\n",
+				$device,
+				$out_group{ $device } );
+	}
+
+	close( OUTPUT_FILE );
+}
+
+#
+#	Subroutine:
+#		generate_ipf_firewall()
+#
+#	Arguments:
+#		None
+#
+#			Note: uses globals preset prior to call
+#
+#	Description:
+#		Generates the file "/etc/opt/ipf/ipf.conf.firewall"
+#		based on script and system inputs. Template file
+#		used for generation is inline to script.
+#
+sub generate_ipf_firewall
+{
+	# open file to be output
+
+	open( OUTPUT_FILE, ">/etc/opt/ipf/ipf.conf" );
+
+	printf(	OUTPUT_FILE "#\n" );
+	printf(	OUTPUT_FILE "# Config Type:       firewall\n" );
+	printf(	OUTPUT_FILE "#\n" );
+
+	foreach $device ( @signaling_interfaces )
+	{
+		printf(	OUTPUT_FILE 
+				"# Signaling  interface: %s\n",
+				$device );
+		printf(	OUTPUT_FILE
+				"#            address:   %s\n",
+				$ipaddr{ $device } );
+		printf(	OUTPUT_FILE
+				"#            network:   %s/%d\n",
+				$network{ $device },
+				maskbits( $netmask{ $device } ) );
+		printf(	OUTPUT_FILE
+				"#\n" );
+	}
+
+	foreach $device ( @signaling_interfaces )
+	{
+		#
+		# generate inbound static rule set for this signaling interface
+		#
+
+		printf(	OUTPUT_FILE
+				"\n# Group %d rules govern anything coming in via %s\n\n",
+				$in_group{ $device },
+				$device );
+		printf(	OUTPUT_FILE
+				"block in        quick on %s all head %d\n\n",
+				$device,
+				$in_group{ $device } );
+
+		# 
+		# add user defined rules before the default ones
+		#
+
+		printf(	OUTPUT_FILE
+				"    # additional user-added inbound rules\n\n" );
+
+		if ( -f "/etc/opt/ipf/additional_signaling_rules" )
+		{
+			local( $l );
+
+			open( ADDITIONAL_RULES, "/etc/opt/ipf/additional_signaling_rules" );
+
+			while ( $l = <ADDITIONAL_RULES> )
+			{
+				chomp($l);
+
+				( $action, $direction, $protocol, $from_ip, $from_port_range, $to_ip, $to_port_range, $flags ) =
+						split( /[ \t\n]+/, $l, 8 );
+
+				next if ( $action =~ /^$/ || $action =~ /#.*$/ );
+
+				if ( $direction =~ /^in$/ )
+				{
+					if ( $from_ip ne "-" )
+					{
+						$from_spec = "$from_ip";
+					}
+					else
+					{
+						$from_spec = "any";
+					}
+
+					if ( $from_port_range ne "-" )
+					{
+						$from_port_range =~ s/([^0-9][^0-9]*)/ $1 /g;
+						$from_spec .= " port $from_port_range";
+					}
+
+					if ( $to_ip ne "-" )
+					{
+						$to_spec = "$to_ip";
+					}
+					else
+					{
+						$to_spec = "any";
+					}
+
+					if ( $to_port_range ne "-" )
+					{
+						$to_port_range =~ s/([^0-9][^0-9]*)/ $1 /g;
+						$to_spec .= " port $to_port_range";
+					}
+
+					printf( OUTPUT_FILE
+							"    %s  in    quick on %s proto %s from %s to %s %s group %s\n",
+								$action,
+								$device,
+								$protocol,
+								$from_spec,
+								$to_spec,
+								$flags,
+								$in_group{ $device } );
+				}
+			}
+
+			close( ADDITIONAL_RULES );
+		}
+
+		printf(	OUTPUT_FILE
+				"    # sip server port\n\n" );
+		printf(	OUTPUT_FILE
+				"    pass  in    quick on %s proto tcp/udp from any to any port = 5060 keep frags group %d\n\n",
+				$device,
+				$in_group{ $device } );
+		printf(	OUTPUT_FILE
+				"    # h323 server config\n\n" );
+		printf(	OUTPUT_FILE
+				"    pass  in    quick on %s proto udp from any to any port 1717 >< 1736 keep state group %d\n",
+				$device,
+				$in_group{ $device } );
+		printf(	OUTPUT_FILE
+				"    pass  in    quick on %s proto tcp/udp from any to any port 1719 >< 1736 keep state keep frags group %d\n\n",
+				$device,
+				$in_group{ $device } );
+		printf(	OUTPUT_FILE
+				"    # allow icmp transactions in on the firewall interface\n\n" );
+		printf(	OUTPUT_FILE
+				"    pass  in    quick on %s proto icmp from any to any group %d\n\n",
+				$device,
+				$in_group{ $device } );
+		printf(	OUTPUT_FILE
+				"    # allow iview transactions in\n\n" );
+		printf(	OUTPUT_FILE
+				"    pass  in    quick on %s proto udp from any to any port 10100 >< 10110 keep state group %d\n",
+				$device,
+				$in_group{ $device } );
+		printf(	OUTPUT_FILE
+				"    pass  in    quick on %s proto tcp from any to any port 10100 >< 10110 flags S keep state keep frags group %d\n\n",
+				$device,
+				$in_group{ $device } );
+		printf(	OUTPUT_FILE
+				"    # iEdge registration port\n\n" );
+		printf(	OUTPUT_FILE
+				"    pass  in    quick on %s proto udp from any to any port 9999 >< 10004 group %d\n",
+				$device,
+				$in_group{ $device } );
+		printf(	OUTPUT_FILE
+				"    pass  in    quick on %s proto tcp from any to any port 9999 >< 10006 flags S keep state keep frags group %d\n\n",
+				$device,
+				$in_group{ $device } );
+		printf(	OUTPUT_FILE
+				"    # ssh\n\n" );
+		printf(	OUTPUT_FILE
+				"    pass  in    quick on %s proto tcp from any to any port = 22 flags S keep state keep frags group %d\n\n",
+				$device,
+				$in_group{ $device } );
+		printf(	OUTPUT_FILE
+				"    # Allow ephemeral ftp-data ports from servers back in for client\n\n" );
+		printf(	OUTPUT_FILE
+				"    pass  in    quick on %s proto tcp from any port = 20 to any flags S keep state group %d\n\n",
+				$device,
+				$in_group{ $device } );
+		printf(	OUTPUT_FILE
+				"    # ntp\n\n" );
+		printf(	OUTPUT_FILE
+				"    pass  in    quick on %s proto tcp/udp from any to any port = 123 keep state keep frags group %d\n\n",
+				$device,
+				$in_group{ $device } );
+
+		printf(	OUTPUT_FILE
+				"\n    block in          on %s all group %d\n\n",
+				$device,
+				$in_group{ $device } );
+
+		#
+		# generate outbound static rule set for this signaling interface
+		#
+
+		printf(	OUTPUT_FILE
+				"# Group %d rules govern anything going out via %s\n\n",
+				$out_group{ $device },
+				$device );
+		printf(	OUTPUT_FILE
+				"block out       quick on %s all head %d\n\n",
+				$device,
+				$out_group{ $device } );
+		printf(	OUTPUT_FILE
+				"    # h323 server config\n\n" );
+		printf(	OUTPUT_FILE
+				"    pass  out   quick on %s proto udp from any port 1717 >< 1736 to any keep state group %d\n",
+				$device,
+				$out_group{ $device } );
+		printf(	OUTPUT_FILE
+				"    pass  out   quick on %s proto tcp from any to any keep state keep frags group %d\n\n",
+				$device,
+				$out_group{ $device } );
+		printf(	OUTPUT_FILE
+				"    # sip\n\n" );
+		printf(	OUTPUT_FILE
+				"    pass  out   quick on %s proto tcp/udp from any port = 5060 to any group %d\n\n",
+				$device,
+				$out_group{ $device } );
+		printf(	OUTPUT_FILE
+				"    # allow iview transactions out\n\n" );
+		printf(	OUTPUT_FILE
+				"    pass  out   quick on %s proto udp from any port 10100 >< 10110 to any keep state group %d\n",
+				$device,
+				$out_group{ $device } );
+		printf(	OUTPUT_FILE
+				"    pass  out   quick on %s proto tcp from any port 10100 >< 10110 to any flags S keep state keep frags group %d\n\n",
+				$device,
+				$out_group{ $device } );
+		printf(	OUTPUT_FILE
+				"    # Radius\n\n" );
+		printf(	OUTPUT_FILE
+				"    pass  out   quick on %s proto udp from any to any port 1811 >< 1814 keep state group %d\n",
+				$device,
+				$out_group{ $device } );
+		printf(	OUTPUT_FILE
+				"    pass  out   quick on %s proto udp from any to any port 1644 >< 1647 keep state group %d\n\n",
+				$device,
+				$out_group{ $device } );
+		printf(	OUTPUT_FILE
+				"    # ssh\n\n" );
+		printf(	OUTPUT_FILE
+				"    pass  out   quick on %s proto tcp from any to any port = 22 flags S keep state keep frags group %d\n\n",
+				$device,
+				$out_group{ $device } );
+		printf(	OUTPUT_FILE
+				"    # client ftp out\n\n" );
+		printf(	OUTPUT_FILE
+				"    pass  out   quick on %s proto tcp from any to any port = 21 flags S keep state group %d\n\n",
+				$device,
+				$out_group{ $device } );
+		printf(	OUTPUT_FILE
+				"    # routed\n\n" );
+		printf(	OUTPUT_FILE
+				"    pass  out   quick on %s proto udp from any to any port = 520 keep state group %d\n\n",
+				$device,
+				$out_group{ $device } );
+		printf(	OUTPUT_FILE
+				"    # dns\n\n" );
+		printf(	OUTPUT_FILE
+				"    pass  out   quick on %s proto udp from any to any port = 53 keep state group %d\n\n",
+				$device,
+				$out_group{ $device } );
+		printf(	OUTPUT_FILE
+				"    # iserver heartbeat response to endpoints\n\n" );
+		printf(	OUTPUT_FILE
+				"    pass  out   quick on %s proto udp from any to any port = 9393 keep state group %d\n\n",
+				$device,
+				$out_group{ $device } );
+		printf(	OUTPUT_FILE
+				"    # OSP\n\n" );
+		printf(	OUTPUT_FILE
+				"    pass  out   quick on %s proto tcp from any to any port = 80 flags S keep state keep frags group %d\n",
+				$device,
+				$out_group{ $device } );
+		printf(	OUTPUT_FILE
+				"    pass  out   quick on %s proto tcp from any to any port = 443 flags S keep state keep frags group %d\n\n",
+				$device,
+				$out_group{ $device } );
+		printf(	OUTPUT_FILE
+				"    # ntp\n\n" );
+		printf(	OUTPUT_FILE
+				"    pass  out   quick on %s proto tcp/udp from any to any port = 123 keep state group %d\n\n",
+				$device,
+				$out_group{ $device } );
+		printf(	OUTPUT_FILE
+				"    # cvs - allow outgoing conversation with a remote cvs server\n\n" );
+		printf(	OUTPUT_FILE
+				"    pass  out   quick on %s proto tcp from any to any port = 2401 flags S keep state keep frags group %d\n\n",
+				$device,
+				$out_group{ $device } );
+		printf(	OUTPUT_FILE
+				"    # icmp\n\n" );
+		printf(	OUTPUT_FILE
+				"    pass  out   quick on %s proto icmp from any to any group %d\n\n",
+				$device,
+				$out_group{ $device } );
+
+		printf(	OUTPUT_FILE
+				"    # additional user-added outbound rules\n\n" );
+
+		if ( -f "/etc/opt/ipf/additional_signaling_rules" )
+		{
+			local( $l );
+
+			open( ADDITIONAL_RULES, "/etc/opt/ipf/additional_signaling_rules" );
+
+			while ( $l = <ADDITIONAL_RULES> )
+			{
+				chomp($l);
+
+				( $action, $direction, $protocol, $from_ip, $from_port_range, $to_ip, $to_port_range, $flags ) =
+						split( /[ \t\n]+/, $l, 8 );
+
+				next if ( $action =~ /^$/ || $action =~ /#.*$/ );
+
+				if ( $direction =~ /^out$/ )
+				{
+					if ( $from_ip ne "-" )
+					{
+						$from_spec = "$from_ip";
+					}
+					else
+					{
+						$from_spec = "any";
+					}
+
+					if ( $from_port_range ne "-" )
+					{
+						$from_port_range =~ s/([^0-9][^0-9]*)/ $1 /g;
+						$from_spec .= " port $from_port_range";
+					}
+
+					if ( $to_ip ne "-" )
+					{
+						$to_spec = "$to_ip";
+					}
+					else
+					{
+						$to_spec = "any";
+					}
+
+					if ( $to_port_range ne "-" )
+					{
+						$to_port_range =~ s/([^0-9][^0-9]*)/ $1 /g;
+						$to_spec .= " port $to_port_range";
+					}
+
+					printf( OUTPUT_FILE
+							"    %s  out    quick on %s proto %s from %s to %s %s group %s\n",
+								$action,
+								$device,
+								$protocol,
+								$from_spec,
+								$to_spec,
+								$flags,
+								$out_group{ $device } );
+				}
+			}
+
+			close( ADDITIONAL_RULES );
+		}
+
+		printf(	OUTPUT_FILE
+				"\n    block out         on %s all group %d\n\n",
+				$device,
+				$out_group{ $device } );
+	}
+
+	close( OUTPUT_FILE );
+
+}
+
+#
+#	Subroutine:
+#		generate_static_routes()
+#
+#	Arguments:
+#		None
+#
+#			Note: uses globals preset prior to call
+#
+#	Description:
+#		Generates the file "/etc/rc2.d/S73route"
+#		based on script and system inputs. Template file
+#		used for generation is inline to script.
+#
+sub generate_static_routes
+{
+
+	open( OUTPUT_FILE, ">/etc/rc2.d/S73route" );
+
+	printf(	OUTPUT_FILE
+			"#\n" );
+	printf(	OUTPUT_FILE
+			"# Static routes as generated by Nextone's nsfconfig utility\n" );
+	printf(	OUTPUT_FILE
+			"#\n" );
+	printf(	OUTPUT_FILE
+			"\n" );
+
+	foreach $device ( @devices )
+	{
+		printf(	OUTPUT_FILE
+				"/usr/sbin/route add %s 127.0.0.1 0\n",
+				$ipaddr{ $device } );
+	}
+
+	printf(	OUTPUT_FILE
+			"\n" );
+
+	printf(	OUTPUT_FILE
+			"/usr/sbin/route	add	default defaultrouter\n" );
+
+	close( OUTPUT_FILE );
+
+	system( "/bin/chgrp sys /etc/rc2.d/S73route" );
+	system( "/bin/chmod 744 /etc/rc2.d/S73route" );
+
+}
+
+#
+#	Subroutine:
+#		get_ipf_conf_settings()
+#
+#	Arguments:
+#		None
+#
+#	Description:
+#		extracts interfaces and configuration from "/etc/opt/ipf/ipf.conf"
+#
+sub get_ipf_conf_settings
+{
+	local( $interface );
+
+	open( INPUT_FILE, "/etc/opt/ipf/ipf.conf" );
+
+	while ( <INPUT_FILE> )
+	{
+		if ( $_ =~ /^#[ 	]*Config[ 	]*Type:.*$/ )
+		{
+			( $bogus1, $bogus2, $bogus3, $config_type ) = split();
+		}
+		elsif ( $_ =~ /^#[ 	]*Signaling[ 	]*interface:.*$/ )
+		{
+			( $bogus1, $bogus2, $bogus3, $interface ) = split();
+			push( @signaling_interfaces, $interface );
+		}
+	}
+
+	close( INPUT_FILE );
+}
+
+#
+#	Subroutine:
+#		usage()
+#
+#	Arguments:
+#		None
+#
+#	Description:
+#		print out usage notes
+#
+sub usage
+{
+	system 'clear';
+printf "NSF configuration script.\n\n";
+printf "    Usage:\n\n";
+printf "   nsfconfig [options]\n\n";
+printf "      Note: when no options are specified the user\n";
+printf "            is prompted to select the public and\n";
+printf "            private interfaces.\n\n";
+printf "Options:\n\n";
+printf "    -d                    disable nsf firewall.\n\n";
+printf "    -i                    interactive mode.\n\n";
+printf "    -s {interface_list}   used to specify a comma-seperated list\n";
+printf "                          of signaling interfaces.\n\n";
+printf "                          For example :\n\n";
+printf "                            nsfconfig -s e1000g0,e1000g1\n\n";
+}

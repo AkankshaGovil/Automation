@@ -1,0 +1,77 @@
+
+
+Verbage on Unified Messaging Service (UMS)
+
+The basic goal of UMS is to provide an integrated mail box that can 
+contain voice, fax and electronic mail destined for a user. UMS, as
+part of the integration also provides for the following:
+
+Unified access.
+Unified archival and storage.
+Forwarding.
+
+Multimedia Internet Mail Extensions (MIME) provides a mechanism for transport
+of integrated multimedia mail, but does not address issues of access, storage
+and retrieval.
+
+What the Netoid system can do?
+
+Everything is saved as an electronic mail in the user's mail box at the ISP.
+The electronic mail contains attachments for voice and fax mail. The voice
+and fax are in Netoid readable form -- viz. G.723.1 format, or other standard
+formats (TIFF-F for fax, VPIM for voice etc).  The distinction is made in the
+MIME extension type. The Netoid system introduces two new extensions: 
+"x-netoid-voice" and "x-netoid-fax", both of which are under the "application"
+sub-category.  Thus these e-mails would have extension types as 
+"application/x-netoid-voice" for a Netoid encoded voice mail.  The Netoid
+identifies the format based on this extension type.  The encoding type for 
+voice and fax mails to be transmitted are also user selectable to be Netoid 
+specific or other standards based. The advantage of storage as electronic-mail
+is that the infrastructure for transportation, storage and retrieval is becoming
+universal.
+
+The Netoid Wizard helps in the integrated access of the mail box.  The Netoid 
+Wizard launches appropriate helper applications to process the various mail
+messages.  The fax mail is put through a TIFF viewer application, or it can be
+routed back to the Netoid and to a fax machine, based on user preference.  
+Similarly, the voice mail can be played through the Netoid and into the 
+telephone.  The integrated access is provided through the Netoid Wizard 
+software resident on the PC connected to the serial port of the Netoid.
+
+However, in cases, where a PC is not connected to the Netoid, the Netoid itself
+provides access to a limited set of message retrieval and archival services. 
+The Netoid can provide a way to retrieve voice and fax mail messages from the
+unified mail box.  The Netoid retreives all messages that are of the MIME 
+extensions that the Netoid supports.
+
+
+Sending Messages:
+
+When a call is placed to a remote Netoid where the subscriber does not answer,
+the remote Netoid goes into voice-mail mode, capturing a message for the
+subscriber, just as a typical Answering Machine would.  This limited 
+time span message, encoded in G.723.1 is then sent as an e-mail to the
+user's e-mail address, resulting in storage at the mail-box at the ISP. The
+Netoid then indicates to the user, the presence of a message(s) through the
+use of a blinking LED on the front panel.  
+
+The user then has a choice of retrieving his voice mail messages through two
+ways: 
+	- through the PC attached to the Netoid.
+	- through the telephone attached to the Netoid.
+
+If using the PC, the user retrieves the message into his local "inbox" and
+uses a "viewer" that is part of the Netoid Wizard software that transmits the
+message over the serial port to the Netoid, which decodes it back as analog
+speech, which can then be piped over the telephone attached to the Netoid.
+
+In the case where there is no PC attached to the telephone, the Netoid executes
+the Post Office Protocol v3 (POP3), to selectively retrieve just the voice
+mail messages one at a time and play them through the telephone for the user.
+
+
+In the case of fax mail, it is necessary to have a fax device hooked to one 
+of the user ports of the Netoid or have a "viewer" in the attached PC.
+The retrieval and storage is similar to the case of the voice mail.
+
+

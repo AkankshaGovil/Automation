@@ -1,0 +1,563 @@
+-- $Id: h225nonstdpdu2.asn,v 1.1.2.2 2004/09/21 16:05:16 sshetty Exp $
+-- $Source: /export/home/cm/repos/h323-4.0.48/h323/asn_messages/Attic/h225nonstdpdu2.asn,v $
+--====================================================================
+-- Copyright (c) 1997-1999, 2000, 2001, 2002, 2003 by Cisco Systems, Inc.
+-- All rights reserved.
+--====================================================================
+-- $Log: h225nonstdpdu2.asn,v $
+-- Revision 1.1.2.2  2004/09/21 16:05:16  sshetty
+-- 6025
+--  New asn file that defines Cisco nonstandard Data added to r1205 branch
+--
+-- Revision 1.1.2.1.6.1  2004/09/21 16:03:51  sshetty
+-- 6025
+--  New asn file that defines Cisco nonstandard Data added to r1205 branch
+--
+-- Revision 1.1.2.1.2.1  2004/07/08 17:32:37  sshetty
+-- 6025
+-- Changed syntax of original asn file to compile
+--
+--====================================================================
+-- $Endlog$
+--====================================================================
+--
+-- File Name: h225nonstd.asn
+-- Description: ASN descriptions for Cisco's private data stuffed in
+-- the nonStandardData OCTET STRING in various RAS & Q.931 messages.
+--
+-- Revision History:
+-- Date     Version    Who   Description of Change
+--====================================================================
+-- 6/27/97		IK   first stab at this
+-- 11/20/98		RN   Added H323-UU-NonStdInfo defintion
+--
+--====================================================================
+
+H225NONSTD-MESSAGES DEFINITIONS AUTOMATIC TAGS ::=
+BEGIN
+
+IRRnonStandardInfo ::= SEQUENCE
+{
+	gwResource	GatewayResourceInfo,
+	callEvent	SEQUENCE OF CallEventInfo  OPTIONAL,
+        ...
+}
+
+-- WARNING: Any changes to GatewayResourceInfo must involve 
+--          re-editing ../inc/ras_api.h to make sure that
+--          GATEWAY_RESOURCE_T is kept in sync with the
+--          new asn1-compiler-generated structure.
+GatewayResourceInfo ::= SEQUENCE
+{
+	maxDSPs		INTEGER  (0..255),
+	inUseDSPs	INTEGER  (0..255),
+
+	maxBChannels	INTEGER  (0..255),
+	inUseBChannels	INTEGER  (0..255),
+	activeCalls	INTEGER  (0..255),
+	bandwidth       INTEGER  (0..4294967295), -- number of 100bits/sec
+	inuseBandwidth  INTEGER  (0..4294967295), -- number of 100bits/sec
+        ...
+}
+
+CallEventInfo ::= SEQUENCE
+{
+	event		CallEventCode,	
+	timestamp	INTEGER   (0..4294967295), -- seconds since 1/1/1970
+	result          ResultCode,
+-- Question: do we really need result? If the operation failed, there
+-- is no change to report is there? If we do need this what kind of
+-- failure codes are we interested in?
+	chanEvent	ChannelEvent OPTIONAL,
+        ...
+}
+
+CallEventCode ::= CHOICE
+{
+	callConnected		NULL,	-- Q.931 connection complete
+	channelCreated		NULL,   -- OLC complete
+	channelModified		NULL,   -- not sure if needed ?
+	channelClosed		NULL,   -- logical channel torn down
+	callDisconnected	NULL,
+        ...
+}
+
+ResultCode ::= CHOICE
+{
+	success		NULL,
+	failure		NULL,
+        ...
+-- question: what else is there?
+}
+
+ChannelEvent ::= SEQUENCE
+{
+	chanID		INTEGER  (0..255),
+	chanType	ChannelType,
+	rsvpClass	RsvpClass,
+	chanBandwidth	INTEGER (0..4294967295),
+	audioTranscode	AudioTranscodeType,
+	videoTranscode	VideoTranscodeType,
+	numberBChannels	INTEGER (0..255),
+	transport	TransportType,
+
+	-- the next two members are OPTIONAL because they are
+	-- only used in the channelClosed event
+	bytesSent	INTEGER (0..4294967295)	OPTIONAL,
+	bytesReceived	INTEGER (0..4294967295)	OPTIONAL,
+        ...
+}
+
+RsvpClass ::= CHOICE
+{
+	unreserved	NULL,
+	controlledLoad	NULL,
+	guaranteed	NULL,
+        ...
+}
+
+TransportType ::= CHOICE
+{
+	unicast		NULL,
+	multicast	NULL,
+        ...
+}
+
+ChannelType ::= CHOICE
+{
+	h261	NULL,
+	h262	NULL,
+	h263	NULL,
+	g711	NULL,
+	g722	NULL,
+	g7231	NULL,
+	g728	NULL,
+	g729	NULL,
+        ...
+}
+
+AudioTranscodeType ::= CHOICE
+{
+	nonstd-none    NULL,
+	nonstd-unknown NULL,
+        ...
+}
+
+VideoTranscodeType ::= CHOICE
+{
+	nonstd-none	NULL,
+	nonstd-unknown NULL,
+        ...
+}
+
+ARQnonStandardInfo ::= SEQUENCE
+{
+	sourceAlias	           SEQUENCE OF AliasAddr, -- of calling proxy
+	sourceExtAlias             SEQUENCE OF AliasAddr, -- of calling endpoint
+        ...,
+        redirectIEinfo             RedirectIEinfo OPTIONAL,
+        callingOctet3a             INTEGER(0..255) OPTIONAL,
+        displayInformationElement  IA5String (SIZE (1..128)) OPTIONAL,
+	interfaceSpecificBillingId IA5String (SIZE (1..128)) OPTIONAL,
+	interfaceDescription       IA5String (SIZE (1..128)) OPTIONAL,
+	gtd			   OCTET STRING (SIZE (1..1024)) OPTIONAL,
+        reRouteCount               INTEGER(0..65535) OPTIONAL,
+        arqterminationCause           NonStdCallTerminationCause OPTIONAL
+
+}
+
+
+AliasAddr ::= CHOICE
+{
+	e164	  IA5String (SIZE (1..128)) (FROM ("0123456789#*,")),
+	h323-ID	  BMPString (SIZE (1..256)),
+        ...,
+        email-id  IA5String (SIZE(1..512))	-- rfc822-compliant email address
+
+}
+
+CallId ::= SEQUENCE
+{
+        guid            OCTET STRING (SIZE(16)),
+        ...
+}
+
+ACFnonStandardInfo ::= SEQUENCE
+{
+	srcTerminalAlias	SEQUENCE OF AliasAddr,
+	dstTerminalAlias	SEQUENCE OF AliasAddr,
+	dstProxyAlias		SEQUENCE OF AliasAddr OPTIONAL,
+	dstProxySignalAddress	IpAddress OPTIONAL,
+	dstProxyDDRInfo		DDRInfo OPTIONAL,
+        ...,
+	srcInfo                 SEQUENCE OF AliasAddr OPTIONAL,
+	gtd CHOICE
+	{
+	    gtdData             OCTET STRING (SIZE (1..1024)),
+	    forwardOriginalGTD  NULL,
+	    ...
+	} OPTIONAL
+}
+
+CallReleaseSource ::= CHOICE
+{
+        callingPartyInPstn              NULL,
+        callingPartyInVoip              NULL,
+        calledPartyInPstn               NULL,
+        calledPartyInVoip               NULL,
+        internalReleaseInPotsLeg        NULL,
+        internalReleaseInVoipLeg        NULL,
+        internalCallControlApp          NULL,
+        internalReleaseInVoipAAA        NULL,
+        consoleCommand                  NULL,
+        externalRadiusServer            NULL,
+        externalNmsApp                  NULL,
+        externalCallControlAgent        NULL,
+        gatekeeper                      NULL,
+        externalGKTMPServer             NULL,
+        ...
+}
+
+ReleaseGloballyUniqueID        ::=     OCTET STRING (SIZE(16))
+ReleaseConferenceIdentifier    ::=     ReleaseGloballyUniqueID
+
+
+NonStdReleaseCompleteReason ::= CHOICE
+{
+        noBandwidth                     NULL,   -- bandwidth taken away or ARQ denied
+        gatekeeperResources             NULL,   -- exhausted
+        unreachableDestination          NULL,   -- no transport path to the destination
+        destinationRejection            NULL,   -- rejected at destination
+        invalidRevision         NULL,
+        noPermission                    NULL,   -- called party's gatekeeper rejects
+        unreachableGatekeeper           NULL,   -- terminal cannot reach gatekeeper for ARQ
+        gatewayResources                NULL,
+        badFormatAddress                NULL,
+        adaptiveBusy                    NULL,   -- call is dropping due to LAN crowding
+        inConf                          NULL,   -- no address in AlternativeAddress
+        undefinedReason         NULL,
+        ...,
+        facilityCallDeflection          NULL,   -- call was deflected using a Facility message
+        securityDenied                  NULL,   -- incompatible security settings
+        calledPartyNotRegistered        NULL,   -- used by gatekeeper when endpoint has
+                                                -- preGrantedARQ to bypass ARQ/ACF
+        callerNotRegistered             NULL,   -- used by gatekeeper when endpoint has
+                                                -- preGrantedARQ to bypass ARQ/ACF
+        newConnectionNeeded             NULL,   -- indicates that the Setup was not accepted on this
+                                                -- connection, but that the Setup may be accepted on
+                                                -- a new connection
+        nonStandardReason               ReleaseNonStandardParameter,
+        replaceWithConferenceInvite     ReleaseConferenceIdentifier,   -- call dropped due to subsequent
+-- invitation to a conference
+-- (see H.323 8.4.3.8)
+        genericDataReason               NULL,
+        neededFeatureNotSupported       NULL,
+        tunnelledSignallingRejected     NULL
+}
+
+ReleaseNonStandardParameter ::= SEQUENCE
+{
+        nonStandardIdentifier   ReleaseNonStandardIdentifier,
+        data                    OCTET STRING
+}
+
+ReleaseH221NonStandard ::= SEQUENCE
+{       t35CountryCode          INTEGER(0..255),
+        t35Extension            INTEGER(0..255),
+        manufacturerCode        INTEGER(0..65535),
+        ...
+}
+
+ReleaseNonStandardIdentifier           ::= CHOICE
+{
+        object                  OBJECT IDENTIFIER,
+        h221NonStandard ReleaseH221NonStandard,
+        ...
+}
+
+NonStdCallTerminationCause ::= CHOICE
+{
+        releaseCompleteReason           NonStdReleaseCompleteReason,
+        releaseCompleteCauseIE          OCTET STRING (SIZE(2..32)),
+        ...
+}
+
+ARJnonStandardInfo ::= SEQUENCE
+{
+        arjterminationCause                NonStdCallTerminationCause OPTIONAL,
+        ...,
+        callReleaseSource                  CallReleaseSource  OPTIONAL
+}
+LRJnonStandardInfo ::= SEQUENCE
+{
+        lrjterminationCause                NonStdCallTerminationCause OPTIONAL,
+        ...
+}
+
+
+DRQnonStandardInfo ::= SEQUENCE
+{
+	gtd			OCTET STRING (SIZE (1..1024)) OPTIONAL,
+	...
+}
+
+IpAddress ::= SEQUENCE
+{
+	ip	OCTET STRING (SIZE(4)),
+	port	INTEGER(0..65535),
+        ...
+}
+
+
+DDRInfo ::= SEQUENCE
+{
+	ddrDialString	IA5String (SIZE (1..128)) (FROM ("0123456789#*,")),
+	chapPassword	BMPString (SIZE (1..128)),
+        ...
+}
+
+OldLRQnonStandardInfo ::= SEQUENCE
+{
+        ttl    INTEGER(1..255)
+}
+
+LRQnonStandardInfo ::= SEQUENCE
+{
+	ttl    INTEGER(1..255),
+        ...,
+        nonstd-callIdentifier      CallId OPTIONAL,
+        redirectIEinfo             RedirectIEinfo OPTIONAL,
+        callingOctet3a             INTEGER(0..255) OPTIONAL,
+        gatewaySrcInfo             SEQUENCE OF AliasAddr OPTIONAL,
+        displayInformationElement  IA5String (SIZE (1..128)) OPTIONAL,
+        interfaceSpecificBillingId IA5String (SIZE (1..128)) OPTIONAL,
+        interfaceDescription       IA5String (SIZE (1..128)) OPTIONAL,
+        gtd                        OCTET STRING (SIZE (1..1024)) OPTIONAL,
+        reRouteCount               INTEGER(0..65535) OPTIONAL,
+        lrqterminationCause        NonStdCallTerminationCause OPTIONAL
+}
+
+LCFnonStandardInfo ::= SEQUENCE
+{
+    termAlias	SEQUENCE OF AliasAddr,
+    -- WARNING: gkID must be same type as GatekeeperIdentifier in H.225
+    gkID	BMPString (SIZE (1..128)),
+    gateways	SEQUENCE OF GatewayNonstdInfo,
+    ...,
+    srcInfo                    SEQUENCE OF AliasAddr OPTIONAL,
+    gtd CHOICE
+    {
+	gtdData                OCTET STRING (SIZE (1..1024)),
+	forwardOriginalGTD     NULL,
+	...
+    } OPTIONAL
+}
+
+GatewayNonstdInfo ::= SEQUENCE
+{
+    gwType	GatewayType,
+    gwAlias     SEQUENCE OF AliasAddr,
+    sigAddress  IpAddress,
+    ddr		DDRInfo	OPTIONAL,	    -- if dial-around proxy
+    resources   GatewayResourceInfo,        -- see IRR non-std above
+    ...
+}
+
+GatewayType ::= CHOICE
+{
+	h320-gateway	NULL,
+	proxy		NULL,
+	voip		NULL,
+        ...
+}
+
+ClearTokenNonStandardInfo ::= SEQUENCE
+{
+       -- transactionId         INTEGER (0..4294967295) OPTIONAL,
+       -- settlementToken       OCTET STRING OPTIONAL,
+       clearToken               OCTET STRING,
+        ...
+}
+
+-- GRQ Non-standard definitions
+ 
+GRQnonStandardInfo ::= SEQUENCE
+{
+        gupAddress              IpAddress OPTIONAL,	-- GUP Address
+        ...
+}
+ 
+-- ClearToken NonStandard definition (Cisco proprietary)
+
+PropListPdu ::= SEQUENCE
+{
+        proplist        PropList
+}
+
+PropList ::= SEQUENCE OF PropItem
+
+PropItem ::= SEQUENCE
+{
+        propid          PropID,
+        flags           INTEGER DEFAULT 0,
+        value           PropValue
+}
+
+PropID  ::=   CHOICE
+{
+        delta           INTEGER,
+        absolute        INTEGER(0..4294967295) 
+}
+
+PropValue ::=  CHOICE
+{
+        i1              INTEGER(0..255),
+        i2              INTEGER,
+        i4              INTEGER,
+        lpstr           OCTET STRING,
+        bstr            OCTET STRING,
+        yesno           INTEGER(0..1),
+        proplist        PropList,
+        ...
+}
+
+-- H323-UU-NonStandardInfo definition (Cisco proprietary)
+ 
+H323-UU-NonStdInfo ::=  SEQUENCE
+{
+        version             INTEGER             OPTIONAL,
+        protoParam          ProtoParam          OPTIONAL,
+        commonParam         CommonParam	        OPTIONAL,
+        ...,
+        tieTrkParam         TieTrkParam	        OPTIONAL,
+        progIndParam        ProgIndParam        OPTIONAL,
+        callMgrParam        CallMgrParam        OPTIONAL,
+        callSignallingParam CallSignallingParam OPTIONAL,
+        rsvpParam           RSVPParam           OPTIONAL
+}
+
+ProtoParam   ::=   CHOICE 		
+{
+	qsigNonStdInfo  QsigNonStdInfo,
+                ...
+} 
+
+CommonParam  ::=   SEQUENCE 
+{
+	redirectIEinfo  RedirectIEinfo, -- this is in common area
+                                        -- because it's independent of
+                                        -- the protocol
+		...
+} 
+
+TieTrkParam   ::=   CHOICE 		
+{
+	tieTrkIEinfo  TieTrkIEInfo,
+                ...
+} 
+
+ProgIndParam   ::=   CHOICE
+{
+        progIndIEinfo  ProgIndIEInfo,
+                ...
+}
+
+CallMgrParam ::= SEQUENCE
+{
+	interclusterVersion	INTEGER,
+	enterpriseID		OCTET STRING,
+	...
+}
+
+QsigNonStdInfo ::= SEQUENCE
+{
+        iei    		IEI,
+        rawMesg         OCTET STRING,
+        ...
+}
+ 
+RedirectIEinfo ::= SEQUENCE
+{
+        redirectIE      OCTET STRING,
+        ...
+}
+
+TieTrkIEInfo ::= SEQUENCE
+{
+        tieTrkIE        OCTET STRING,
+        ...
+}
+
+ProgIndIEInfo ::= SEQUENCE
+{
+        progIndIE        OCTET STRING,
+        ...
+}
+
+CallSignallingParam  ::=   SEQUENCE 
+{ 
+        connectedNumber  OCTET STRING (SIZE (1..128)) OPTIONAL, 
+        ... 
+} 
+
+RSVPParam  ::=   CHOICE
+{
+        rsvpInfo  RSVPParamInfo,
+        ...
+}
+
+RSVPParamInfo  ::= SEQUENCE
+{
+        qosIE     QosInfo         OPTIONAL,
+        ...
+}
+
+QosInfo      ::= SEQUENCE
+{
+        qos-video                 NULL                     OPTIONAL,
+        audio-rport               INTEGER(0..65535)        OPTIONAL,
+        video-rport               INTEGER(0..65535)        OPTIONAL,
+        audio-lport               INTEGER(0..65535)        OPTIONAL,
+        video-lport               INTEGER(0..65535)        OPTIONAL,
+        media-ip-addr             INTEGER(0..4294967295)   OPTIONAL,
+        remote-qos-video-bw       INTEGER(0..4294967295)   OPTIONAL,
+        remote-qos-audio-bw       INTEGER(0..4294967295)   OPTIONAL,
+        remote-qos-video          QosType                  OPTIONAL,
+        ...
+}
+
+QosType      ::= ENUMERATED
+{
+        qoSBestEffort (0),
+        qoSControlledLoad (1),
+        qoSGuaranteedDelay (2),
+        ...
+}
+
+IEI ::= INTEGER  -- integer
+
+-- IRR Per Call NonStandInfo (Cisco proprietary)
+IRRperCallnonStandardInfo ::= SEQUENCE
+{
+      startTime       INTEGER   (0..4294967295) OPTIONAL, -- seconds since 1/1/1970
+      ...
+}
+
+RasnonStdUsageInformation ::= SEQUENCE
+{
+    rasMessageSpecificData      CHOICE
+    {
+        drqRasnonStdUsageData   DRQRasnonStdUsageInfo,        
+        ...
+    } OPTIONAL,
+    ...
+}
+
+DRQRasnonStdUsageInfo ::= SEQUENCE
+{
+    callReleaseSource  CallReleaseSource  OPTIONAL,
+    iecInfo            SEQUENCE OF OCTET STRING (SIZE(8))  OPTIONAL,
+    ...
+}
+
+END -- of ASN.1

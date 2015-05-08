@@ -1,0 +1,98 @@
+PATH=$PATH:/bin:/usr/local/bin:/usr/bin:/usr/ucb/:.
+
+RSYNC=`whereis rsync | cut -d':' -f2`;
+RSYNC_CUR_VER=2.3.1;
+
+if [ -z "$RSYNC" ]
+then
+	rsync_def_ans="y";
+	rsync_opt_ans="n";
+
+	echo "You do not seem to have any previous installation of rsync."
+	echo ""
+	sleep 1
+else
+	rsync_def_ans="n";
+	rsync_opt_ans="y";
+
+	echo "You do seem to have a previous installation of rsync."
+	RSYNC_PREV_VER=`$RSYNC --version | head -1 | cut -d' ' -f3`;
+	echo "Previous version of rsync - ${RSYNC_PREV_VER:-"unknown"}\t\c";
+	echo "Current version of rsync - $RSYNC_CUR_VER";
+	echo ""
+	sleep 1
+
+	if [ "$RSYNC_PREV_VER" = "$RSYNC_CUR_VER" ]
+	then
+		echo "You probably do not need to re-install the rsync package."
+		echo ""
+	fi
+	echo "Installation will change any customizations you may have made \c"
+	echo "to the rsync configuration files";
+	echo ""
+	echo ""
+	sleep 2
+fi
+
+echo "Do you want to install the rsync package <[$rsync_def_ans]/$rsync_opt_ans> ? \c"
+
+read rsync_ans
+
+if [ -z "$rsync_ans" ]
+then
+	rsync_ans=$rsync_def_ans;
+fi
+
+if [ "$rsync_ans" = "n" ]
+then
+	echo
+	echo "Skipping installation of rsync package"
+	exit 0
+else
+	echo
+	echo "Installing the rsync package"
+	echo
+fi
+
+rsync_lic="/usr/local/nextone/etc"
+
+echo "rsync is a free package distributed under GPL."
+echo "Where do you want to save the license file LICENSE <[$rsync_lic]> ? \c"
+
+read rsync_lic
+
+if [ -z "$rsync_lic" ]
+then
+	rsync_lic="/usr/local/nextone/etc"
+fi
+
+if [ -d "$rsync_lic" ]
+then
+	cp ../rsyncpkg/etc/LICENSE $rsync_lic
+else
+	echo "$rsync_lic directory not found"
+fi
+
+# exit 0
+# The above line should be uncommented for testing purposes only
+
+cd ../rsyncpkg/bin
+rsync-bin.sh
+cd ../etc
+rsync-etc.sh
+
+echo "rsync package installed"
+echo
+
+/usr/bin/pkill -HUP inetd
+if [ $? -ne 0 ]
+then
+	echo 
+	echo " DID NOT SUCCEED: /usr/bin/pkill -HUP inetd"
+	echo " Send a HUP signal to inetd process "
+	echo 
+fi
+
+echo "use rsync-test script in /usr/local/nextone/etc to check if \c"
+echo "rsync is properly configured"
+

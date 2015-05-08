@@ -1,0 +1,87 @@
+2000-05-27  Jay Rogers  <jay@rgrs.com>
+
+	* Version 3.02 of Net::Telnet released
+
+	* Telnet.pm : Squelched silly warning introduced by perl5.005
+
+	* Telnet.pm : Fixed incorrect handling of CR LF when chars are
+	sent in separate blocks.
+
+	* Telnet.pm : Modified log routines to accept a tied filehandle.
+
+	* get() : Fixed to correctly set timed_out() to indicate no
+	time-out error when data is not immediately available but
+	subsequently arrives and is read before the time-out interval
+	expires.
+
+	* get() : Fixed timeout error when timeout=0, and no data read,
+	but there's still data in the buffer yet to be returned.
+
+	* get() : Errmode action now happens when timeout=0 and time-out
+	occurs.
+
+1997-12-27  Jay Rogers  <jay@rgrs.com>
+
+	* Version 3.01 of Net::Telnet released
+
+	* binmode() : PLEASE NOTE - calling without an argument no longer
+ 	sets binmode to 1, but rather just returns the current value for
+ 	binmode.
+
+	* telnetmode() : PLEASE NOTE - calling without an argument no
+ 	longer sets telnetmode to 1, but rather just returns the current
+ 	value for telnetmode.
+
+	* cmd() : Removes the first line of output when the remote side
+ 	told us it would echo or the user requests its removal explicitly
+ 	with cmd_remove_mode()
+
+	* cmd_remove_mode() : New method that contains the mode for how to
+ 	deal with an echoed back command in the output returned by cmd().
+  	Default is set to "auto", which means cmd() removes the first line
+ 	of output when the remote side told us it would echo.
+
+	* new() : By default, an offer to echo made by the remote side of
+ 	a TELNET connection is always accepted.
+
+	* new() : Fixed default prompt to work with prompts containing $
+
+	* fhopen() : Changed to work with any open filehandle including
+ 	uni-directional pipes like STDIN.
+
+	* host() : When passed a null string or undef for a hostname it no
+ 	longer changes it to "localhost".
+
+	* waitfor() : Now performs error mode action when eof is
+ 	encountered before the pattern match.
+
+	* waitfor() : Changed text of error messages when timing-out.
+
+	* login() : Changed text of error messages when timing-out.
+
+	* Telnet.pm : Fixed non-portable use of \r\n to the more portable
+ 	\015\012.
+
+	* break() : Fixed to no longer send the output_record_separator.
+
+	* Telnet.pm : Stopped erroneously converting input character
+ 	sequences which look like TELNET escaped carriage-returns
+	(\015\000), when not in telnetmode.
+
+	* buffer() : New method that returns scalar reference to object's
+ 	input buffer.
+
+	* buffer_empty() : New method that discards all data in object's
+ 	input buffer.
+
+	* option_accept() : New method used to indicate our willingness to
+ 	accept a telnet option offered by the remote side.
+
+	* option_callback() : New method used to receive notification of
+ 	telnet option negotiation.
+
+	* option_log() : New method that is used to log option
+ 	negotiation.
+
+	* option_state() : New method that returns the current state of a
+ 	telnet option.

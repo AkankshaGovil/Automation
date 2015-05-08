@@ -1,0 +1,83 @@
+
+
+=head1 NAME
+
+dbback - Program to backup NexTone iServer databases and config files.
+
+=head1 SYNOPSIS
+
+B<dbback> [B<-d>] [B<-h>] [B<-v>] [B<-f config_file>]
+
+
+=head1 DESCRIPTION
+
+B<dbback> is a program to backup NexTone iServer databases and config files.
+The gdbm database is automatically backed up, along with config files I<server.cfg>
+and I<firewall.xml> and the I<jserver-data> directory hierarchy. Its behavior is
+governed by a configuration file it reads at program startup.
+
+When B<dbback> is run, it automatically figures out if the iServer database is
+newer than the last backed up copy of the database. If it is, then it creates a package of
+the database and then backs up the snapshot on a remote machine.
+ 
+B<dbback> uses the I<File Transfer Protocol>, ftp, as the transport mechanism to 
+transfer files from one machine to another.
+
+B<dbback> is capable of backing up the package to multiple machines as specified
+in the B<config_file>. Packages can be full or partial. 
+
+A word of caution. B<dbback.cfg> contains passwords in the clear. 
+
+=head1 OPTIONS
+
+B<-d> Start as daemon.  Not implemented yet.
+
+B<-h> Help. Print user manual of dbback.
+
+B<-v>  Version. Print out version and exit.
+
+B<-f config_file> Use B<config_file> instead of default which is I<dbback.cfg>.
+
+=head1 SYNTAX
+
+=head2 Description how to write configuration files
+
+
+B<ftpaddrs = >I<w.x.y.z & a.b.c.d & ...>
+
+B<username = > I<userid1 & userid2 & ...>
+
+B<passwd = >I<passwd1 & passwd2 & ...>
+
+B<ftpdir = > I<dir1 & dir2 & ...>
+
+B<logfile = >I< full_path_to_log_file >
+
+B<disp = >I<rotate | overwrite > 
+
+B<backup = >< all | cfg | db>
+
+
+=head1 FILES
+
+B</usr/local/nextone>
+
+B</usr/local/nextone/bin/server.cfg>
+
+B</usr/local/nextone/bin/dbback.cfg>
+
+B</usr/local/nextone/bin/firewall.xml>
+
+B</usr/local/nextone/bin/jserver-data/>
+
+=head1 SEE ALSO
+
+L<ftp>, L<iServer>, L<iView>
+
+
+=head1 AUTHORS
+
+Copyright (C)2001, NexTone Communications.
+
+=cut
+

@@ -1,0 +1,1255 @@
+#!/bin/sh 
+
+###########################################################
+###########################################################
+##
+## iServer Control shell script.
+##
+## Typical usage:
+## iserver <name_of_daemon> [start|stop|reconfig|version]
+##	where
+##	<name_of_daemon> is:
+##	gis, rsd, jServer, pm
+##
+##
+###########################################################
+###########################################################
+
+##
+## Environment variables come here.
+##
+: ${SERPLEXPATH:=/usr/local/nextone/bin/}
+export SERPLEXPATH
+
+MC=`uname -s`	# SunOS | Linux
+##
+## Other miscellaneous variables.
+##
+ECHO=/bin/echo
+Usage="Usage: $0 [<name_of_daemon>|all] [start|stop|reconfig|status|version|uptime]"
+
+#BOLD=`/usr/bin/tput smso`
+#export BOLD
+
+#OFFBOLD=`/usr/bin/tput rmso`
+#export OFFBOLD
+
+ProgDescription="NexTone iServer Control Utility"
+
+ProgVersion="0.3"
+
+ProgDate="April 2001"
+
+ProgCopyright="(c) 1998-2001, NexTone Communications, Inc."
+
+ISERVERUP=1
+
+# Store a list of PIDS for status display
+PIDS=
+
+DAEMON=$1
+OPERATION=$2
+
+PROGNAME=$0
+if [ $# -gt 2 ]; then
+    shift
+    shift
+    RESTARGS=$*
+else
+    RESTARGS=""
+fi
+
+##
+## Weapons we handle
+##
+KILL=/bin/kill
+
+##
+## Definitions of signals to send
+##
+RECONFIGSIG="-HUP"
+
+## Executable path
+## Superceded by $SERPLEXPATH above
+EXEPATH="/usr/local/nextone/bin"
+
+## Our file reaper
+RM="rm -f"
+
+## Process Listing
+PS="ps"
+
+## 
+IPCRM="ipcrm"
+
+##
+## Modify Logname
+##
+if [ "$MC" = "SunOS" ]; then
+IPCRMOPTS="-M"
+LUSKEYID="0x1"
+VPNSKEYID="0x2"
+PSOPTS="-l"
+PSPIDOPTS="-p"
+LOGNAME=`/usr/xpg4/bin/id -u -n`
+GREP=/usr/xpg4/bin/grep
+elif [ "$MC" = "Linux" ]; then
+IPCRMOPTS="shm"
+LUSKEYID="0001"
+VPNSKEYID="0002"
+PSOPTS="v f c"
+PSPIDOPTS="-p"
+LOGNAME=`id -u -n`
+GREP=grep
+fi
+
+##
+## PID files
+##
+GISPIDFILE="/databases/gis.pid"
+GISAGEPIDFILE="/databases/gisage.pid"
+BCSPIDFILE="/databases/bcs.pid"
+FAXSPIDFILE="/databases/faxs.pid"
+FAXDPIDFILE="/databases/faxd.pid"
+RSDPIDFILE="/databases/rsd.pid"
+PMPIDFILE="/databases/pm.pid"
+EXECDPIDFILE="/databases/execd.pid"
+
+
+##
+## Shared Memory Key IDs.
+##
+
+##
+## ProgInformation
+##
+ProgInformation ()
+{
+	$ECHO ""
+	$ECHO "$ProgDescription v$ProgVersion of $ProgDate"
+	$ECHO "$ProgCopyright"
+	$ECHO ""
+}
+
+##
+## Must be super user to run this script
+##
+CheckForSuperuser ()
+{
+	###########################
+	## Must be root
+	###########################
+	if [ "$LOGNAME" != "root" ]; then
+		echo ""
+		echo "You must be super-user to run this script."
+		echo "Exiting.... "
+		exit 2
+	fi
+
+}
+
+Uptimes ()
+{
+	checkJava
+	$JAVA -jar $SERPLEXPATH/jServer.jar uptime
+}
+
+##
+## Check for valid arguments
+##
+if [  -z "$DAEMON" ]; then
+	ProgInformation
+	$ECHO $Usage
+	$ECHO ""
+	exit 1
+fi
+
+##
+## If we want just the version info.
+##
+if [ "$DAEMON" = "-v" ]; then
+	ProgInformation
+fi
+
+##
+## Check for valid operation
+##
+if [ -z "$OPERATION" ]; then
+	$ECHO $Usage
+	$ECHO ""
+	exit 1
+fi
+
+##
+## CheckPid
+##
+CheckPid ()
+{
+	if [ -z "$PID" ]; then
+		$ECHO "Process unknown. Cannot perform $OPERATION"
+		return 1
+	else
+		return 0
+	fi
+}
+
+killGis ()
+{
+	LicenseToKill
+	$SERPLEXPATH/ifmgmt down
+	$SERPLEXPATH/cli clean cache
+	$SERPLEXPATH/ipcrmall
+	$RM $GISPIDFILE
+}
+
+
+LicenseToKill ()
+{
+        GisPid=`pgrep -x gis`
+
+        if [ ! -z "$GisPid" ]; then
+                $KILL -KILL $GisPid
+
+        fi
+
+        CliPid=`pgrep -x cli`
+        if [ ! -z "$CliPid" ]; then
+                $KILL -KILL $CliPid
+
+
+        fi
+		return 0
+}
+
+
+##
+## This sets it for /bin/sh only.
+## The reason being 'gis' is being spawned from this
+## script.
+## Requires privileged user/superuser.
+SetLimits ()
+{
+	FDLIMIT=`ulimit -a | $GREP nofile | awk '{ print $2 }'`
+
+	echo "old fd_limit=$FDLIMIT"
+
+	CORELIMIT=`ulimit -a | $GREP coredump | awk '{ print $2 }'`
+
+	echo "old core size=$CORELIMIT"
+
+	## Set core file size
+	ulimit -c unlimited
+
+	CORELIMIT=`ulimit -a | $GREP coredump | awk '{ print $2 }'`
+
+	echo "new core size=$CORELIMIT"
+
+	## Set the fd limit
+	ulimit -n 2048
+	FDLIMIT=`ulimit -a | $GREP nofile | awk '{ print $2 }'`
+
+	echo "new fd_limit=$FDLIMIT"
+}
+
+gisHandle ()
+{
+
+	if [ "$OPERATION" = "start" ]; then
+#		if [ -f $SERPLEXPATH/gis ]; then
+#			$SERPLEXPATH/gis
+#		else
+#			$ECHO "$SERPLEXPATH/gis: No such file or directory"
+#		fi
+#
+		return 0
+	elif [ "$OPERATION" = "version" ]; then
+		if [ -f $SERPLEXPATH/gis ]; then
+			$SERPLEXPATH/gis -v
+		else
+			$ECHO "$SERPLEXPATH/gis: No such file or directory"
+		fi
+		return 0
+	elif [ "$OPERATION" = "uptime" ]; then
+		Uptimes | sed -n '/GIS/{p;n;p;}'
+		return 0
+	fi
+
+	if [ ! -f $GISPIDFILE ]; then
+		ISERVERUP=0
+		$ECHO "gis: No such process"
+		if [ "$OPERATION" = "stop" ]; then
+			$SERPLEXPATH/ifmgmt down
+			$SERPLEXPATH/cli clean cache
+			if [ -f /etc/init.d/ipfboot ]; then
+					/etc/init.d/ipfboot reload
+			fi
+		fi
+		return 1
+	fi
+
+	PID=`cat $GISPIDFILE`
+
+	CheckPid
+	if [ $? = 1 ]; then
+		ISERVERUP=0
+		if [ "$OPERATION" = "stop" ]; then
+			$SERPLEXPATH/ifmgmt down
+		    $SERPLEXPATH/cli clean cache
+			if [ -f /etc/init.d/ipfboot ]; then
+					/etc/init.d/ipfboot reload
+			fi
+		fi
+		return 1
+	fi
+
+	case $OPERATION in
+	stop)
+		$ECHO "Stopping NexTone GIS Directory Server, pid=[$PID]."
+		vports=`$SERPLEXPATH/cli lstat | grep "Used VPORTS" | awk '{print $3}'`
+		$KILL -INT $PID 
+		trap killGis 2
+		if [ -z "$vports" ]; then
+			maxcount=5
+		else
+			maxcount=`expr  $vports / 50  + 1`
+		fi
+		count=0
+		while [ $count -lt $maxcount ]
+		do
+			sleep 1
+			GisPid=`pgrep -x gis`
+			if [ -z "$GisPid" ]
+			then
+				break
+			fi
+			count=`expr $count + 1`
+			$ECHO "Waiting for the Gis to exit..."
+		done
+
+		LicenseToKill
+		$SERPLEXPATH/ifmgmt down
+		$SERPLEXPATH/cli clean cache
+		$RM $GISPIDFILE
+
+		$ECHO ""
+	;;
+	start)
+		SetLimits
+		$SERPLEXPATH/gis
+		$ECHO ""
+		sleep 2
+	;;
+	## reread config file
+	reconfig)
+		$ECHO "Reconfiguring NexTone GIS Directory Server, pid=[$PID]."
+		$KILL $RECONFIGSIG $PID
+		$ECHO ""
+	;;
+
+	status)
+		PIDS="${PIDS} ${PSPIDOPTS} $PID"
+	;;
+	*)
+		$ECHO "Option \"$OPERATION\" Unknown"
+		$ECHO "Usage: $PROGNAME gis [ stop |  reconfig | status]"
+	;;
+	esac
+
+}
+
+ipcHandle ()
+{
+
+    $SERPLEXPATH/ipcrmall
+}
+
+gisageHandle ()
+{
+# not needed for Rel 2.05R2.
+	return 0;
+
+	if [ "$OPERATION" = "start" ]; then
+		return 0
+	elif [ "$OPERATION" = "uptime" ]; then
+		### $ECHO "uptime not supported for gisage yet"
+		return 0
+	fi
+
+	if [ ! -f $GISAGEPIDFILE ]; then
+		return 1
+	fi
+
+	PID=`cat $GISAGEPIDFILE`
+
+	CheckPid
+	if [ $? = 1 ]; then
+		exit 1
+	fi
+
+	case $OPERATION in
+	stop)
+		$KILL -INT $PID 2>>/dev/null
+
+		$RM $GISAGEPIDFILE
+		$ECHO ""
+	;;
+	start)
+	;;
+	## reread config file
+	reconfig)
+		$KILL $RECONFIGSIG $PID
+		$ECHO ""
+	;;
+
+	status)
+		PIDS="${PIDS} ${PSPIDOPTS} $PID"
+	;;
+	version)
+	;;
+	esac
+
+}
+
+bcsHandle ()
+{
+# not needed for Rel 1.3, unless we support intermediate CDRs
+	return 0;
+
+	if [ "$OPERATION" = "start" ]; then
+		if [ -f $SERPLEXPATH/bcs ]; then
+			$SERPLEXPATH/bcs
+		else
+			$ECHO "$SERPLEXPATH/bcs: No such file or directory"
+		fi
+
+		return 0
+	elif [ "$OPERATION" = "version" ]; then
+		if [ -f $SERPLEXPATH/bcs ]; then
+			$SERPLEXPATH/bcs -v
+		else
+			$ECHO "$SERPLEXPATH/bcs: No such file or directory"
+		fi
+		return 0
+	elif [ "$OPERATION" = "uptime" ]; then
+		### $ECHO "uptime not supported for bcs yet"
+		return 0
+	fi
+
+	if [ ! -f $BCSPIDFILE ]; then
+		$ECHO "bcs: No such process"
+		return 1
+	fi
+
+	PID=`cat $BCSPIDFILE`
+
+	CheckPid
+	if [ $? = 1 ]; then
+		exit 1
+	fi
+
+	case $OPERATION in
+	stop)
+		$ECHO "Stopping NexTone Billing Server, pid=[$PID]."
+		$KILL -INT $PID >>/dev/null
+
+		$RM $BCSPIDFILE
+		$ECHO ""
+
+	;;
+	start)
+		$SERPLEXPATH/bcs
+		$ECHO ""
+	;;
+	## reread config file
+	reconfig)
+		$ECHO "Reconfiguring NexTone Billing Server, pid=[$PID]."
+		$KILL $RECONFIGSIG $PID
+		$ECHO ""
+	;;
+
+	status)
+		PIDS="${PIDS} ${PSPIDOPTS} $PID"
+	;;
+	esac
+
+}
+
+# If rsd is configured in server.cfg return 0 else return 1
+RSDConfigured()
+{
+	$GREP rsd /usr/local/nextone/bin/server.cfg | \
+	{
+	while read process location restofline
+	do
+		if [ "$process" = "rsd" -a "$location" != "none" ]; then
+#			echo "rsd configured"
+			return 0;
+		fi
+	done
+
+#	echo "rsd not configured"
+	return 1;
+	}
+
+	return $?
+}
+
+CheckRSD()
+{
+	RSDConfigured;
+	if [ $? -ne 0 ]; then
+		return 1;
+	fi
+
+	if [ ! -f $RSDPIDFILE ]; then
+		$ECHO "rsd: No such process"
+		return 1
+	fi
+
+	PID=`cat $RSDPIDFILE`
+
+	CheckPid;
+	if [ $? -ne 0 ]; then
+		return 1;
+	fi
+
+	return 0;
+}
+
+rsdHandle ()
+{
+#	if [ "$OPERATION" = "start" ]; then
+#		if [ -f $SERPLEXPATH/rsd ]; then
+#			$SERPLEXPATH/rsd
+#		else
+#			$ECHO "$SERPLEXPATH/rsd: No such file or directory"
+#		fi
+
+#		return 0
+#	elif [ "$OPERATION" = "version" ]; then
+#		if [ -f $SERPLEXPATH/rsd ]; then
+#			$SERPLEXPATH/rsd -v
+#		else
+#			$ECHO "$SERPLEXPATH/rsd: No such file or directory"
+#		fi
+#		return 0
+#	elif [ "$OPERATION" = "uptime" ]; then
+		### $ECHO "uptime not supported for rsd yet"
+#		return 0
+#	fi
+
+
+	case $OPERATION in
+
+	stop)
+		CheckRSD
+		if [ $? -ne 0 ]; then
+#			echo "rsdHandle: RSD Not present"
+			return 1;
+		fi
+		$ECHO "Stopping NexTone Replication Server, pid=[$PID]."
+		$KILL -INT $PID >>/dev/null
+		sleep 2
+		RsdPid=`ps -aef | $GREP rsd | $GREP -v grep | $GREP -v iserver | awk '{ print $2 }'`
+
+		if [ ! -z "$RsdPid" ]; then
+			sleep 2
+			$KILL -KILL $RsdPid
+		fi
+
+		$RM $RSDPIDFILE
+		$ECHO ""
+
+	;;
+
+	start)
+		$SERPLEXPATH/rsd
+		$ECHO ""
+	;;
+
+	## reread config file
+	reconfig)
+		CheckRSD
+		if [ $? -ne 0 ]; then
+			return 1;
+		fi
+		$ECHO "Reconfiguring NexTone Replication Server, pid=[$PID]."
+		$KILL $RECONFIGSIG $PID
+		$ECHO ""
+	;;
+
+	status)
+		CheckRSD
+		if [ $? -ne 0 ]; then
+			return 1;
+		fi
+		PIDS="${PIDS} ${PSPIDOPTS} $PID"
+	;;
+
+	version)
+		if [ -f $SERPLEXPATH/rsd ]; then
+			$SERPLEXPATH/rsd -v
+		else
+			$ECHO "$SERPLEXPATH/rsd: No such file or directory"
+		fi
+	;;
+
+	uptime)
+#	Not supported yet
+	;;
+
+	*)
+		$ECHO "Option \"$OPERATION\" Unknown"
+		$ECHO "Usage: $PROGNAME rsd [ start | stop |  reconfig | status]"
+	;;
+
+	esac
+
+}
+
+# If execd is configured in server.cfg return 0 else return 1
+ExecDConfigured()
+{
+	$GREP execd /usr/local/nextone/bin/server.cfg | \
+	{
+	while read process location restofline
+	do
+		if [ "$process" = "execd" -a "$location" != "none" ]; then
+#			echo "execd configured"
+			return 0;
+		fi
+	done
+
+#	echo "execd not configured"
+	return 1;
+	}
+
+	return $?
+}
+
+CheckExecD()
+{
+	ExecDConfigured;
+	if [ $? -ne 0 ]; then
+		return 1;
+	fi
+
+	if [ ! -f $EXECDPIDFILE ]; then
+		$ECHO "rsd: No such process"
+		return 1
+	fi
+
+	PID=`cat $EXECDPIDFILE`
+
+	CheckPid;
+	if [ $? -ne 0 ]; then
+		return 1;
+	fi
+
+	return 0;
+}
+
+execdHandle ()
+{
+	case $OPERATION in
+
+	stop)
+		CheckExecD
+		if [ $? -ne 0 ]; then
+#			echo "execdHandle: execd Not present"
+			return 1;
+		fi
+		$ECHO "Stopping NexTone Cmd Execution Server, pid=[$PID]."
+		$KILL -INT $PID >>/dev/null
+		sleep 2
+		ExecdPid=`ps -aef | $GREP execd | $GREP -v grep | $GREP -v iserver | awk '{ print $2 }'`
+
+		if [ ! -z "$ExecdPid" ]; then
+			sleep 2
+			$KILL -KILL $ExecdPid
+		fi
+
+		$RM $EXECDPIDFILE
+		$ECHO ""
+
+	;;
+
+	start)
+		$SERPLEXPATH/execd
+		$ECHO ""
+	;;
+
+	## reread config file
+	reconfig)
+		CheckExecD
+		if [ $? -ne 0 ]; then
+			return 1;
+		fi
+		$ECHO "Reconfiguring NexTone Cmd Execution Server, pid=[$PID]."
+		$KILL $RECONFIGSIG $PID
+		$ECHO ""
+	;;
+
+	status)
+		CheckExecD
+		if [ $? -ne 0 ]; then
+			return 1;
+		fi
+		PIDS="${PIDS} ${PSPIDOPTS} $PID"
+	;;
+
+	version)
+		if [ -f $SERPLEXPATH/execd ]; then
+			$SERPLEXPATH/execd -v
+		else
+			$ECHO "$SERPLEXPATH/execd: No such file or directory"
+		fi
+	;;
+
+	uptime)
+#	Not supported yet
+	;;
+
+	*)
+		$ECHO "Option \"$OPERATION\" Unknown"
+		$ECHO "Usage: $PROGNAME execd [ start | stop |  reconfig | status]"
+	;;
+
+	esac
+
+}
+
+faxsHandle ()
+{
+# Rel 1.3, fax does not work. Take it out till we know it works
+	return 0
+
+	if [ "$OPERATION" = "start" ]; then
+		if [ -f $SERPLEXPATH/faxscheduler ]; then
+			$SERPLEXPATH/faxscheduler
+		else
+			$ECHO "$SERPLEXPATH/faxscheduler: No such file or directory"
+		fi
+
+		return 0
+	elif [ "$OPERATION" = "version" ]; then
+		if [ -f $SERPLEXPATH/faxscheduler ]; then
+			$SERPLEXPATH/faxscheduler -v
+		else
+			$ECHO "$SERPLEXPATH/faxscheduler: No such file or directory"
+		fi
+		return 0
+	elif [ "$OPERATION" = "uptime" ]; then
+		### $ECHO "uptime not supported for faxs yet"
+		return 0
+	fi
+
+	if [ ! -f $FAXSPIDFILE ]; then
+		$ECHO "faxs: No such process"
+		return 1
+	fi
+
+	PID=`cat $FAXSPIDFILE`
+
+	CheckPid
+	if [ $? = 1 ]; then
+		return 1
+	fi
+
+	case $OPERATION in
+	stop)
+		$ECHO "Stopping NexTone Fax Server, pid=[$PID]."
+		$KILL -INT $PID
+
+		## Remove the PID file
+		$RM $FAXSPIDFILE
+		$ECHO ""
+	;;
+	start)
+		$SERPLEXPATH/faxscheduler
+		$ECHO ""
+	;;
+	## reread config file
+	reconfig)
+		$ECHO "Reconfiguring NexTone Fax Server, pid=[$PID]."
+		$KILL $RECONFIGSIG $PID
+		$ECHO ""
+	;;
+
+	status)
+		PIDS="${PIDS} ${PSPIDOPTS} $PID"
+	;;
+	esac
+
+}
+
+faxdHandle ()
+{
+
+# Rel 1.3, fax does not work. Take it out till we know it works
+	return 0
+
+	if [ "$OPERATION" = "start" ]; then
+		return 0
+	elif [ "$OPERATION" = "uptime" ]; then
+		### $ECHO "uptime not supported for faxd yet"
+		return 0
+	fi
+
+	if [ ! -f $FAXDPIDFILE ]; then
+		return 1
+	fi
+
+	PID=`cat $FAXDPIDFILE`
+
+	CheckPid
+	if [ $? = 1 ]; then
+		exit 1
+	fi
+
+	case $OPERATION in
+	stop)
+		$ECHO "Stopping NexTone Fax Dispatcher, pid=[$PID]."
+		$KILL -INT $PID 2>>/dev/null
+
+	##	Remove the PID file
+		$RM $FAXDPIDFILE
+		$ECHO ""
+	;;
+	start)
+	;;
+	## reread config file
+	reconfig)
+		$ECHO "Reconfiguring NexTone Fax Dispatcher, pid=[$PID]."
+		$KILL $RECONFIGSIG $PID
+		$ECHO ""
+	;;
+
+	status)
+		PIDS="${PIDS} ${PSPIDOPTS} $PID"
+	;;
+        version)
+                :
+        ;;
+	esac
+
+}
+
+pmHandle()
+{
+
+	if [ "$OPERATION" = "start" ]; then
+		checkJava
+		if [ $? -ne 0 ]; then
+                        $ECHO "Unable to find required java version"
+			exit 0
+		fi
+		if [ -f $SERPLEXPATH/pm ]; then
+			$SERPLEXPATH/pm
+                        $ECHO "Nextone iServer is being started"
+		else
+			$ECHO "$SERPLEXPATH/pm: No such file or directory"
+		fi
+		exit 0
+	elif [ "$OPERATION" = "version" ]; then
+		return 0
+	elif [ "$OPERATION" = "uptime" ]; then
+		Uptimes | sed -n '/Process Manager/{p;n;p;}'
+		return 0
+	fi
+
+	if [ ! -f $PMPIDFILE ]; then
+		$ECHO "pm: No such process"
+		return 1
+	fi
+
+	PID=`cat $PMPIDFILE`
+
+	CheckPid
+	if [ $? = 1 ]; then
+		$ECHO "pm: No such process"
+		return 1
+	fi
+
+	case $OPERATION in
+	stop)
+		$ECHO "Stopping NexTone Process Manager, pid=[$PID]."
+		$KILL -KILL $PID
+
+		## Remove the PID file
+		$RM $PMPIDFILE
+		$ECHO ""
+	;;
+	## reread config file
+	reconfig)
+			$ECHO "Reconfiguring NexTone  Process Manager, pid=[$PID]."
+			$KILL $RECONFIGSIG $PID
+	
+	;;
+
+	status)
+		PIDS="${PIDS} ${PSPIDOPTS} $PID"
+	;;
+	*)
+		$ECHO "Option \"$OPERATION\" Unknown"
+		$ECHO "Usage: $PROGNAME pm [start | stop |  reconfig | status]"
+	;;
+	esac
+
+}
+
+
+commandServerHandle ()
+{
+
+	if [ "$OPERATION" = "start" ]; then
+		if [ -f $SERPLEXPATH/command_server.pl ]; then
+			$ECHO "Starting command_server [as background task]"
+			$SERPLEXPATH/command_server.pl &
+		else
+			$ECHO "$SERPLEXPATH/command_server.pl: No such file or directory"
+		fi
+
+		return 0
+	fi
+
+	PID=`ps auxw | $GREP perl | $GREP local | awk ' { print $2 } '`
+
+	CheckPid
+	if [ $? = 1 ]; then
+		exit 1
+	fi
+
+	case $OPERATION in
+	stop)
+		$ECHO "Stopping command_server.pl, pid=[$PID]."
+		$KILL -TERM $PID
+		$ECHO ""
+	;;
+	start)
+		$ECHO "Starting command_server.pl."
+		$SERPLEXPATH/command_server.pl
+		$ECHO ""
+	;;
+	status)
+		PIDS="${PIDS} ${PSPIDOPTS} $PID"
+	;;
+	esac
+
+}
+
+
+startjs ()
+{
+	## have to redirect to some file so that 'nohup' doesn't complain
+	nohup $JAVA -server -Xms32m -Xss1024k -Xincgc -jar $SERPLEXPATH/jServer.jar start >> $JSLOGFILE 2>&1  &
+}
+
+stopjs ()
+{
+	jspids=""
+	for pid in `$PS $JPSOPTS | $GREP jServer | $GREP -v grep | awk ' { print $2 } '`;
+	do
+		if [ -z "$jspids" ]
+		then
+			jspids="$pid"
+		else
+			jspids="$pid $jspids"
+		fi
+	done
+	$ECHO "Stopping NexTone Configuration Server, pid=[$jspids]."
+	$JAVA -jar $SERPLEXPATH/jServer.jar stop
+}
+
+checkJava ()
+{
+	## test if java is in the path
+	if [ ! -f /usr/local/nextone/bin/java ]; then
+	    type java > /dev/null 2>&1
+	    if [ $? -ne 0 ]; then
+		$ECHO "Cannot find java runtime"
+		$ECHO "Please enter path for java (Eg. /usr/jre/bin/java)"
+		$ECHO "(If java runtime is not installed, just press Enter): "
+		read resp
+		if [ -z "$resp" ]; then
+		    $ECHO "Run the iServer install script to install the Java runtime"
+		    $ECHO ""
+		    return 1
+		else
+		    if [ -e $resp ]; then
+			if [ -d $resp ]; then
+			    $ECHO "Directory \"$resp\" is not executable"
+			    return 1
+			else
+			    TMPJAVA=$resp
+			fi
+		    else
+			$ECHO "Cannot locate $resp"
+			return 1
+		    fi
+		fi
+	    else
+		TMPJAVA=java
+	    fi
+	else
+	    TMPJAVA=/usr/local/nextone/bin/java
+	fi
+
+	## test for the right version of java for this release
+	## Need to change this test if we change the java runtime
+	JVERSION=`$TMPJAVA -version 2>&1 | $GREP "java version" | cut -d\" -f2 | cut -d\_ -f1`
+	JVERSION=${JVERSION:-unrecognized}
+
+	## For iserver, we need JRE 1.4 or above on solaris
+	if [ `echo $JVERSION | cut -d. -f2` -lt 4 ]; then
+	    $ECHO "Need java version 1.4.0 or above to run jServer, (found $JVERSION version)"
+	    return 1
+	fi
+
+	## test if the jar file is present
+	if [ -f $SERPLEXPATH/jServer.jar ]; then
+	    :
+	else
+	    $ECHO "$SERPLEXPATH/jServer.jar: No such file or directory"
+	    return 1
+	fi
+
+	## read in the log file configuration
+	if [ -f $SERPLEXPATH/server.cfg ]; then
+	    JSLOGFILE=`cat $SERPLEXPATH/server.cfg | $GREP "jserverlogfile \"" | cut -d\" -f2`
+	fi
+	JSLOGFILE=${JSLOGFILE:-/dev/null}
+
+	## ready to rock-n-roll, set the variables that we would need
+	LD_LIBRARY_PATH=$SERPLEXPATH
+	export LD_LIBRARY_PATH
+
+	## use the server VM starting jdk 1.4
+	JAVA="$TMPJAVA -DjServer=true"
+
+	if [ $MC = "SunOS" ]; then
+	    JPSOPTS="-ef"
+	else
+	    JPSOPTS="auxw"
+	fi
+	return 0
+}
+
+jserverHandle()
+{
+	checkJava
+	if [ $? -ne 0 ]; then
+		$ECHO "Unable to find required java version"
+		exit 0
+	fi
+
+##	$ECHO ""
+	case $OPERATION in
+	start)
+		startjs
+		## display program version here
+#		$JAVA -jar $SERPLEXPATH/jServer.jar version
+	;;
+	stop)
+		stopjs
+		## make sure all the java processes died (in case of a
+		## JVM crash things hang around) wait for about 10 seconds
+		## before killing everything off
+		count=0
+		while [ $count -lt 5 ]
+		do
+		    sleep 2
+		    pids=`$PS $JPSOPTS | $GREP jServer | $GREP -v grep | awk ' { print $2 } '`
+		    firstpid=`echo $pids | cut -d" " -f1`
+		    if [ -z "$firstpid" ]
+		    then
+			break
+		    fi
+		    count=`expr $count + 1`
+		    $ECHO "Waiting for the Configuration Server to exit..."
+		done
+		## waited long enough, now kill any pids left
+		pids=""
+ 		for pid in `$PS $JPSOPTS | $GREP jServer | $GREP -v grep | awk ' { print $2 } '`;
+ 		do
+ 		    $KILL -KILL $pid
+		    pids="$pid $pids"
+ 		done
+		if [ "$pids" != "" ]
+		then
+		    $ECHO "Killed the Configuration Server [ PIDs: $pids]"
+		fi
+	;;
+	reconfig)
+		## re-read server.cfg file
+		$ECHO "Reconfiguring NexTone Configuration Server"
+		$JAVA -jar $SERPLEXPATH/jServer.jar reconfig
+	;;
+	destroy)
+		for pid in `$PS $JPSOPTS | $GREP jServer | $GREP -v grep | awk ' { print $2 } '`;
+		do
+		    kill -KILL $pid
+		done
+	;;
+	status)
+		## well.. maybe also list the pids...
+		for pid in `$PS $JPSOPTS | $GREP jServer | $GREP -v grep | awk ' { print $2 } '`;
+		do
+			PIDS="$PIDS ${PSPIDOPTS} $pid"
+		done
+	;;
+	version)
+		## display program version
+		$JAVA -jar $SERPLEXPATH/jServer.jar version
+	;;
+	uptime)
+		## display program uptime
+		Uptimes | sed -n '/Configuration Server/{p;n;p;}'
+	;;
+	debug)
+		$JAVA -jar $SERPLEXPATH/jServer.jar debug $RESTARGS
+	;;
+	*)
+		$ECHO "Option \"$OPERATION\" Unknown"
+		$ECHO "Usage: $PROGNAME jserver [start | stop |  reconfig | status | destroy | debug | version | uptime]"
+	;;
+	esac
+
+##	$ECHO ""
+}
+
+##
+## calls different handle function...
+##
+SwitchStatement ()
+{
+    case $DAEMON in
+
+	gis)
+		gisHandle
+	;;
+	gisage)
+		gisageHandle
+	;;
+	bcs)
+		bcsHandle
+	;;
+	faxs)
+		faxsHandle
+	;;
+	faxd)
+		faxdHandle
+	;;
+	command_server)
+		commandServerHandle
+	;;
+	jserver)
+		jserverHandle
+	;;
+	pm)
+		pmHandle
+	;;
+	rsd)
+		rsdHandle
+	;;
+	execd)
+		execdHandle
+	;;
+	serplex)
+		jserverHandle
+		if [ "$OPERATION" = "stop" ]; then
+			rsdHandle
+			gisHandle
+			execdHandle
+			ipcHandle
+		else
+			execdHandle
+			gisHandle
+			rsdHandle
+		fi
+	;;
+	all)
+		pmHandle
+		jserverHandle
+		bcsHandle
+		if [ "$OPERATION" = "stop" ]; then
+			rsdHandle
+			gisHandle
+			execdHandle
+			ipcHandle
+		else
+			execdHandle
+			gisHandle
+			rsdHandle
+		fi
+	;;
+	*)
+		$ECHO "Status requested for unknown daemon"
+		$ECHO $Usage
+		exit 0
+	;;
+    esac
+}
+
+lstatHandle ()
+{
+	if [ $ISERVERUP = 0 ]; then
+		return 1
+	fi
+	$ECHO "License Information:"
+	$ECHO "--------------------"
+	$SERPLEXPATH/cli lstat
+}
+
+
+##
+## Main processing loop.
+##
+CheckForSuperuser
+SwitchStatement
+
+# If the operation is Status, display the status in a list
+# A list of processes has been created in the relevant daemon
+# sections
+if [ "$OPERATION" = "status" ]; then
+	# Only print if there are processes
+	if [ "$PIDS" ]; then
+		$ECHO "Version Information:"
+		$ECHO "--------------------"
+		OPERATION="version"
+		SwitchStatement
+
+		$ECHO "Process Status:"
+		$ECHO "---------------"
+		$PS $PSOPTS $PIDS
+		$ECHO ""
+
+		if [ $DAEMON = "jserver" -o $DAEMON = "all" ]; then
+		    ## get the status from jserver itself
+		    $ECHO "NexTone Configuration Server Additional Status:"
+		    $ECHO "-----------------------------------------------"
+		    $JAVA -jar $SERPLEXPATH/jServer.jar status
+		fi
+
+		## if we are looking for overall health, display additional
+		## information here...
+		if [ $DAEMON = "all" ]; then
+		    ## along with status messages, also display the uptime
+		    $ECHO "Server Uptimes:"
+		    $ECHO "---------------"
+		    OPERATION="uptime"
+		    SwitchStatement
+
+		    ## show the licensing information also
+		    lstatHandle
+		fi
+	else
+		$ECHO "iServer not running"
+		$ECHO ""
+	fi
+fi
+
+
+## All's well that end's well
+exit 0
+

@@ -1,0 +1,22 @@
+# random thoughts about what to do next.
+# suggestions welcome
+
+Add install.ppm for PPM installs
+
+Also MIME-encode headers if they contain accented characters
+
+During Makefile.PL, try to find a local SMTP server and the user's e-mail 
+address, and offer to pre-configure these as defaults in Sendmail.pm. And 
+let the user enter defaults to override automatic detection.
+
+Document $address_rx: which addresses it finds OK, and which not.
+
+Use 8BITMIME if available from server?
+
+Encode only if accented chars really present?
+
+Add example scripts for CGI forms
+
+Rename to Mail::Simple?
+
+Setup Perl on an Amiga and see if it runs. (it should)

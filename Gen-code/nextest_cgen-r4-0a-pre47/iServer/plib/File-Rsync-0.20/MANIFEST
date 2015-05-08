@@ -1,0 +1,9 @@
+Changelog
+Config.in
+MANIFEST
+Makefile.PL
+README
+Rsync.pm
+TODO
+makepm.PL
+test.pl

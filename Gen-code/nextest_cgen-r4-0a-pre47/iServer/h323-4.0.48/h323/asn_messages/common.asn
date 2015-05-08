@@ -1,0 +1,201 @@
+COMMON ::=
+
+BEGIN
+
+-- This ASN.1 file contains the settings of the stack's configuration
+
+
+-- Main stack configuration
+SystemConfiguration ::= SEQUENCE
+{
+    manualStart     NULL OPTIONAL,
+    pdlName         OCTET STRING OPTIONAL,
+    cidAssociate        NULL OPTIONAL,
+    delimiter               OCTET STRING (SIZE(1)) OPTIONAL,
+    allocations     SEQUENCE
+    {
+        vtPoolSize      INTEGER(0..2147483647) OPTIONAL,
+        vtNodeCount     INTEGER(0..2147483647) OPTIONAL,
+        channels            INTEGER(0..2147483647) OPTIONAL,
+        chanDescs       INTEGER(0..2147483647) OPTIONAL,
+        messages        INTEGER(0..2147483647) OPTIONAL,
+        nameChans       INTEGER(0..2147483647) OPTIONAL,
+        tpktChans       INTEGER(0..2147483647) OPTIONAL,
+        tpktNoBuffers   INTEGER(0..2147483647) OPTIONAL,
+        udpChans        INTEGER(0..2147483647) OPTIONAL,
+        protocols           INTEGER(0..2147483647) OPTIONAL,
+        maxProcs        INTEGER(0..2147483647) OPTIONAL,
+        ...
+        maxBuffSize         INTEGER(0..65536) OPTIONAL,
+        maxPoolSizeInKB     INTEGER(0..4194304) OPTIONAL,
+    } OPTIONAL,
+    ...
+    maxCalls            INTEGER(0..2147483647) OPTIONAL,
+    maxChannels         INTEGER(0..2147483647) OPTIONAL,
+    maxRasOutTransactions   INTEGER(0..2147483647) OPTIONAL,
+    maxRasInTransactions    INTEGER(0..2147483647) OPTIONAL,
+    localIPAddress       OCTET STRING (SIZE(4)) OPTIONAL,
+    portFrom             INTEGER(0..65535) OPTIONAL,
+    portTo               INTEGER(0..65535) OPTIONAL,
+    callPropertyMode CHOICE
+    {
+        fullProperty            NULL,
+        copySingleMessages      NULL,
+        deleteSingleMessages    NULL,
+        doNotUseProperty        NULL
+    }
+}
+
+
+
+-- **************************
+-- H450 related configuration
+-- **************************
+
+H450SystemConfiguration ::= SEQUENCE
+{
+    pdlName         OCTET STRING OPTIONAL,
+    allocations     SEQUENCE
+    {
+        vtNodeCount     INTEGER(0..2147483647) OPTIONAL,
+        channels        INTEGER(0..2147483647) OPTIONAL,
+        chanDescs       INTEGER(0..2147483647) OPTIONAL,
+        messages        INTEGER(0..2147483647) OPTIONAL,
+        protocols       INTEGER(0..2147483647) OPTIONAL,
+        maxProcs        INTEGER(0..2147483647) OPTIONAL,
+        ...
+    } OPTIONAL,
+    ...
+    maxCalls            INTEGER(0..2147483647) OPTIONAL,
+    maxServices         INTEGER(0..2147483647) OPTIONAL
+}
+
+
+CTConfig ::= SEQUENCE
+{
+    ctt1    INTEGER(0..65535)   OPTIONAL, -- in seconds
+    ctt2    INTEGER(0..65535)   OPTIONAL, -- in seconds
+    ctt3    INTEGER(0..65535)   OPTIONAL, -- in seconds
+    ctt4    INTEGER(0..65535)   OPTIONAL, -- in seconds
+}
+
+CDConfig ::= SEQUENCE
+{
+    cdt1    INTEGER(0..65535)   OPTIONAL, -- in seconds
+    cdt2    INTEGER(0..65535)   OPTIONAL, -- in seconds
+    cdt3    INTEGER(0..65535)   OPTIONAL, -- in seconds
+    cdt4    INTEGER(0..65535)   OPTIONAL, -- in seconds
+    cdt5    INTEGER(0..65535)   OPTIONAL, -- in seconds
+}
+
+CHConfig ::= SEQUENCE
+{
+    cht1    INTEGER(0..65535)   OPTIONAL, -- in seconds
+    cht2    INTEGER(0..65535)   OPTIONAL, -- in seconds
+}
+
+CPConfig ::= SEQUENCE
+{
+    cpt1    INTEGER(0..65535)   OPTIONAL, -- in seconds ,between sending ssCPRequest and
+                                          --             getting response (PRKG)
+    cpt2    INTEGER(0..65535)   OPTIONAL, -- in seconds ,between sending ssCPSetup and
+                                          --             getting response (PRKD)
+    cpt3    INTEGER(0..65535)   OPTIONAL, -- in seconds ,between sending ssCPSetup response
+                                          --             and getting ssCPPickup response (PRKT)
+    cpt4    INTEGER(0..65535)   OPTIONAL, -- in seconds ,between sending ssGroupIndicationOn and
+                                          --             getting response (GPSRV)
+    cpt5    INTEGER(0..65535)   OPTIONAL, -- in seconds ,between sending ssGroupIndicationOff and
+                                          --             getting response (GPSRV)
+    cpt6    INTEGER(0..65535)   OPTIONAL, -- in seconds ,between sending ssCPPickup and
+                                          --             getting response (PRKG) - local pickup
+    cpt7    INTEGER(0..65535)   OPTIONAL, -- in seconds ,between sending ssCPPickrequ and
+                                          --             getting response (PRKT)
+    cpt8    INTEGER(0..65535)   OPTIONAL, -- in seconds ,between getting ssCPPickrequ response
+                                          --             and getting ssCPPickExe (PRKT)
+    cpt9    INTEGER(0..65535)   OPTIONAL, -- in seconds ,between sending ssCPPickup and
+                                          --             getting response (PRKT) - remote pickup
+    cpt10   INTEGER(0..65535)   OPTIONAL, -- in seconds ,between sending ssCPPickExe and
+                                          --             getting response (PRKD)
+}
+
+CWConfig ::= SEQUENCE
+{
+    tcw INTEGER(0..65535)   OPTIONAL, -- in seconds
+    indicateCalling NULL    OPTIONAL, -- whether calling user wait for indication that its call is waiting
+
+}
+
+MWIConfig ::= SEQUENCE
+{
+    mwit1   INTEGER(0..65535)   OPTIONAL, -- in seconds
+    mwit2   INTEGER(0..65535)   OPTIONAL, -- in seconds
+
+}
+
+CCConfig ::= SEQUENCE
+{
+    maxServices         INTEGER(0..65535)   OPTIONAL, -- Number of CallCompletion services supported
+                                                      -- by the SSE. Default will be set to 0
+
+    cct1                INTEGER(10..30)     OPTIONAL, -- in seconds
+                                                      -- Timer between first Setup message until
+                                                      -- a response to it. This timer is handled by
+                                                      -- UserA of the service.
+                                                      -- Defaults to 15 seconds
+    cct2Busy            INTEGER(1..60)      OPTIONAL, -- in minutes
+                                                      -- Service duration until cancelation
+                                                      -- Defaults to 15 minutes
+    cct2NoResponse      INTEGER(1..1440)    OPTIONAL  -- in minutes
+                                                      -- Service duration until cancelation
+                                                      -- Defaults to 60 minutes
+    canRetainService    BOOLEAN             OPTIONAL
+}
+
+COConfig ::= SEQUENCE
+{
+    tcw        INTEGER(0..65535)     OPTIONAL, -- in seconds
+                                                      -- Timer between first Setup message until
+                                                      -- an alert, a connect or a release
+                                                      -- complete message.
+}
+
+CIConfig ::= SEQUENCE
+{
+        cit1        INTEGER(0..65535)   OPTIONAL, -- in seconds
+                                                  -- Timer between sending the initial
+                                                  -- intrution invoke message to its response.
+                                                  -- This timer is handled by UserA of
+                                                  -- the service.
+        cit2        INTEGER(0..65535)   OPTIONAL, -- in seconds
+                                                  -- Timer between sending isolation request to
+                                                  -- its response.This timer is handled by
+                                                  -- UserA of the service.
+        cit3        INTEGER(0..65535)   OPTIONAL, -- in seconds
+                                                  -- Timer between sendind a forceRelease request
+                                                  -- to receiving its response.This timer is
+                                                  -- handled by UserA of the service.
+        cit4        INTEGER(0..65535)   OPTIONAL, -- in seconds
+                                                  -- Timer between sending a waitOnBusy request
+                                                  -- to its response.This timer is handled by
+                                                  -- UserA of the service.
+        cit5        INTEGER(0..65535)   OPTIONAL, -- in seconds
+                                                  -- Timer between sending a getCIPL message
+                                                  -- to receiving its response. This timer is
+                                                  -- handled by UserB of the service.
+        cit6        INTEGER(0..65535)   OPTIONAL, -- in seconds
+                                                  --  When a notification on an impending
+                                                  -- intrusion is sent, this timer start
+                                                  -- running. when it expier the intrusion
+                                                  -- take place. This timer is handled by
+                                                  -- UserB of the service
+        cicl           INTEGER (0..3) OPTIONAL,   --Mandatory in A  the capability level of the user
+        cipl           INTEGER (0..3) OPTIONAL,   --Mandatory in B  the protection level of the user
+        c_default_cipl INTEGER (0..3) OPTIONAL,   --Mandatory in B  the default protection level of a
+                                                  -- "userC" if none is supplied by userC.
+        silentMonitorInd      NULL    OPTIONAL,   --Mandatory in C indicates if the user allow silent
+                                                  -- monitor to be done on his calles.
+
+}
+
+
+END

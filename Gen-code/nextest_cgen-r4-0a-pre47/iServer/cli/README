@@ -1,0 +1,117 @@
+Usage: 
+---------------------------------------------------------------------------------
+cli 	netoid 	add 	SerNo [portL [-portH] [VpnId Extn] [VpnId Extn] ...]
+		vpns 	SerNo [portL [-portH] [VpnId Extn] [VpnId Extn] ...]
+		lines 	SerNo [portL [-portH] [PhoneNumber] [PhoneNumber] ...]
+		ip 	SerNo [portL [-portH] [IPAddr]
+		proxy 	SerNo [portL [-portH] ]
+		delete 	SerNo portNo
+		find 	SerNo portNo
+		list 
+		cache 
+		props 	SerNo [portL [-portH] ]
+
+---------------------------------------------------------------------------------
+	vpn 	add 	VpnId VpnExtLen
+		delete 	VpnId
+		list 
+
+---------------------------------------------------------------------------------
+	db 	info 
+		org 
+
+General Note -
+
+	The database used is a gdbm database, shared between cli, ls, vpns
+	through lock files. This database does not have to be explicitly
+	created. It can be copied using the 'cp' command.
+
+	For the 500 release, there are two databases: netoid database and the
+	vpn database. The netoid database is organized on (serialnumber,port
+	number) as keys. The vpn database is organized on (vpn ids) as the keys.
+	
+1. Adding a Netoid:
+	
+	cli netoid add SerNo [portL [-portH] [VpnId Extn] [VpnId Extn] ...]
+
+	The command must be used to add a netoid prior to any modifications
+	or updates via the rest of the commands. 
+
+	SerNo = string at most 64 char long
+	portL, portH = specifies the range of ports for the netoid (integer)
+	vpnId = string
+	Extn = string
+
+	example usages:
+
+	cli netoid add 3336665 0-5
+		-> Adds 6 netoids in the database, [3336665, 0], [3336665, 1]...
+		-> port numbers start from 0
+	cli netoid add 3336665 0
+		-> Adds one netoid. Its attributes can be revised later by the
+		   cli netoid vpns command.
+	cli netoid add 3336665 2-3 453 6301 453 6302
+		-> Adds two netoids, and configures their vpn extensions 
+		   respectively. [3336665, 2, 453-6301] [3336665, 3, 453-6302]
+		-> Vpn 453 is also added or verified.
+	
+2. Configuring Vpn Phone Numbers for netoids
+
+	cli netoid vpns SerNo [portL [-portH] [VpnId Extn] [VpnId Extn] ...]
+		-> similar to a netoid add command except it changes the
+		   extensions of already existing netoids.
+
+3. Configuring Real Phone Numbers for netoids
+
+	cli netoid lines SerNo [portL [-portH] [PhoneNumber] [PhoneNumber] ...]	
+
+	example usages:
+
+	cli netoid lines 3336665 2-3 3017210881 3017210882
+
+		->Configures phone numbers for two netoids: 
+		  [3336665, 2, 3017210881], [3336665, 2, 3017210882].
+
+4. Listing the database
+	
+	cli netoid list
+
+5. Listing the Lookup server and Vpns cache
+
+	cli netoid cache
+
+6. Modifying the properties of the netoids
+
+	cli netoid props
+
+7. Adding a New Vpn Id
+
+	cli vpn add VpnId VpnExtLen
+
+	examples:
+		cli vpn add 453 4
+			-> Adds a vpn id 453 with extension lengths of 4.
+
+8. Listing the databse information
+
+	cli db info
+
+		This will list the location of the databases, and lock files.
+
+Less frequently used commands:
+
+	cli db org
+
+		This command re-organizes a database for disk space. Useful
+		when a lot of deletions have been made.
+
+
+INSTALLATION:
+
+1. Create directory "/databases".
+2. Root access is necessary.
+3. Create "/locks" directory (Root access is necessary for this operation also).
+4. Any environment variables.
+5. ls, vpns, lsage, cli to be installed in "/usr/local/netoids/bin".
+6. Enhance PATH to include /usr/local/netoids/bin
+7. 

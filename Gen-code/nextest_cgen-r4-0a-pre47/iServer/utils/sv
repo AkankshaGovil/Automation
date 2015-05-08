@@ -1,0 +1,16 @@
+#!/bin/sh
+
+if [ ! -d "/usr/local/nextone-$1" ]; then
+	echo "/usr/local/nextone-$1 does not exist. Not Switching version"
+	exit 1
+fi
+
+/usr/local/nextone/bin/iserver all stop
+rm /usr/local/nextone
+rm /databases
+rm /locks
+ln -s /usr/local/nextone-$1 /usr/local/nextone
+ln -s /usr/local/nextone-$1/databases /databases
+ln -s /usr/local/nextone-$1/locks /locks
+echo "iServer version switched to nextone-$1"
+

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!-- Common DTD for configure messages -->
+<!-- A configure message can comprise the configuration data for a number of features -->
+<!ELEMENT NexToneMsg (ReadPassword, WritePassword, H323Data?, SIPData?, SWDownload?)>
+<!ATTLIST NexToneMsg
+	version CDATA #REQUIRED
+	cmd CDATA #FIXED "Config"
+>
+<!ELEMENT H323Data (H323Gateway?, GatewayConfig?, GatekeeperConfig?, VendorData?)>
+<!ELEMENT SIPData (Domain?, Registrar?, Registration?, ProxyServer?, VendorData?)>
+<!ATTLIST SIPData
+	protocol (tcp | udp) #REQUIRED
+>
+<!ELEMENT SWDownload (ServerAddress?, ServerPort?, Mode?, Username?, Password?, Filepath?, Filename?)>
+<!ELEMENT GatewayConfig (CountryCode?, AreaCode?, ExchangeCode?)>
+<!ELEMENT GatekeeperConfig (Gatekeeper*)>
+<!ATTLIST GatekeeperConfig
+	addressType (static | discover) #REQUIRED
+>
+<!ELEMENT Gatekeeper (Address?, ID?)>
+<!ATTLIST Gatekeeper
+	role (primary | secondary) #REQUIRED
+>
+<!ELEMENT Address (#PCDATA)>
+<!ELEMENT AreaCode (#PCDATA)>
+<!ELEMENT CountryCode (#PCDATA)>
+<!ELEMENT ExchangeCode (#PCDATA)>
+<!ELEMENT H323Gateway (#PCDATA)>
+<!ELEMENT ID (#PCDATA)>
+<!ELEMENT VendorData (#PCDATA)>
+<!ELEMENT ReadPassword (#PCDATA)>
+<!ELEMENT WritePassword (#PCDATA)>
+<!ELEMENT Domain (#PCDATA)>
+<!ELEMENT Registrar (#PCDATA)>
+<!ELEMENT Registration (#PCDATA)>
+<!ATTLIST Registration
+	enable (true | false) #REQUIRED
+>
+<!ELEMENT ProxyServer (Address, Port)>
+<!ELEMENT Port (#PCDATA)>
+<!ELEMENT ServerAddress (#PCDATA)>
+<!ELEMENT ServerPort (#PCDATA)>
+<!ELEMENT Mode (#PCDATA)>
+<!ELEMENT Username (#PCDATA)>
+<!ELEMENT Password (#PCDATA)>
+<!ELEMENT Filepath (#PCDATA)>
+<!ELEMENT Filename (#PCDATA)>

@@ -1,0 +1,892 @@
+Changes made to SIP Stack Release 5.2
+=====================================
+* RFC 3325, Private Extensions to the Session Initiation Protocol (SIP) 
+  for Asserted Identity  within Trusted Networks
+* RFC 3326, The Reason Header Field for the Session Initiation Protocol (SIP)
+* RFC 3327, Session Initiation Protocol (SIP) Extension Header Field 
+  for Registering Non-Adjacent Contacts
+* RFC 3329, Security Mechanism Agreement for the Session Initiation 
+  Protocol (SIP)
+* RFC 3428, Session Initiation Protocol (SIP) Extension for 
+  Instant Messaging
+* RFC 3455, Private Header (P-Header) Extensions to the Session Initiation 
+  Protocol (SIP) for the 3rd-Generation Partnership Project (3GPP)
+* RFC 3487, Requirements for Resource Priority Mechanisms for the 
+  Session Initiation Protocol (SIP)
+* RFC 3581, An Extension to the Session Initiation Protocol (SIP) 
+  for Symmetric Response Routing
+* RFC 3087, Control of Service Context using SIP Request-URI
+* draft-ietf-sip-callee-caps-00.txt , Indicating User Agent Capabilities 
+  in the Session Initiation Protocol, June 23, 2003
+* draft-ietf-sip-connect-reuse-00.txt , Connection Reuse in the 
+  Session Initiation Protocol (SIP), Aug 2003
+* draft-ietf-sip-events-03.txt
+* draft-ietf-sip-join-02.txt , Session Inititation Protocol (SIP)  
+  "Join" Header, June 27, 2003
+* draft-ietf-sip-message-07 ,  Session Initiation Protocol Extension 
+  for Instant Messaging
+* draft-ietf-sip-resource-priority-01.txt, Communications Resource 
+  Priority for the Session Initiation Protocol, July 2003
+* draft-ietf-sip-scvrtdisco-04, Session Initiation Protocol Extension 
+  Header Field for Service Route Discovery During Registration, May 2003
+* draft-ietf-sip-smime-aes-01, S/MIME AES Requirement for 
+  SIP, June 28, 2003
+* draft-sparks-sip-mimetypes-03, Internet Media Type 
+  message/sipfrag, April 2002
+* draft-mahy-sip-message-waiting-02.txt
+* draft-olson-simple-publish-02.txt , B. Campbell , S. Olson , 
+  J. Peterson, J. Rosenberg, B. Stucker , February , 2003
+* RFC 2848 - Extensions to SIP and SDP for IP Access to Telephone Call Services 
+* draft-ietf-impp-pres-03.txt , J. Peterson NeuStar , May 200
+* RFC 3311, The Session Initiation Protocol (SIP) UPDATE Method
+* RFC 3312, Integration of Resource Management and Session
+  Initiation Protocol (SIP)
+* RFC 3313, Private Session Initiation Protocol (SIP) Extensions 
+  for Media Authorization
+* RFC 3323, A Privacy Mechanism for the Session Initiation Protocol (SIP)
+* RFC 3325, Private Extensions to the Session Initiation Protocol (SIP) for 
+  Asserted Identity within Trusted Networks
+* The Session Initiation Protocol (SIP) Refer Method, RFC 3515
+* The SIP proxy to proxy extensions to support DCS, 
+  draft-dcsgroup-sipping-proxy-proxy-00.txt.
+* draft-ietf-sip-message-07 ,  Session Initiation Protocol Extension 
+  for Instant Messaging
+* The Session Initiation Protocol Replaces header, 
+   draft-ietf-sip-replaces-04.txt, June 25, 2003, Rohan Mahy.
+* The SIP Session Timer, draft-ietf-sip-session-timer-011.txt, July 2003.  
+* SIP Event Package for Message Waiting indication, 
+  draft-ietf-sipping-mwi-03, June 2003, Rohan Mahy et al.
+* Fixed Bug:Error while compiling sipstack 5.2  with g++ as option.
+  Code for function `sip_getRouteAtIndexFromPresUrl' was not following
+  ANSI format.Code changed as per ANSI format in pres.c
+* Fixed Bug:Error while compiling sipstack 5,2 with gcc as option.
+  Error was in Non-By-Ref code.
+  In pres.c function `sip_getRouteAtIndexFromPresUrl'
+  SIP_S8bit**pRoute is a pointer to a pointer instead of being a single 
+  pointer(SIP_S8bit*pRoute). Also inpres.h the function declaration for
+  BYREF was absent.  
+* Fixed Bug:Error in parsing Security header
+  There was an error in parsing Security Headers when generic param 
+  was equal to token only instead of name value pair.
+* Fixed Bug:Error in parsing  p-access-Network-info.
+  Digits support was not included.So token:TOKEN|DIGITS rule added.
+* Fixed Bug:p-charging-function-addressess was not decoded properly
+  In 3gpp.y pcfaddrparam: TOKEN RULE the variable index was 
+  initialized to 1.Changed it to 0.   
+* Fixed Bug:Error in parsing  p-visited-Network-id. 
+  In pvisitednetworkidfields: RULE replace TOKEN with token
+* Fixed Bug:Error in parsing  Referred-by header.
+  % support was not included.So % is added in USERPASS token in Fromto.l
+* Fixed Bug:Error in parsing  Call-Id.
+  LANGLE support was not included.So LANGLE token is added in Both lex 
+  and Bison file.
+* Fixed Bug: parse error in o line for SDP PINT
+  The "+" character was not getting returned thru the ALPHASAFE token.
+  So the rule for this token was shifted above in Mediapint_stub.l
+* Fixed Bug: parse error in m line for SDP PINT
+  Modified the rule for DASH token
+
+Changes made to SIP Stack Release 5.1
+=====================================
+* Fixed Bug: Message Body parsing was changed to allow the presence of
+        mime headers without the mime body
+* Fixes due to the CERT test cases incorporated.
+* Support for TLS along with TCP added.
+* Fixed Bug: When only LF is present in the MimeBody instead of CRLF, it
+        was leading to a segmentation fault. This was fixed.
+* Fixed Bug : Comma Separeted multiple In-Reply-To header were not
+        getting parsed although the same multiple headers in different
+        lines (as individual header) was getting parsed.Lexical
+        problem was fixed.
+* Fixed Bug: In fast_trylock_mutex and fast_trylock_synch, the return value
+        of WaitForSingleObject (In Windows port) was not checked. So it was
+        always returning SipSuccess.
+* New Api *sip_getVersion* to extract Version of the stack was added.
+* Fixed Bug : While forming the message bodies (for application/sip), the
+        runtime option SIP_OPT_SINGLE was set by default. So all the
+        headers were getting converted to single headers though they
+        were being parsed as comma separated headers.
+* Fixed Bug : In function timerTimeOut the failure check in SEND_TO_NETWORK
+        is removed. Even if the send to network fails we will try for 
+        the fixed number of times. While using SIP_TLS the UAC 
+        after receving a 200 OK tears down the existing connection 
+        and  makes a new connection based on the received "Contact" 
+        header. However the UAS was trying to retransmit the 200 OK 
+        in the meantime, and this was failing as there was no connection.
+        The removed code made the stack return and the txn key was 
+        not freed, and this resulted in a memory leak.  
+        Freeing the txn key would not have solved the problem 
+        as then the txn itself would have been killed. So we ignore 
+        the return code at this point.
+* Fixed Bug : In source/accessor/src/sipstring.c, function 
+        sip_setStatusLineFromString(), in some error cases memory allocated 
+	by the application was being freed by the stack. If the memory is 
+	allocated in the stack only then it should be freed. 
+* Fixed Bug : Grammar of the Encryption Key in sdp messages also accepts token
+        according to the draft-ietf-mmusic-sdp-new-04 draft. This was added.
+* The extern "C" declaration necessary to compile C code with C++ is placed 
+        below the #includes in the header files. This is because if a header 
+        file is modified to be a C++ header file then compilation would have 
+        failed as C++ code would also come under extern "C" declarations
+* Fixed Bug : When retx of INVITE arrived, server indicates that the 
+        request is ignorable, but does not resend the 407 response.
+* Fixed Bug : The problem is in the getTelUrl( ) api, it throws an exception 
+        for the following cases:
+        1.  when the postd=PP ; i.e whenever the *value* of the pause-char 
+        is in upper-case stack throws an exception. Pls refefer eg in  
+        Section 19.1.6 in Rfc 3261-  tel:+358-555-1234567;postd=pp22 
+        2. If Tel URL contains postd prior to isdn-subaddress then also 
+        stack is throwing an exception.As per RFC 2806, isub must be 
+        present before postd if both are present. But the example shown 
+        in RFC 3261 says both of them are equivalent.
+* Fixed Bug : In the file source/accessor/src/header.c function 
+        sip_getHeaderAsStringAtIndex() is modified. It now strips off the
+        CRLF at the end of the header converted to string. Previously  
+        while getting the header as string using this API, the string 
+        returned had a CRLF attached to it at the end. However while 
+        forming the header back from the string the stack API requires 
+        a string without CRLF. So the string returned from the above API 
+        could not be directly used to form the header back. This discrepancy 
+        is now removed.
+* Fixed Bug : In the file source/parser/src/sipformmessage.c function 
+        sip_formMimeBody API was modified.  After forming the unknown body, 
+        CRLF wasn't being added at the end of it. This was fixed.
+* Fixed Bug: Added Via and Max-Forwards header to checkHeaderTypeHop function.
+* Changed the macro from "FREE" to "HSS_FREE"
+* Fixed Bug: Stack wasn't matching the Cseq method and the actual method
+		before creating the transaction.
+* Fixed Bug : Sip Stack was not parsing User-Agent and Server headers
+              correctly. Multiple Comments as part of header grammar
+* Fixed Bug : Sip Stack was not parsing Dcs (dcs-remote-party-id and
+              dcs-anonymity) headers properly.
+* Local-Tel Number parsing for tel url has been made lenient to parse
+  emergency tel url numbers like tel:911, tel:123-12, tel:123*ABCD 
+* Semaphore functions used in the portlayer.c file has been made into 
+  macros and placed in the portlayer.h file. 
+* Data type of Socketfd member variable in the structure SipTranspAddr
+  has been changed from Unsigned 16 bits to Signed 32 bits.
+* Configure script has been modified to generate a header file (stack_config.h) 
+  in the stack_header directory.  It contains the configuration options 
+  as generated by the configure script. A file stack_headers.h is added which
+  includes all the hedaer files in the stack directory. Only this file needs 
+  to be included by an application to include all configured stack header files.
+  Also all the header files are now placed in  the stack_headers directory 
+  after configuring the stack.
+* strdup function was getting called in some bison files. This was replaced by 
+  the macro BISONSTRDUP in the portlayer.h file.
+  Calls to realloc in the flex and bison files are replaced by the macros
+  FLEXREALLOC and BISONREALLOC respectively. A function fast_memrealloc has
+  been added.
+* An API (sip_convertToQuotedString) has been added to convert strings 
+  to quoted strings. It has been added in the sipstring.c file.
+* Fixed Bug : K Line Parsing problem has been fixed. Few of Special characters 
+              allowed as per ABNF were not allowed by HSS SIP Parser.
+* Fixed Bug :For ACK to 2xx (forked 2xx), Stack compares the Via branch which is             wrong. So ViaBranch Check was removed from the ack to forked 2xx.  
+* Fixed Bug : Parsing problem in o-line is fixed.
+
+Changes made to SIP Stack Release 5.0
+=====================================
+* Compliancy to rfc3261-3266
+	- Enhanced parsing of Accept to allow empty header.
+* Compliancy to draft-willis-sip-path-08
+	- Added new header Path under compile time option SIP_3GPP
+* Compliancy to draft-ietf-sip-reason-01
+	- Added new header Reason
+* Compliancy to draft-ietf-sip-asserted-identity-02
+	- Added new header P-Asserted-Identity under compile 
+		time option SIP_PRIVACY
+	- Added new header P-Preferred-Identity under compile
+		time option SIP_PRIVACY
+* Compliancy to draft-ietf-sip-privacy-general-01
+	- Added new header Privacy under compile time option SIP_PRIVACY
+* Compliancy to draft-ietf-sip-session-timer-09
+	- Enhanced parsing of Min-SE and Session-Expires header
+* Fixed Bug: Formation of Accept Header was under SIP_CCP flag.
+* Fixed Bug: sip_cloneSipHeader was returning SipFail for the AlertInfo,
+	CallInfo,ErrorInfo,ContentDisposition,Event and AllowEvents headers.
+* Fixed Bug: Empty s and i lines in SDP are allowed according as per ABNF.
+* Fixed Bug: E_INCOMPLETE error was not getting indicated when the header
+	ends before a COLON occurs.
+* Fixed Bug: When the SDP was parsed, last two bytes of the original 
+	message was getting changed.
+* Fixed Bug: Bug in TxnLayer was fixed,pViaBranch of SipTxnKey was not
+	checked for SIP_NULL before it was being compared for an ACK received
+	for a non-2xx response.
+* Decoded message was not getting displayed in siptest application.
+* Memory Errors in parser were removed from telapi.c in function
+  sip_isTelUrl.
+* Request line parsing had some problems as ` character although allowed
+  by rfc 3261 was not allowed by sip stack.
+* Generic parameters were not updated in headers namely 
+     - Alert-Info
+	 - Call-Info   
+	 - Via
+	 - Subscription State
+	 - Retry-After
+	 - Reason
+	 - Event
+	 - Contact
+	 - Content Disposition
+* Fixed Bug: Parsing of strings of the form x.y in the following headers was 
+  failing. 
+  	- Subscription State
+	- Event Header
+	- Priority
+	- Authentication
+    - Retry After
+	- Call Info
+	- Content Disposition
+	- Session
+	- Min-SE
+* Added short form of following headers :-
+	- Allow-Events
+	- Events
+	- Accept-Contact
+	- Supported
+	- Allow-Events
+	- Reject-Contact
+	- Request-Disposition
+* Warning header encoding  :- while forming warning header,warn code was
+  getting manipulated. (Warning : 012 was printed as Warning:12)
+* Lower bound check for day and month in date header added
+* New token WORD added in Tokensltoken.l file
+* New state AllowWord added in Tokensltoken.y file for Reply-To header
+* Check for Via branch for ACK message-code updated in txndecodeintrnl.c and
+  txndecode.c
+* Fixed Bug: In Sdp_stub.y and Sdpatm_stub.y code was removed for SessionLine 
+  	which was removing the leading white spaces. White space belongs to a 
+  	valid set of characters allowed in SessionLine. (According to RFC2327)
+* Fixed Bug: In header.c COMMA was added after "Replaces:" and "Reply-To:" in
+	the global array of header names glbSipParserHeaderNames.
+* Media-Authorization header has been modified to P-Media-Authorization. Also 
+  P-Media-Authorization accepts comma seperated values.
+* Change made to Key.y file to allow floating numbers in Encryption scheme
+  and response key scheme
+* Change made to DateTime.l file to match with grammar corresponding to
+  timestamp.
+* ":" and DQUOTE patterns were added to the WORD token in file Tokensltoken.l as
+  per RFC 3261
+* Updated the code while forming the message so that mode (none,join,new) is 
+  taken into account. Join Mode is removed from all the Single Instance headers.
+* Fixed Bug: SIPFLOAT token in Datetime.y has been modified to accept
+  expressions of the grammar (DIGIT)*"."(DIGIT)*. This will inturn make
+  following  headers to be lenient for floating point numbers
+  - MinSE
+  - Session Expires	
+  - Subscription Expires
+  - Retry After
+* Start state condition added to CALLIDAT token parsing in Tokensltoken.l
+  inorder to make lexer differentiation between CALLINFO and CALLIDAT
+* Fixed Bug: SIPFLOAT token pattern definition is changed in
+  RejectContact.l file
+* Fixed Bug: If a message is having just a single character, the stack was 
+  giving parsing problem instead of E_INCOMPLETE error.
+* ANSI_PROTO flag is present but internally ignored from release 5.0 onwards.
+* Fixed Bug: If a header below the request/status line starts 
+  with anything other than alpha character, it was being considered as a part
+  of request/status line. This was fixed.
+* Stack made compliant with bison 1.75
+* sip_sendMessage freed the event-context-variable in case of failure to send 
+  to network.This is removed and user is responsible for freeing the 
+  SipEventContext in case of network failure.
+* In Txn Layer Enabled Stack, occurence of Network Failure, the user has to 
+  set the error variable to E_TXN_NETWORK_SEND_ERR before returning from the 
+  callback
+* Encryption Key in SDP message body now accepts SLASH.
+
+Changes made to SIP Stack Release 4.1.2
+=======================================
+* Added support for Transaction Layer functionality defined in
+  draft-ietf-sip-bis-09.
+* For compliance to draft-ietf-sip-bis-09
+	- Added new header Reply-To
+	- Added new header Min-Expires
+	- Enhanced parsing of Organization header to allow an empty header value.
+	- Enhanced parsing of Accept header to allow IPV6 address.
+	- Enhanced parsing of Accept-Encoding hdr to allow a list of accept params
+	- Enhanced parsing of Accept-Language hdr to allow a list of accept params
+	- Enhanced parsing of Call-Id header to allow a word token
+	- Enhanced parsing of addr-spec to allow a SIPS URL
+* Authentication-Info header was moved from Pgp parser to Tokensltoken parser.
+* Added support for the new header Replaces as defined in the draft
+  draft-ietf-sip-replaces-02.txt.
+* Modified parsing of Refer-To header as per grammar defined in 
+  draft-ietf-refer-04.txt.
+* Added support for Update method as defined in draft-ietf-sip-update-02.txt.
+* Fixed bug in the accessor API sip_getHeaderAtIndex wherein some 
+  initialization code was added within #ifndef SIP_NO_CHECK.
+* Buffer flow check in formMessage() is supported under compile time option
+  SIP_MSGBUFFER_CHECK.
+* Moving SDP over ATM parsing into a separate file.
+* Moving telapi.c and telapi.h from source/accessor/tel to source/parser/tel.
+* Support for list of namevalueparams in Authentication-Info.
+* Modified the logic involved in the comparison of Txn Keys to enable Loop
+  Detection.
+* Added support for invocation of callbacks that indicate receipt/sending
+  of responses. This was added under SIP_MIB.
+* Modified the existing sipuri comparison to enable full-depth comparisons.
+* Made the option of receiving the time-out callbacks of timers under 
+  the SIP_TXN_LAYER configurable.
+* For the Windows port, a compile-time option SIP_CRITICAL_SECTION has been
+  added to provide support of Critical Section as the synchronisation mechanism.
+
+Changes made to SIP Stack Release 4.1.1
+=======================================
+* Fixed Bug: When the display name had just digits in Remote-Party-Id
+  header, the stack was not parsing the message correctly
+* Removed the check on formation of the headers below authorization header
+  in canonical form.
+* The stack is enhanced to return a partially filled SipMessage when an 
+  INCOMPLETE message error occurs.
+* Added support for UPDATE method
+* Fixed Bug: When there was a parse error in addrspec of reqline,stack memory
+  was getting corrupted.This was fixed.
+* Moved all the common macro definitions used in the stack source files 
+  into portlayer.c
+* Fixed Bug: A temporary array of size MAXTEMP was used for filling up the 
+ userinfo in the SIP URL.This was causing a crash when the userinfo size
+ was greater than the MAXTEMP.
+* Fixed Bug: When the Mime message had recursive Mime messages within itself,
+  then the stack was not forming the Mime message correctly.
+* Fixed Bug: The CCP headers are not within the macro SIP_CCP in the clone
+  APIs.
+* Fixed Bug: The stack reported a memory leak when decoding a status line
+  message in the message/sipfrag message body.
+* Fixed Bug: The Stack was not compiling when DCS flag was disabled.DCS headers
+  were added in the array of header names.
+* Fixed Bug: Memory leak was detected when the stack was configured to
+  maintain the statistics for an Unknown method.
+* Fixed Bug: When the RPID-Privacy header was formed back after decoding the
+  message, the first letter was getting dropped.
+* Fixed Bug: The Stack was not parsing messages consisting of unknown headers 
+  that began with the characters "B" and "j". This was corrected.
+* The STRCAT macro used while forming the SIP Messages was not checking for
+  possible buffer overflows. This was corrected.
+* The sip_formMessage API was enhanced to allow the user to specify a
+  size for the buffer of the text message being formed. This is facilitated
+  through the option SIP_OPT_MAXBUFSIZE. If this option is specified,
+  the sip_formMessage API performs boundary checks on the dLength
+  parameter to sip_formMessage API ; otherwise boundary checks are
+  performed on the value of the SIP_MAX_MSG_SIZE macro specified in
+  sip_stack_<x>_<y>_src/source/common/h/sipcommon.h file.
+* If the compilation option SIP_RETRANSCALLBACK  option is enabled then the
+  stack needs to invoke the sip_indicateMessageRetransmission callback every
+  time a message gets retransmitted. However if the stack was compiled with
+  the SIP_TXN_LAYER along with the SIP_RETRANSCALLBACK option then this
+  callback was not getting invoked. This was corrected.
+* The stack used to do strict category checking of the headers. If a request
+  header was present in a response message or vice versa it used to throw an
+  error. This check was relaxed and the stack now ignores all such headers.
+
+Changes made to SIP Stack Release 4.1.0
+=======================================
+* Changed the document package to provide PDF versions of the User Manual and
+  the API Reference manual.
+* Added support for Transaction Layer functionality defined in
+  draft-ietf-sip-bis-05.
+* Added  extension support - as per draft  "Management Information Base for
+  Session Initiation Protocol" , draft-ietf-sip-mib-04.txt , August 2002, under
+  the compile time option SIP_MIB.
+* Added extension support for SDP over ATM  as per RFC 3108 under the compile
+  time option SIP_ATM.
+* Added extension support - "SIP Event Package for Message Waiting indication",
+  draft-mahy-sip-message-waiting-02.txt, July 2001, under the compile time
+  option SIP_MWI.
+* Enhanced support for Session timer as per draft "The SIP Session Timer",
+  draft-ietf-sip-session-timer-08.txt, October 2001.
+* Added new header MIN-SE
+* Modified the parser for Session-Expires header to support a new token
+  "refresher".
+* Added extension support - to parse IM-URLs as a second level parser as per
+  draft  "A Common Profile for Instant Messaging", draft-ietf-impp-cpim-01.txt,
+  October 2001.
+* Enhanced support for Instant Messaging as per  "SIP-Specific Event
+  Notification" draft, draft-ietf-sip-events-01.txt, November 2001
+* Added new header Subscription-Expires
+* Modified parser and accessor APIs to treat Events header as a Request header.
+* Added support for DCS related extensions under the compile time option
+  SIP_DCS as part of the standard package.
+* Enhanced the stack to support Referred-By header defined in
+  draft-ietf-sip-cc-transfer-04, draft-ietf-sip-refer-00,
+  draft-ietf-sip-refer-01, and draft-ietf-sip-refer-02 drafts.
+* Enhanced the parser of the Referred-By header to support IPV6 addresses
+* Changed the application/sip message body type to message/sipfrag
+* Added new data structure to store and access QSIG message bodies
+* SIP Extensions for Resource Management,
+  draft-ietf-sip-manyfolks-resource-02.txt , February 2001.
+* Enhanced the parsing of the Content-Disposition header to support Qos
+  defined extensions.
+* Modified the existing callback in the stack for the COMET
+  method(sip_indicatePreconditionmet) to sip_indicateComet.
+* Added support for new header Authentication-Info.
+* Added support to store and retrieve QSIG message bodies.
+* Enhanced parser of Allow-Language header to parse MINUS token instead of "-".
+* Enhanced parser of Content-Language header to parse MINUS token instead of
+  "-".
+* Modified parser of Content-Length header to accept only maximum value of
+  65535. Any value greater than this will indicate an error by the parser.
+* Modified of Expires header to accept only maximum value of 4294967295.
+  Any value greater than this will be capped off.
+* Modified parser of Retry-After header to accept only maximum value of
+  4294967295. Any value greater than this will be capped off.
+* Modified parser of Max-Forwards header to accept only maximum value of
+  4294967295. Any value greater than this will be capped off.
+* Modified parser of In-Repy-To header to allow LWS before and after '@'.
+* Enhanced parsers of  Error-Info,Contact, Route and Record Route headers
+  to support IPV6 addresses in header paramters.
+* Enhanced parser of the Supported header to allow zero tag options.
+* Enhanced parser of Organization,Subject, User Agent,Via and Warning headers
+  to parse UTF8-NONASCII characters.
+* Enhanced the tel- URL parser to accept sip: as scheme.
+* Enhanced the parser of Date header to make it case-insensitive.
+* Enhanced the parsers of Contact, Content Language, In-Reply-To, Warning,
+  Encryption headers to support trailing commas.
+* Enahnced the parser of the Request line to disallow the '+' charater in
+  between the SIP and '/' tokens.
+* Enahnced the parser of  date header to perform strict checks on the hour,
+  minute and second fields.
+* Enhanced the SDP parser to support IPV6 addresses in the u and k lines.
+* Enhanced the parsing of the o and c lines in SDP to perform strict check for
+  the address based on the addresstype field.
+* Enhanced the parsers of Accept-Contact and Reject-Contact headers to allow
+  IPV6 addresses.
+* Added provision for setting retransmission count for every message sent.
+* Added provision in the sip_sendMessage API to pass the message buffer
+  directly instead of a SIP Message structure.
+* Enhanced the parsing of Request line to accept Quoted string in the URL
+  Params.
+* Forming of COMMA separated Authorization, Proxy-Authorization,
+  Proxy-Authenticate and WWW-Authenticate headers is disabled.
+* Enhanced the retransmission behavior to disallow retransmission of 401,
+  407 response messages.
+* Added support for multiple Authorization headers.
+* Fixed Bug in parsing of the Route-Header wherein a non-SIP URL followed by
+  a SIP-URL was giving a parsing error.
+* Bug fixed for the case of bad header parsing, when the body of the parsed
+  bad header had leading white space.
+* Fixed bug : The incorrect header count returned by the stack in case of bad
+  header parsing was not correct.
+* Fixed bug: Parser not accepting the semtokenparams in case of Accept-Contact
+  and Reject-Contect Headers.
+* Memory failures were not being handled properly in case of the API
+  sip_initSipHeader. This was fixed.
+* Memory leaks present in case of request line parsing failure cases were fixed.
+* The parser threw errors in case of parsing of headers having a To Tag in the
+  URL Params. This was fixed.
+* Incorrect statistics were reported in case of parsing of a message with a
+  bad Tel-Url. This was fixed.
+* The stack was reporting incorrect statistics in case of bad header parsing.
+  These were fixed.
+* The  Contact,Accept-Contact,Reject-Contact headers were not being formed in
+  the canonical form by the stack. There were spaces after "HeaderName:".
+  This was fixed.
+* Fixed bugs in the formation of DCS headers Remote-Party-ID,Trace-Party-ID
+  and DCS-Redirect headers to support Cannonical form.
+* Fixed minor bugs in menu options of siptest.
+* Fixed bugs in Route header parsing for non-SIP URLs.
+* Fixed bugs in Route, From, To header to allow "tag" as a token in the URL
+  parameters.
+* Fixed bugs in sip_decode to support CCP extensions under SIP_CCP.
+* Enhanced the parser for to allow Status line without a CRLF when it is
+  present as a part of the message body.
+* Fixed bug: Siptest displays "Parsed TEL_URL successfully" even when the
+  message doesn't have a TEL-URL.
+* Fixed bug: The Diversion header was not handled in SIP_NON_BYREFERENCE mode.
+* Fixed Bug: The Retranscallback definition was not supporting Non ANSI_PROTO
+  compiler.
+* Fixed Bug: Added default case in siptest for indicating error when an
+  unrecognized key is pressed.
+* Fixed Bug: sendmessage was sending an empty message when a folder name is
+  give as input file on command line.
+* Fixed Bug: In the configure script, run time selective parsing option is
+  enabled even when the stack is compiled without selective parsing flag.
+* Fixed memory leak in case of fast_startTimer callback returning SipFail.
+* Fixed Bug: SIP header type was not getting filled when a bad header was
+  getting added to the slBadHeaderList.
+* Fixed Bug: The error parameter in the sip_makeToHeader API was not getting
+  freed.
+* Fixed bug in case of formn of header DCS Remote-Party Id. We need to surround
+  the AddrSpec in it by Angular Braces irrespective of any other conditions.
+* The CSeq,RSeq,RAck headers were not allowing the value of 0. This was fixed.
+* Support added for having the Content-Disposition header within  the
+  SipMimeHeader.
+* Support provided for having multiple Bandwidth lines in the SdpMedia line.
+* The performance test application perftest was added. This will help in
+  doing performance measurement of the SIP Stack at customer locations.
+* The first level parsing of headers was hitherto being done using Flex/Bison.
+  This was changed and a hand written parser for the first level parsing was
+  introduced.
+* The Fromto.y, Fromto.l files were split to kep the lexers/parsers of the
+  From and the To headers separate. Two new files To.l and To.y were added.
+* Fixed bug: The content-type was being checked for even when the NOPARSEBODY
+  was enabled.
+* Parsing of MIME Headers having Line Folds was not being handled correctly.
+  This was fixed to allow parsing of MIME Headers containing line folds.
+
+Changes made to SIP Stack Release 4.0.5
+=======================================
+* Fixed bug in function used to get AddrSpec from Reject-Contact Header.
+* Modified parsing of Expires,RetryAfter and Date header so that the "GMT" token
+  within them is parsed case-insensitively .
+* The accessor APIs sip_insertHeaderFromStringAtIndex,sip_setHeaderFromStringAtIndex were not accepting all the Contact Header types. This was fixed.
+* While forming messages for headers containing an AddrSpec and without a
+  display name, the addrSpec was not being surrounded by Angular Brackets even
+  if the AddrSpec contained URL Params or a header tag. This was fixed.
+* Problem in lexer of AcceptContact header was fixed that was causing any "?"
+  in  the URI of AddrSpec to be replaced with the text preceding the "?" in the URI.
+* We were not allowing parsing of response lines that did not contain a reason
+  phrase , this was fixed.
+* During parsing of messages in which the last header was not followed with a
+  CR or LF, the last character of the message was not being read i.e was getting
+  eaten up. This was fixed.
+* When the last line of any SDP was not followed with a CR or LF, the last line
+  was not being parsed into the sdp structure. This was fixed.
+* A few bugs in the configure script were fixed as well.
+
+Changes made to SIP Stack Release 4.0.4
+=======================================
+* IPV6 addresses are now parsed correctly in SDP o, c and u lines.
+* IPV6 addresses are supported in Via sent-by and parameters.
+* Out of range sequence numbers in CSeq, RAck and RSeq headers are now flagged
+  as errors. Earlier stack versions capped higher numbers to 2^32-1.
+* Out of range numbers for duration in Retry-After, Expires and Session-Expires
+  header are now capped correctly to 2^32-1.
+* Fixed bug in function used to delete Proxy-Authorization header from message.
+* Fixed bugs in accessor functions used to extract message bodies of type
+  "application/sip".
+* Fixed bug that caused application/sip message bodies to be formed without a
+  line separator in multipart/MIME messages.
+* Fixed sip_formMessage to add a space between the display name and the address
+  in Route and Record-Route headers.
+* API used for parsing and forming unknown headers using a known header's
+  grammar had bugs in the non-by-reference mode. Fixed.
+* Added a new macro SIP_MAX_HDR_SIZE to allow users to separately specify the
+  size of the buffer used to return headers and SDP lines as strings. Earlier
+  SIP_MAX_MSG_SIZE was used for allocating these buffers also.
+* Fixed SDP bandwidth parsing to allow bandwidth modifiers with "X-" prefixes.
+* Fixed bug in sip_formMessage that caused the content-length header to be
+  inserted in the long form when the OPT_CLEN option is used with OPT_SHORTFORM.
+* Fixed bug in Date header parser that caused duplicate free on receiving
+  dates above valid range.
+
+Changes made to SIP Stack Release 4.0.3
+=======================================
+4.0.3 was a partial patch release for Linux with the following fixes.
+* Function sip_cloneSipMessage fixed to handle cloning of application/sip
+  message bodies.
+* Error handling code in all accessor functions (including
+  __sip_clondeSipMessageBodyList) that resets error value fixed.
+
+Changes Made to SIP Stack Release 4.0.2
+=======================================
+* Changed INCREF, DECREF, INITREF, LOCKREF, UNLOCKREF, CHECKREF,
+  LOCKEDINCREF, LOCKEDDECREF, DELETEREF macros to HSS_INCREF,
+  HSS_DECREF, HSS_INITREF, HSS_LOCKREF, HSS_UNLOCKREF, HSS_CHECKREF,
+  HSS_LOCKEDINCREF, HSS_LOCKEDDECREF, HSS_DELETEREF
+* Fixed bug causing truncation of expires values with 10 digits
+* Fixed bug in parser that caused incorrect parsing of comma
+  separated record route headers.
+* Made changes in portlayer.c functions fast_lock_mutex, fast_unlock_muttex to
+* make the stack threadsafe for VxWorks.(specific to VxWorks)
+* Added a  wrapper for prinf (vxprintf) to for enabling debugging in
+  multitasking VxWorks environment.(specific to VxWorks)
+* Replaced invocation of ctime with its equivalent reentrant version ctime_r
+  to avoid possible problems that could occur while using threads.
+* Fixed bug related to parsing of accept and reject contact headers when the
+  headers contained a "*".
+
+Changes made to SIP Stack Release 4.0.1
+=======================================
+* Configuration script fixed to generate MakeVars with correct flag.
+* README updated to indicate dependency on bison 1.28.
+* Header files document new parser options.
+* Problems with non-file-system mode fixed.
+* New API sip_parseSingleHeader added a replacement for the deprecated makeAPI.
+* Macro FREAD defined by the stack now changed to HSS_FREAD.
+* Fixed Record Route Header parser to accept parameters named "tag"(SIPIT)
+* Calls to free removed from AcceptContact.y and RejectContact.y.
+  Bison generated files are now post-processed to replace calls to free
+  with BISONFREE.
+* Compilation errors with NON-ANSI compiler option fixed.
+* Proxy-Authorization header made a list header. (SIPIT)
+* New callback sip_indicateMessageRetransmission added to notify user about
+  message retransmissions. Change   made under compile time option
+  SIP_RETRANSCALLBACK. (This feature is available in the C version of the
+  stack only.)
+* Added new compile-time option SIP_LOCKEDREFCOUNT to implement mutex locking
+  for reference counts in   structures. This option adds a overhead of one
+  mutex lock per stack structure instance.
+* Context information from sip_decodeMessage is now passed on to
+  fast_stopTimer through a pContext field in the SipTimerKey structure.
+
+
+Changes Made to SIP Stack Release 4.0.0
+=======================================
+* Made locking in the parser more fine-grained
+* Added feature - selective parsing without callbaks
+* Added feature - Parsing of unknown headers using existing grammar
+* Added feature - Option to parser bad message ignoring errors
+* Added feature - Error trapping in flex generated code.
+* Added feature - Option to build library without stdio dependencies.Note:  This  is provided only for the C stack
+* Added support for application/sip message body support
+* Added support for parsing Session-Expires header.
+* Added decode interface for decoding without callbacks in the callback mode.
+* Added new library for serialization.
+* Fixed bug in URL parameter parsing.
+* Fixed bug in test application code causing retransmissions on key-press.(Linux C++ release only)
+* Added new options to the test application.
+* Fixed bug in statistics for application/sip message body parsing
+* Made mandatory header check optional for bad message parsing
+* Fixed bug that caused inconsistant headers in messages decoded with the
+  bad message parsing option.
+* Added option in test program to check the retransmission disabling option in
+  the decode method.
+* Added Serialize and de-serialize functions for DCS
+* Fixed bug in DCS Port retrieval API.
+* Fixed bug in sipdecode where referred-by and refer-to short names were not
+  recognised.
+* Fixed bug in sip_insertHeaderFromStringAtIndex that caused types like
+  SipHdrTypeContactWildCard and SipHdrTypeContactNormal to be rejected.
+* Fixed bug in configure script that resulted in incorrect flag being added
+  for the non-filesys option
+
+Changes Made to SIP Stack Release 3.3.0
+========================================
+* Changed NOCALLBACK to SIP_NO_CALLBACK
+* Made changes in siptest.c of Vxworks for select timeout
+  (change is specific to Vxworks release)
+* Added Configure application for windows port.
+* Added windows native multithreading support to mutex related porting.
+* Added notes for Vxworks compilation in User manual
+  (change is specific to Vxworks release)
+* Fixed compile time errors for Vxworks
+  (change is specific to Vxworks release)
+* Fixed compilation errors in siptest.c
+* Added the tel support in siptest.c
+* Added New Options for Subscribe,notify,refer in siptest.c
+* Changed the configuration script for VxWorks.(specific to VxWorks)
+* Added Configure application for windows port.
+* Added windows native multithreading support to mutex related porting.
+* Modified siptest_ose for graceful exit under all conditions. (only affects OSE port)
+* Added initialization of ResponsesSent statistics when sip_initStatistics
+  is called with scope SIP_STAT_API_ALL
+* Fixed bug in retransmission logic. Non-INVITE requests were
+  getting retransmitted ten times (instead of 11) after receiving
+  an informational response.
+* Added menu items in siptest_ose to send Trying response for new methods
+  SUBSCRIBE, NOTIFY and MESSAGE. Also fixed memory leak/printf related
+  issues in siptest_ose. (only affects OSE port)
+* Fixed SDP ordering/MIME related problems in siptest_ose. (only affects OSE port)
+* Added configure script and makefile stubs for generating
+  makefiles for OSE port. (only affects OSE port)
+* changed Part-ID
+* moved callbacks of IMPP under #ifdef
+* Added reference count to Timerkey and TimerBuffer
+* Added context passing in sip_sendToNetwork
+* SPR_02:Changed Rseq number in Rack header to 1 in siptest program
+* SPR_03:Put callbacks for IMPP in #ifdefs in siptest program
+* SPR_04:Retransmissions of reliable 1xx responses were stopped on receiving
+  an ACK. A Fix was made to stop retransmissions on reception of PRACK.
+* SPR_05:Fixed Compilation errors for Non-ANSI compilers
+* Fixed bug in parsing of Event header parameter list : Made the value
+  for the parameters in the parameterlist optional
+* Added an option to send 100 Trying Provisional Response in siptest
+* Added code for checking retransmissions for IMPP & Refer in siptest
+* Changed retransmission logic for PRACK ( support for cumulative
+  acknowledgements was deprecated).
+* Added support for Also header parsing.
+* Added extensions to SIP for Presence support. New methods added are
+  SUBSCRIBE & NOTIFY. New headers added are Event and Allow-Events.
+* Added extensions to SIP for Instant messaging support.
+  Added new method MESSAGE.
+* Added code to store all Incorrect SDP lines in SdpMessage and SdpMedia.
+* Removed check for Via Branch-Id in retransmission of responses.
+* Added code to store count of Incorrect headers in SipMessage.
+
+Changes Made to SIP Stack Release 3.2 (Build 3.2.001)
+====================================================
+* Removed alloca conversion to BISONMALLOC
+* Disable Via branch checking for matching PRACK requests to rel-100 responses.
+* Made SDP attribute name parsing more lenient
+* Fixed bug in parsing comma separated Contact headers with non-SIP URLs.
+* Fixed SPR_01: Removed garbage charcters in output of Remote-Party-Id header when display name was absent
+* Removed memory leak of SipEventContext when Retransmissions of the Message did not happen
+
+Changes Made to SIP Stack Release 3.2 (Build 3.2.000)
+====================================================
+* Fixed Handling of Urls without UserInfo in Dcs-Redirect header
+* Fixed Handling of Urls without UserInfo in ReferredBY header
+* Made SDP attribute name parsing more lenient
+* Fixed bug in parsing comma separated Contact headers with non-SIP URLs.
+* Removed alloca conversion to BISONMALLOC
+* Disable Via branch checking for matching PRACK requests to rel-100 responses.
+* allowed for just token in Sip Url parameters
+* Added option for per message Retransmission interval setting
+* Removed Comment parsing and formation in Contact header
+* Fixed bug related to Unknown header formation
+* Added support for tel: parsing
+* Added API to form SDP out of string
+* Merged VXWORKS into main trunk
+* Made changes to DCS to conform to latest release IETF drafts
+* Added auomatic configure script & related directories
+* Merged C++ API wrappers with main trunk
+* Made REFER compliant to 02 draft
+* Added space b/w refer token
+* SPR_02: Fixed headers not being handled properly after Auth header
+* SPR_03: Added error message when body is there but no content-type
+* SPR_05: Added error message for multipart failures
+* Fixed problems with stack side content-length header insertion
+* Corrected Thread synchronization problems in sdpdtring.c & sipstring.c
+* Added Compile time option for explicit DCS support from the stack.
+
+Changes Made to SIP Stack Release 3.1 (Build 3.1.001)
+====================================================
+* Added support for REFER method
+* Added SIP_OPT_DBLNULLBUFFER option while doing sip_decodeMessage
+* SPR_01: Fixed Date format parsing
+* SPR_06: Added "!" in token definition
+* SPR_08: Retry-After can now appear in Responses and Requests
+* SPR_09: Fixed error response in Priority header
+* SPR_12: Fixed retransmission bug occuring when no Via header is present
+* SPR_10: Fixed empty subject header not being supressed
+* All allocations and deallocations now use module ids for each module. See portlayer.h for details
+
+Changes Made to SIP Stack Release 3.1 (Build 3.1.000)
+======================================================
+* Made the stack compliant to draft-ietf-sip-rfc2543bis-02, September 2000.
+  see sip3_1enhancements.doc  for more details.
+
+* Optimised the parser by reducing the memory allocation during parsing. Please
+  see sip3_1enhancements.doc  for more details.
+
+Changes Made to SIP Stack Release 3.0 (Build 3.0.004)
+======================================================
+* fixed part-id for win32 port (only affects win32 port)
+
+Changes Made to SIP Stack Release 3.0 (Build 3.0.003)
+======================================================
+* Fixed portlayer.c and .h to have SIP_THREADSAFE flag correctly (only affects Win32 port)
+
+Changes Made to SIP Stack Release 3.0 (Build 3.0.002)
+======================================================
+* Namespaced all compiler flags with SIP_ (except ANSI_PROTO) to ensure no conflicts when compiled
+  with other 3rd party libaries (see sipum.doc and MakeVars)
+* Fixed Windows port problem of siptest.c timing out after 1 sec instead of SIP_T1 and SIP_T2 values
+* Fixed error in sip_getPortFromUrl API (proper port assignment was not done)
+
+Changes Made to SIP Stack Release 3.0 (Build 3.0.001) (in addition to Release 3.0 [build 3.0.000])
+===================================================================================================
+* Fixed extra space after Request Disposition
+* Fixed empty subject header being excluded
+* Fixed extra space in contact header
+* Modified test program Cseq number matching for BYE stopping OK retransmissions
+* Removed quote from token definitions (caused unterminated realm to be passed)
+* Fixed parser resulting in error and then no error for same message (lex state problem)
+* Spaces after delimeters were being preserved- fixed (for multipart)
+* Fixed multiple mime version headers being accepted
+
+Changes Made to SIP Stack Release 3.0 (Build 3.0.000) (in addition to release 2.4)
+==================================================================================
+* provided pass by reference mode of APIs
+* stack now allows any width of time fields in t= line (this is strictly speaking against the grammar)
+* sipapi.doc replaced with a hyper linked HTML api reference document
+*  fixed double CRLF bug in Mime messages when NO_PARSEBODY is specified
+* added Selective parsing callbacks (SELECTIVE_PARSE)
+* Separated DEBUG and FNDEBUG macros while compiling (latter enables/disables function
+* improved error messages on parsing errors
+* Made parameter APIs consistent (uses only SipParam now)
+* Added API to release state of stack on exit
+* Ipv6 support
+* Added callback for freeing EventContext on non-timeout event
+* Added macro for NO_CHECK which removes accessor parameter checking
+* Exposed APIs for cloning messages
+
+Changes Made to SIP Stack Release 2.4 (in addition to release 2.3)
+===================================================================
+* fixed problem of repeating WWW-Authenticate Header (SPR_01)
+* fixed problem of repeating Warning Header (SPR_03)
+* fixed problem of basic token getting removed (SPR_02)
+* corrected Part ID (SPR_05)
+
+Changes Made to SIP Stack Release 2.3 (in addition to release 2.2)
+====================================================================
+* fixed problem of unknown status codes being parsed incorrectly (SPR_01)
+* fixed q value being encoded as PQvalue (SPR_02)
+* contact header still accepts "!" - the stack will not reject such messages (SPR_08)
+* fixed Reject-Contact being displayed with parameters with quotes missing (SPR_10)
+* fixed problem of error message for a bad message permeating to next message (SPR_11)
+* fixed incorrect part-id (SPR_19)
+* fixed problem of BYE not stopping 200 OK retrans (SPR_22)
+* fixed problem of CANCEL not stopping >300 retrans (SPR_23)
+* fixed problem in siptest of Tc sending CANCEL at times (SPR_23)
+* fixed problem in siptest for trying response options (SPR_24)
+* Added feature to siptest to log all incoming messages in a file
+
+
+Changes Made to SIP Stack Release 2.2 (in addition to release 2.1)
+===================================================================
+* various syntactic bug fixes in parser
+* updated corrections from BIS RFC draft
+
+3.15 Changes Made to SIP Stack Release 2.1 (these are mainly bugfixes and minor enhancements to 2.0)
+* Added correct Part Number
+* Fixed Problem of Multiple messages not being parsed properly even if C-Len header is given
+* Fixed problem of spaces appearing in parsed messages in Disp Name of From & To
+* CSeq and RSeq header seq. nos are capped off incase they are out of bounds (This RFC does not specify this explicity)
+* Changed text "retransmission" to "transmission" in sip_trace Message
+* Test Plan document modified to remove support for Comment in Mime Version Hdr
+* Note: in this release, the Stack will allow an empty Session Header. Basically, the RFC states that  as of now, the Session Header is defined by some fixed parameters. However, the session header  is in constant flux and a topic of discussion in SIP Working groups. Hence, we are allowing any	text in a Session Header (including no text) for now. The Session Header will be modified to exact parameters when it stablilises.
+3.16 Features Supported by HSS SIP Stack Release 2.0 (in Addition to those in 1.1)
+* Callbacks for INFO, PROPOSE, PRACK
+* Callback for decrypting encoded buffers
+* Added APIs for Caller & Callee Preferences support
+* Timer Handler now supports retransmissions for Provisional Responses
+* Support for BCP-T extensions
+* Parser supports MIME bodies
+* Parser preserves order of Headers it received
+* Parser constructs all messages in canonical form (needed for Authentication)
+* Parser can now automatically content-length for a message (if requested)
+* Added options to allow user to construct headers in either comma separated or line separated formats.
+* Added support for 183 message
+* Added a callback (sip_indicateTimeOut) on timeout of retransmission for user to update any state (eg GUI)
+
+Features Supported by the HSS SIP Stack Release 1.1
+=====================================================
+* Supports standard INVITE, ACK, OPTIONS, CANCEL, BYE, REGISTER methods
+  Will support any other new method that may be created in future
+  and is SIP BNF compliant
+* Supports All Headers as mentioned in RFC 2543
+  Will support any other new header that may be created in future
+  and is SIP BNF compliant
+* Supports all fields of a regular SDP message (as defined in RFC 2327)
+* Supports non-SDP based message bodies (eg. application/mgcp, text/plain etc.)
+* Supports multiple SIP Messages in one packet (even those which are not delineated by a CRLF,
+  but by precise Content-Length counts)
+* Supports both TCP and UDP transmissions
+* Stack takes care of retransmissions for SIP UDP messages
+* PROPOSE Method
+* Line folding (wherever there are leading white spaces (LWS) or separators)
+* Extra LWS everywhere
+* No space after colons
+* Case-insensitive headers
+* Empty values in unstructured headers
+* Compact form of headers (can decode as well as form)
+* Missing or wrong content-length
+* Extra garbage after request
+* Bogus/incomplete requests
+* Surprising Header ordering
+* Comma separated values
+* Mixed comma separated and header separated values
+* Expires Dates > 2000, =1, >2038 and < 9999
+* Unknown schemes in Request URI, To, From, Contact
+* Unknown Headers
+* Unknown parameters of known headers
+* INVITE with blank SDP
+* Unknown methods
+* Unknown Authorization Schemes
+* Christmas tree Via Headers
+* Short form and Long form both in same header field
+* Complex quoted string patterns
+* Extra whitespace between requests
+* Versions other than SIP/2.0
+

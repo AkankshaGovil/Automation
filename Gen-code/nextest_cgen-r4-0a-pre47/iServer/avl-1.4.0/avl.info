@@ -1,0 +1,708 @@
+This is avl.info, produced by makeinfo version 3.12n from avl.texinfo.
+
+   This file documents libavl, a library for the manipulation of
+balanced binary trees.
+
+   Copyright 1998, 1999 Free Software Foundation, Inc.
+
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be stated in a
+translation approved by the Free Software Foundation.
+
+
+File: avl.info,  Node: Top,  Next: Introduction to balanced binary trees,  Prev: (dir),  Up: (dir)
+
+   This document describes libavl, a library for manipulation of
+balanced binary trees.
+
+   This document applies to libavl version 1.4.0.
+
+* Menu:
+
+* Introduction to balanced binary trees::
+* Introduction to threaded trees::
+* Types::
+* Functions::
+* Tree Creation::
+* Insertion::
+* Searching::
+* Iteration::
+* Conversion::
+* Author::
+* Index::
+
+
+File: avl.info,  Node: Introduction to balanced binary trees,  Next: Introduction to threaded trees,  Prev: Top,  Up: Top
+
+Introduction to balanced binary trees
+*************************************
+
+   Consider some techniques that can be used to find a particular item
+in a data set.  Typical methods include sequential searching, digital
+searching, hash tables, and binary searching.
+
+   Sequential searching is simple, but slow (O(n)).  Digital searching
+requires that the entire data set be known in advance, and memory
+efficient implementations are slow.
+
+   Hash tables are fast (O(1)) for static data sets, but they can be
+wasteful of memory.  It can be difficult to choose an effective hash
+function.  Some hash tables variants also make deletion an expensive
+operation.
+
+   Binary search techniques work almost as quickly (O(log(n)) on an
+ordered table, or on a binary tree.  Binary trees also allow easy
+iteration over the data in the tree in sorted order.  With hash tables
+it is necessary to sort the data before iterating, and after sorting
+the data is no longer in hash form.
+
+   Binary trees are efficient for insertion, deletion, and searching, if
+data are inserted in random order.  But, if data are inserted in order
+using a naive algorithm, binary search degenerates to sequential search.
+
+   In turn, this problem can be solved by "rebalancing" the tree after
+each insertion or deletion.  In rebalancing, nodes are rearranged via
+transformations called "rotations" using an algorithm that tends to
+minimize the tree's height.
+
+   There are several schemes for rebalancing binary trees.  The two most
+common types of balanced tree are "AVL trees" and "red-black trees".
+libavl implements both types:
+
+   * AVL trees, invented by Russian mathematicians G. M.
+     Adel'son-Velskii and E. M. Landis, ensure that, for each node, the
+     difference in height between its subtrees (the "balance factor")
+     is not greater than 1.
+
+   * Red-black trees, invented by R. Bayer and studied at length by L.
+     J. Guibas and R. Sedgewick, assign each node of a tree a color (red
+     or black), and specify a set of rules governing how red and black
+     nodes may be arranged.
+
+   The table below presents a comparison among unbalanced binary trees,
+AVL trees, and red-black trees.  In the table, N is the number of nodes
+in the tree and H is the tree's height before the operation.  "lg" is
+the base-2 logarithm function.
+
+Operation                                                 
+     Binary Tree            AVL Tree                  Red-Black Tree
+Time per insertion or deletion                                                 
+     O(H)                   O(lg N)                   O(lg N)
+Time for insertion of K nodes having sequential values                                                 
+     O(K^2)                 O(N lg N)                 O(N lg N)
+Time for insertion of K nodes having random values                                                 
+     O(N lg N)              O(N lg N)                 O(N lg N)
+Maximum number of rotations per insertion                                                 
+     0                      1                         lg N
+Maximum number of rotations per deletion                                                 
+     0                      lg N                      lg N
+Maximum H as a function of N                                                 
+     N                      1.44 lg (N + 2) - .328    2 lg (N + 1)
+Minimum N as a function of H                                                 
+     H                      2^((H + .328) / 1.44) - 2 2^(H / 2) - 1
+
+   There are alternatives to AVL trees that share some of their
+properties.  For instance, skip lists, 2-3 trees, and splay trees all
+allow O(log(n)) insertion and deletion.  The main disadvantage of these
+methods is that their operations are not as well documented in the
+literature.
+
+
+File: avl.info,  Node: Introduction to threaded trees,  Next: Types,  Prev: Introduction to balanced binary trees,  Up: Top
+
+Introduction to threaded trees
+******************************
+
+   "Threading" is a clever method that simplifies binary tree traversal.
+
+   Nodes in a unthreaded binary tree that have zero or one subnodes have
+two or one null subnode pointers, respectively.  In a threaded binary
+tree, a left child pointer that would otherwise be null is used to point
+to the node's inorder(1) predecessor, and in a null right child pointer
+points to its inorder successor.
+
+   In a threaded tree, it is always possible to find the next node and
+the previous node of a node, given only a pointer to the node in
+question.  In an unthreaded tree, it's also necessary to have a list of
+the nodes between the node in question and root of the tree.
+
+   Advantages of a threaded tree compared to an unthreaded one include:
+
+   * Faster traversal and less memory usage during traversal, since no
+     stack need be maintained.
+
+   * Greater generality, since one can go from a node to its successor
+     or predecessor given only the node, simplifying algorithms that
+     require moving forward and backward in a tree.
+
+   Some disadvantages of threaded trees are:
+
+   * Slower insertion and deletion, since threads need to be
+     maintained.  In somes cases, this can be alleviated by
+     constructing the tree as an unthreaded tree, then threading it
+     with a special libavl function.
+
+   * In theory, threaded trees need two extra bits per node to indicate
+     whether each child pointer points to an ordinary node or the node's
+     successor/predecessor node.  In libavl, however, these bits are
+     stored in a byte that is used for structure alignment padding in
+     unthreaded binary trees, so no extra storage is used.
+
+   A "right-threaded binary tree" is similar to a threaded binary tree,
+but threads are only maintained on the right side of each node.  This
+allows for traversal to the right (toward larger values) but not to the
+left (toward smaller values).  Right-threaded trees are convenient when
+the properties of a threaded tree are desirable, but traversal in
+reverse sort order is not necessary.  Not threading the left links saves
+time in insertions and deletions.
+
+   Left-threaded binary trees also exist, but they are not implemented
+by libavl.  The same effect can be obtained by sorting the tree in the
+opposite order.
+
+   ---------- Footnotes ----------
+
+   (1) In tree traversal, "inorder" refers to visiting the nodes in
+their sorted order from smallest to largest.
+
+
+File: avl.info,  Node: Types,  Next: Functions,  Prev: Introduction to threaded trees,  Up: Top
+
+Types
+*****
+
+   The following types are defined and used by libavl:
+
+ - Data Type: avl_tree
+ - Data Type: avlt_tree
+ - Data Type: avltr_tree
+ - Data Type: rb_tree
+     These are the data types used to represent a tree.  Although they
+     are defined in the libavl header files, it should never be
+     necessary to access them directly.  Instead, all accesses should
+     take place through libavl functions.
+
+ - Data Type: avl_node
+ - Data Type: avlt_node
+ - Data Type: avltr_node
+ - Data Type: rb_node
+     These are the data types used to represent individual nodes in a
+     tree.  Similar cautions apply as with `avl_tree' structures.
+
+ - Data Type: avl_traverser
+ - Data Type: avlt_traverser
+ - Data Type: avltr_traverser
+ - Data Type: rb_traverser
+     These are the data types used by the `avl_traverse' family of
+     functions to iterate across the tree.  Again, these are opaque
+     structures.
+
+ - Data Type: avl_comparison_func
+     Every tree must have an ordering defined by a function of this
+     type.  It must have the following signature:
+
+          int COMPARE (const void *A, const void *B, void *PARAM)
+
+     The return value is expected to be like that returned by `strcmp'
+     in the standard C library: negative if A < B, zero if A = B,
+     positive if A > B.  PARAM is an arbitrary value defined by the
+     user when the tree was created.
+
+ - Data Type: avl_node_func
+     This is a class of function called to perform an operation on a
+     data item.  Functions of this type have the following signature:
+
+          void OPERATE (void *DATA, void *PARAM)
+
+     DATA is the data item and PARAM is an arbitrary user-defined value
+     set when the tree was created.
+
+ - Data Type: avl_copy_func
+     This is a class of function called to make a new copy of a node's
+     data.  Functions of this type have the following signature:
+
+          void *COPY (void *DATA, void *PARAM)
+
+     The function should return a new copy of DATA.  PARAM is an
+     arbitrary user-defined value set when the tree was created.
+
+ - Macro: AVL_MAX_HEIGHT
+     This macro defines the maximum height of an AVL tree that can be
+     handled by functions that maintain a stack of nodes descended.
+     The default value is 32, which allows for AVL trees with a maximum
+     number of nodes between 5,704,880 and 4,294,967,295, depending on
+     order of insertion.  This macro may be defined by the user before
+     including any AVL tree header file, in which case libavl will
+     honor that value.
+
+ - Macro: RB_MAX_HEIGHT
+     This macro defines the maximum height of an AVL tree that can be
+     handled by functions that maintain a stack of nodes descended.
+     The default value is 32, which allows for red-black trees with a
+     maximum number of nodes of at least 65535.  This macro may be
+     defined by the user before including the red-black tree header
+     file, in which case libavl will honor that value.
+
+
+File: avl.info,  Node: Functions,  Next: Tree Creation,  Prev: Types,  Up: Top
+
+Functions
+*********
+
+   libavl is four libraries in one:
+
+   * An unthreaded AVL tree library.
+
+   * A threaded AVL tree library.
+
+   * A right-threaded AVL tree library.
+
+   * A red-black tree library.
+
+   Identifiers in these libraries are prefixed by `avl_', `avlt_',
+`avltr_', and `rb_', with corresponding header files `avl.h', `avlt.h',
+`avltr.h', and `rb.h', respectively.  The functions that they declare
+are defined in the `.c' files with the same names.
+
+   Most tree functions are implemented in all three libraries, but
+threading allows more generality of operation.  So, the threaded and
+right-threaded libraries offer a few additional functions for finding
+the next or previous node from a given node.  In addition, they offer
+functions for converting trees from threaded or right-threaded
+representations to unthreaded, and vice versa.(1)
+
+   ---------- Footnotes ----------
+
+   (1) In general, you should build the sort of tree that you need to
+use, but occasionally it is useful to convert between tree types.
+
+
+File: avl.info,  Node: Tree Creation,  Next: Insertion,  Prev: Functions,  Up: Top
+
+Tree Creation
+*************
+
+   These functions deal with creation and destruction of AVL trees.
+
+ - Function: avl_tree * avl_create (avl_comparison_func COMPARE, void
+          *PARAM)
+ - Function: avlt_tree * avlt_create (avlt_comparison_func COMPARE,
+          void *PARAM)
+ - Function: avltr_tree * avltr_create (avltr_comparison_func COMPARE,
+          void *PARAM)
+ - Function: rb_tree * rb_create (avl_comparison_func COMPARE, void
+          *PARAM)
+     Create a new, empty tree with comparison function COMPARE.
+     Arbitrary user data PARAM is saved so that it can be passed to
+     user callback functions.
+
+ - Function: void avl_destroy (avl_tree *TREE, avl_node_func FREE)
+ - Function: void avlt_destroy (avlt_tree *TREE, avl_node_func FREE)
+ - Function: void avltr_destroy (avltr_tree *TREE, avl_node_func FREE)
+ - Function: void rb_destroy (rb_tree *TREE, avl_node_func FREE)
+     Destroys TREE, releasing all of its storage.  If FREE is non-null,
+     then it is called for every node in postorder before that node is
+     freed.
+
+ - Function: void avl_free (avl_tree *TREE)
+ - Function: void avlt_free (avlt_tree *TREE)
+ - Function: void avltr_free (avltr_tree *TREE)
+ - Function: void rb_free (rb_tree *TREE)
+     Destroys TREE, releasing all of its storage.  The data in each
+     node is freed with a call to the standard C library function
+     `free'.
+
+ - Function: avl_tree * avl_copy (const avl_tree *TREE, avl_copy_func
+          COPY)
+ - Function: avlt_tree * avl_copy (const avlt_tree *TREE, avl_copy_func
+          COPY)
+ - Function: avltr_tree * avl_copy (const avltr_tree *TREE,
+          avl_copy_func COPY)
+ - Function: rb_tree * rb_copy (const rb_tree *TREE, avl_copy_func COPY)
+     Copies the contents of TREE into a new tree, and returns the new
+     tree.  If COPY is non-null, then it is called to make a new copy
+     of each node's data; otherwise, the node data is copied verbatim
+     into the new tree.
+
+ - Function: int avl_count (const avl_tree *TREE)
+ - Function: int avlt_count (const avlt_tree *TREE)
+ - Function: int avltr_count (const avltr_tree *TREE)
+ - Function: int rb_count (const rb_tree *TREE)
+     Returns the number of nodes in TREE.
+
+ - Function: void * xmalloc (size_t SIZE)
+     This is not a function defined by libavl.  Instead, it is a
+     function that the user program can define.  It must allocate SIZE
+     bytes using `malloc' and return it.  It can handle out-of-memory
+     errors however it chooses, but it may not ever return a null
+     pointer.
+
+     If there is an `xmalloc' function defined for use by libavl, the
+     source files (`avl.c', `avlt.c', `avltr.c', `rb.c') must be
+     compiled with `HAVE_XMALLOC' defined.  Otherwise, the library will
+     use its internal static `xmalloc', which handles out-of-memory
+     errors by printing a message `virtual memory exhausted' to stderr
+     and terminating the program with exit code `EXIT_FAILURE'.
+
+
+File: avl.info,  Node: Insertion,  Next: Searching,  Prev: Tree Creation,  Up: Top
+
+Insertion and Deletion
+**********************
+
+   These function insert nodes, delete nodes, and search for nodes in
+trees.
+
+ - Function: void ** avl_probe (avl_tree *TREE, void *DATA)
+ - Function: void ** avlt_probe (avlt_tree *TREE, void *DATA)
+ - Function: void ** avltr_probe (avltr_tree *TREE, void *DATA)
+ - Function: void ** rb_probe (rb_tree *TREE, void *DATA)
+     These are the workhorse functions for tree insertion.  They search
+     TREE for a node with data matching DATA.  If found, a pointer to
+     the matching data is returned.  Otherwise, a new node is created
+     for DATA, and a pointer to that data is returned.  In either case,
+     the pointer returned can be changed by the user, but the key data
+     used by the tree's comparison must not be changed(1).
+
+     It is usually easier to use one of the `avl_insert' or
+     `avl_replace' functions instead of `avl_probe' directly.
+
+     *Please note:* It's not a particularly good idea to insert a null
+     pointer as a data item into a tree, because several libavl
+     functions return a null pointer to indicate failure.  You can
+     sometimes avoid a problem by using functions that return a pointer
+     to a pointer instead of a plain pointer.  Also be wary of this
+     when casting an arithmetic type to a void pointer for
+     insertion--on typical architectures, 0's become null pointers when
+     this is done.
+
+ - Function: void * avl_insert (avl_tree *TREE, void *DATA)
+ - Function: void * avlt_insert (avlt_tree *TREE, void *DATA)
+ - Function: void * avltr_insert (avltr_tree *TREE, void *DATA)
+ - Function: void * rb_insert (rb_tree *TREE, void *DATA)
+     If a node with data matching DATA exists in TREE, returns the
+     matching data item.  Otherwise, inserts DATA into TREE and returns
+     a null pointer.
+
+ - Function: void avl_force_insert (avl_tree *TREE, void *DATA)
+ - Function: void avlt_force_insert (avlt_tree *TREE, void *DATA)
+ - Function: void avltr_force_insert (avltr_tree *TREE, void *DATA)
+ - Function: void rb_force_insert (rb_tree *TREE, void *DATA)
+     Inserts DATA into TREE.  If a node with data matching DATA exists
+     in TREE, aborts the program with an assertion violation.  This
+     function is implemented as a macro; if it is used, the standard C
+     header `assert.h' must also be included.  If macro `NDEBUG' is
+     defined when a libavl header is included, these functions are
+     short-circuited to a direct call to `avl_insert', and no check is
+     performed.
+
+ - Function: void * avl_replace (avl_tree *TREE, void *DATA)
+ - Function: void * avlt_replace (avlt_tree *TREE, void *DATA)
+ - Function: void * avltr_replace (avltr_tree *TREE, void *DATA)
+ - Function: void * rb_replace (rb_tree *TREE, void *DATA)
+     If a node with data matching DATA, such that the comparison
+     function returns 0, exists in TREE, replaces the node's data with
+     DATA and returns the node's former contents.  Otherwise, inserts
+     DATA into TREE and returns a null pointer.
+
+ - Function: void * avl_delete (avl_tree *TREE, const void *DATA)
+ - Function: void * avlt_delete (avlt_tree *TREE, const void *DATA)
+ - Function: void * avltr_delete (avltr_tree *TREE, const void *DATA)
+ - Function: void * rb_delete (rb_tree *TREE, const void *DATA)
+     Searches TREE for a node with data matching DATA.  If found, the
+     node is deleted and its data is returned.  Otherwise, returns a
+     null pointer.
+
+ - Function: void * avl_force_delete (avl_tree *TREE, const void *DATA)
+ - Function: void * avlt_force_delete (avlt_tree *TREE, const void
+          *DATA)
+ - Function: void * avltr_force_delete (avltr_tree *TREE, const void
+          *DATA)
+ - Function: void * rb_force_delete (rb_tree *TREE, const void *DATA)
+     Deletes a node with data matching DATA from TREE.  If no matching
+     node is found, aborts the program with an assertion violation.  If
+     macro `NDEBUG' is declared when a libavl header is included, these
+     functions are short-circuited to a direct call to `avl_delete',
+     and no check is performed.
+
+   ---------- Footnotes ----------
+
+   (1) It can be changed if this would not change the ordering of the
+nodes in the tree; i.e., if this would not cause the data in the node
+to be less than or equal to the previous node's data or greater than or
+equal to the next node's data.
+
+
+File: avl.info,  Node: Searching,  Next: Iteration,  Prev: Insertion,  Up: Top
+
+Searching
+*********
+
+   These function search a tree for an item without making an insertion
+or a deletion.
+
+ - Function: void * avl_find (avl_tree *TREE, const void *DATA)
+ - Function: void ** avlt_find (avlt_tree *TREE, const void *DATA)
+ - Function: void ** avltr_find (avltr_tree *TREE, const void *DATA)
+ - Function: void * rb_find (rb_tree *TREE, const void *DATA)
+     Searches TREE for a node with data matching DATA, If found,
+     returns the node's data (for threaded and right-threaded trees, a
+     pointer to the node's data).  Otherwise, returns a null pointer.
+
+ - Function: void * avl_find_close (avl_tree *TREE, const void *DATA)
+ - Function: void ** avlt_find_close (avlt_tree *TREE, const void *DATA)
+ - Function: void ** avltr_find_close (avltr_tree *TREE, const void
+          *DATA)
+ - Function: void * rb_find_close (rb_tree *TREE, const void *DATA)
+     Searches TREE for a node with data matching DATA.  If found,
+     returns the node's data (for threaded and right-threaded trees, a
+     pointer to the node's data).  If no matching item is found, then it
+     finds a node whose data is "close" to DATA; either the node
+     closest in value to DATA, or the node either before or after the
+     node with the closest value.  Returns a null pointer if the tree
+     does not contain any nodes.
+
+
+File: avl.info,  Node: Iteration,  Next: Conversion,  Prev: Searching,  Up: Top
+
+Iteration
+*********
+
+   These functions allow the caller to iterate across the items in a
+tree.
+
+ - Function: void avl_walk (const avl_tree *TREE, avl_node_func
+          OPERATE, void *PARAM)
+ - Function: void avlt_walk (const avlt_tree *TREE, avl_node_func
+          OPERATE, void *PARAM)
+ - Function: void avltr_walk (const avltr_tree *TREE, avl_node_func
+          OPERATE, void *PARAM)
+ - Function: void rb_walk (const rb_tree *TREE, avl_node_func OPERATE,
+          void *PARAM)
+     Walks through all the nodes in TREE, and calls function OPERATE
+     for each node in inorder.  PARAM overrides the value passed to
+     `avl_create' (and family) for this operation only.  OPERATE must
+     not change the key data in the nodes in a way that would reorder
+     the data values or cause two values to become equal.
+
+ - Function: void * avl_traverse (const avl_tree *TREE, avl_traverser
+          *TRAV)
+ - Function: void * avlt_traverse (const avlt_tree *TREE,
+          avlt_traverser *TRAV)
+ - Function: void * avltr_traverse (const avltr_tree *TREE,
+          avltr_traverser *TRAV)
+ - Function: void * rb_traverse (const rb_tree *TREE, rb_traverser
+          *TRAV)
+     Returns each of TREE's nodes' data values in sequence, then a null
+     pointer to indicate the last item.  TRAV must be initialized
+     before the first call, either in a declaration like that below, or
+     using one of the functions below.
+
+          avl_traverser trav = AVL_TRAVERSER_INIT;
+
+     Each `avl_traverser' (and family) is a separate, independent
+     iterator.
+
+     For threaded and right-threaded trees, `avlt_next' or
+     `avltr_next', respectively, are faster and more memory-efficient
+     than `avlt_traverse' or `avltr_traverse'.
+
+ - Function: void * avl_init_traverser (avl_traverser *TRAV)
+ - Function: void * avlt_init_traverser (avlt_traverser *TRAV)
+ - Function: void * avltr_init_traverser (avltr_traverser *TRAV)
+ - Function: void * rb_init_traverser (rb_traverser *TRAV)
+     Initializes the specified tree traverser structure.  After this
+     function is called, the next call to the corresponding
+     `*_traverse' function will return the smallest value in the
+     appropriate tree.
+
+ - Function: void ** avlt_next (const avlt_tree *TREE, void **DATA)
+ - Function: void ** avltr_next (const avltr_tree *TREE, void **DATA)
+     DATA must be a null pointer or a pointer to a data item in AVL
+     tree TREE.  Returns a pointer to the next data item after DATA in
+     TREE in inorder (this is the first item if DATA is a null
+     pointer), or a null pointer if DATA was the last item in TREE.
+
+ - Function: void ** avltr_prev (const avltr_tree *TREE, void **DATA)
+     DATA must be a null pointer or a pointer to a data item in AVL
+     tree TREE.  Returns a pointer to the previous data item before
+     DATA in TREE in inorder (this is the last, or greatest valued,
+     item if DATA is a null pointer), or a null pointer if DATA was the
+     first item in TREE.
+
+
+File: avl.info,  Node: Conversion,  Next: Author,  Prev: Iteration,  Up: Top
+
+Conversion
+**********
+
+ - Function: avlt_tree * avlt_thread (avl_tree *TREE)
+ - Function: avltr_tree * avltr_thread (avl_tree *TREE)
+     Adds symmetric threads or right threads, respectively, to
+     unthreaded AVL tree TREE and returns a pointer to TREE cast to the
+     appropriate type.  After one of these functions is called,
+     threaded or right-threaded functions, as appropriate, must be used
+     with TREE; unthreaded functions may not be used.
+
+ - Function: avl_tree * avlt_unthread (avlt_tree *TREE)
+ - Function: avl_tree * avltr_unthread (avltr_tree *TREE)
+     Cuts all threads in threaded or right-threaded, respectively, AVL
+     tree TREE and returns a pointer to TREE cast to `avl_tree *'.
+     After one of these functions is called, unthreaded functions must
+     be used with TREE; threaded or right-threaded functions may not be
+     used.
+
+
+File: avl.info,  Node: Author,  Next: Index,  Prev: Conversion,  Up: Top
+
+Author
+******
+
+   libavl was written by Ben Pfaff <blp@gnu.org>.
+
+   libavl's generic tree algorithms and AVL algorithms are based on
+those found in Donald Knuth's venerable `Art of Computer Programming'
+series from Addison-Wesley, primarily Volumes 1 and 3.  libavl's
+red-black tree algorithms are based on those found in Cormen et al.,
+`Introduction to Algorithms', 2nd ed., from MIT Press.
+
+
+File: avl.info,  Node: Index,  Prev: Author,  Up: Top
+
+Index
+*****
+
+* Menu:
+
+* `Art of Computer Programming':         Author.
+* Adel'son-Velskii, G. M.:               Introduction to balanced binary trees.
+* author:                                Author.
+* AVL tree:                              Introduction to balanced binary trees.
+* avl_comparison_func:                   Types.
+* avl_copy:                              Tree Creation.
+* avl_copy_func:                         Types.
+* avl_count:                             Tree Creation.
+* avl_create:                            Tree Creation.
+* avl_delete:                            Insertion.
+* avl_destroy:                           Tree Creation.
+* avl_find:                              Searching.
+* avl_find_close:                        Searching.
+* avl_force_delete:                      Insertion.
+* avl_force_insert:                      Insertion.
+* avl_free:                              Tree Creation.
+* avl_init_traverser:                    Iteration.
+* avl_insert:                            Insertion.
+* AVL_MAX_HEIGHT:                        Types.
+* avl_node:                              Types.
+* avl_node_func:                         Types.
+* avl_probe:                             Insertion.
+* avl_replace:                           Insertion.
+* avl_traverse:                          Iteration.
+* avl_traverser:                         Types.
+* avl_tree:                              Types.
+* avl_walk:                              Iteration.
+* avlt_count:                            Tree Creation.
+* avlt_create:                           Tree Creation.
+* avlt_delete:                           Insertion.
+* avlt_destroy:                          Tree Creation.
+* avlt_find:                             Searching.
+* avlt_find_close:                       Searching.
+* avlt_force_delete:                     Insertion.
+* avlt_force_insert:                     Insertion.
+* avlt_free:                             Tree Creation.
+* avlt_init_traverser:                   Iteration.
+* avlt_insert:                           Insertion.
+* avlt_next:                             Iteration.
+* avlt_node:                             Types.
+* avlt_probe:                            Insertion.
+* avlt_replace:                          Insertion.
+* avlt_thread:                           Conversion.
+* avlt_traverse:                         Iteration.
+* avlt_traverser:                        Types.
+* avlt_tree:                             Types.
+* avlt_unthread:                         Conversion.
+* avlt_walk:                             Iteration.
+* avltr_count:                           Tree Creation.
+* avltr_create:                          Tree Creation.
+* avltr_delete:                          Insertion.
+* avltr_destroy:                         Tree Creation.
+* avltr_find:                            Searching.
+* avltr_find_close:                      Searching.
+* avltr_force_delete:                    Insertion.
+* avltr_force_insert:                    Insertion.
+* avltr_free:                            Tree Creation.
+* avltr_init_traverser:                  Iteration.
+* avltr_insert:                          Insertion.
+* avltr_next:                            Iteration.
+* avltr_node:                            Types.
+* avltr_prev:                            Iteration.
+* avltr_probe:                           Insertion.
+* avltr_replace:                         Insertion.
+* avltr_thread:                          Conversion.
+* avltr_traverse:                        Iteration.
+* avltr_traverser:                       Types.
+* avltr_tree:                            Types.
+* avltr_unthread:                        Conversion.
+* avltr_walk:                            Iteration.
+* binary tree:                           Introduction to balanced binary trees.
+* hash table:                            Introduction to balanced binary trees.
+* Knuth, Donald Ervin:                   Author.
+* Landis, E. M.:                         Introduction to balanced binary trees.
+* Pfaff, Benjamin Levy:                  Author.
+* rb_copy:                               Tree Creation.
+* rb_count:                              Tree Creation.
+* rb_create:                             Tree Creation.
+* rb_delete:                             Insertion.
+* rb_destroy:                            Tree Creation.
+* rb_find:                               Searching.
+* rb_find_close:                         Searching.
+* rb_force_delete:                       Insertion.
+* rb_force_insert:                       Insertion.
+* rb_free:                               Tree Creation.
+* rb_init_traverser:                     Iteration.
+* rb_insert:                             Insertion.
+* RB_MAX_HEIGHT:                         Types.
+* rb_node:                               Types.
+* rb_probe:                              Insertion.
+* rb_replace:                            Insertion.
+* rb_traverse:                           Iteration.
+* rb_traverser:                          Types.
+* rb_tree:                               Types.
+* rb_walk:                               Iteration.
+* rebalancing:                           Introduction to balanced binary trees.
+* red-black tree:                        Introduction to balanced binary trees.
+* right threads:                         Functions.
+* threads:                               Functions.
+* unthreaded:                            Functions.
+* xmalloc:                               Tree Creation.
+
+
+
+Tag Table:
+Node: Top891
+Node: Introduction to balanced binary trees1340
+Node: Introduction to threaded trees5260
+Ref: Introduction to threaded trees-Footnote-17757
+Node: Types7871
+Node: Functions10904
+Ref: Functions-Footnote-111877
+Node: Tree Creation12014
+Node: Insertion15035
+Ref: Insertion-Footnote-119214
+Node: Searching19458
+Node: Iteration20863
+Node: Conversion23929
+Node: Author24875
+Node: Index25345
+
+End Tag Table

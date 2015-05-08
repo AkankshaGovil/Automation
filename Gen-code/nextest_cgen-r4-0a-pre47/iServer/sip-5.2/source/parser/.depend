@@ -1,0 +1,61 @@
+../../obj/parser/sipdecode.o: src/sipdecode.c ../common/h/siplist.h \
+ ../common/h/sipcommon.h ../common/h/sipstruct.h \
+ ../common/h/portlayer.h ../common/h/sipfree.h ../common/h/sipinit.h \
+ h/sipdecode.h h/sipdecodeintrnl.h ../common/h/siptrace.h h/siptimer.h \
+ ../common/h/sipstatistics.h ../common/ccp/h/ccpstruct.h \
+ ../common/ccp/h/ccpfree.h ../common/ccp/h/ccpinit.h \
+ ../common/rpr/h/rprinit.h ../common/rpr/h/rprfree.h \
+ ../common/h/sipbcptinit.h ../common/h/sipbcptfree.h
+../../obj/parser/sipformmessage.o: src/sipformmessage.c ../common/h/sipstruct.h \
+ ../common/h/sipcommon.h ../common/h/siplist.h \
+ ../common/ccp/h/ccpstruct.h ../common/h/sipstatistics.h \
+ ../common/h/portlayer.h h/sipformmessage.h ../common/h/sipinit.h \
+ ../common/h/sipfree.h h/sipdecode.h
+../../obj/parser/sipsendmessage.o: src/sipsendmessage.c ../common/h/sipcommon.h \
+ ../common/h/sipstruct.h ../common/h/siplist.h h/sipsendmessage.h \
+ ../common/h/portlayer.h ../common/h/sipstatistics.h h/siptimer.h \
+ ../common/h/siptrace.h h/sipdecode.h ../common/h/sipinit.h \
+ ../common/h/sipfree.h
+../../obj/parser/siptimer.o: src/siptimer.c ../common/h/sipstruct.h \
+ ../common/h/sipcommon.h ../common/h/siplist.h h/sipsendmessage.h \
+ h/siptimer.h ../common/h/portlayer.h ../common/h/sipinit.h \
+ ../common/h/sipfree.h ../common/h/sipstatistics.h \
+ ../common/h/siptrace.h h/sipdecode.h ../common/rpr/h/rprinit.h \
+ ../common/rpr/h/rprfree.h
+../../obj/common/portlayer.o: ../common/src/portlayer.c ../common/h/sipcommon.h \
+ ../common/h/portlayer.h
+../../obj/common/sipbcptfree.o: ../common/src/sipbcptfree.c ../common/h/sipstruct.h \
+ ../common/h/sipcommon.h ../common/h/siplist.h ../common/h/sipfree.h \
+ ../common/h/sipbcptfree.h ../common/h/portlayer.h
+../../obj/common/sipbcptinit.o: ../common/src/sipbcptinit.c ../common/h/sipstruct.h \
+ ../common/h/sipcommon.h ../common/h/siplist.h ../common/h/sipfree.h \
+ ../common/h/portlayer.h ../common/h/sipinit.h \
+ ../common/h/sipbcptfree.h ../common/h/sipbcptinit.h
+../../obj/common/sipfree.o: ../common/src/sipfree.c ../common/h/sipstruct.h \
+ ../common/h/sipcommon.h ../common/h/siplist.h ../common/h/sipfree.h \
+ ../common/h/sipbcptfree.h ../common/h/portlayer.h \
+ ../common/ccp/h/ccpstruct.h ../common/ccp/h/ccpfree.h \
+ ../common/rpr/h/rprfree.h
+../../obj/common/sipinit.o: ../common/src/sipinit.c ../common/h/sipstruct.h \
+ ../common/h/sipcommon.h ../common/h/siplist.h ../common/h/sipfree.h \
+ ../common/h/portlayer.h ../common/h/sipinit.h \
+ ../common/ccp/h/ccpinit.h ../common/ccp/h/ccpstruct.h \
+ ../common/ccp/h/ccpfree.h ../common/h/sipbcptinit.h \
+ ../common/h/sipbcptfree.h ../common/rpr/h/rprinit.h \
+ ../common/rpr/h/rprfree.h
+../../obj/common/siplist.o: ../common/src/siplist.c ../common/h/portlayer.h \
+ ../common/h/sipcommon.h ../common/h/siplist.h
+../../obj/common/sipstatistics.o: ../common/src/sipstatistics.c \
+ ../common/h/sipstatistics.h ../common/h/sipcommon.h \
+ ../common/h/sipstruct.h ../common/h/siplist.h
+../../obj/common/siptrace.o: ../common/src/siptrace.c ../common/h/sipcommon.h \
+ ../common/h/siptrace.h ../common/h/portlayer.h
+../../obj/parser/txndecode.o: ../common/h/siptxnstruct.h \
+../common/h/txnclone.h ../common/h/txninit.h ../common/h/txnfree.h \
+../parser/h/txndecode.h ../parser/h/txndecodeintrnl.h
+../../obj/parser/txndecodeintrnl.o: ../common/h/siptxnstruct.h \
+../common/h/txnclone.h ../common/h/txninit.h ../common/h/txnfree.h \
+../parser/h/txndecode.h ../parser/h/txndecodeintrnl.h
+../../obj/parser/txnmidway.o: ../common/h/siptxnstruct.h \
+../common/h/txnclone.h ../common/h/txninit.h ../common/h/txnfree.h \
+../parser/h/txndecode.h ../parser/h/txndecodeintrnl.h

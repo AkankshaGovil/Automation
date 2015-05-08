@@ -1,0 +1,32 @@
+<!--
+#
+# This file contains the route triggers
+#
+-->
+
+<!-- Start of XML definition for Route Triggers. -->
+<Triggers>
+  <!-- SIP Triggers -->
+  <SIP default="1" hunt_max="2" no_hunt_max="6">
+    <Hunt>404</Hunt>
+    <Hunt>480</Hunt>
+    <NoHunt>401</NoHunt>
+    <NoHunt>403</NoHunt>
+    <NoHunt>407</NoHunt>
+    <NoHunt>481</NoHunt>
+    <NoHunt>486</NoHunt>
+    <NoHunt>501</NoHunt>
+  </SIP>
+  <!-- H323 Triggers -->
+  <H323 default="1" hunt_max="9" no_hunt_max="0">
+    <Hunt>2</Hunt>
+    <Hunt>3</Hunt>
+    <Hunt>27</Hunt>
+    <Hunt>34</Hunt>
+    <Hunt>38</Hunt>
+    <Hunt>41</Hunt>
+    <Hunt>42</Hunt>
+    <Hunt>44</Hunt>
+    <Hunt>47</Hunt>
+  </H323>
+</Triggers>

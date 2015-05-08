@@ -1,0 +1,24 @@
+
+The normal way looks like this:
+
+perl Makefile.PL
+make
+make test
+make install
+
+For details see
+perldoc perlmodinstall
+perldoc ExtUtils::MakeMaker
+
+
+If you don't have 'make' on your system,
+then just copy 'MD5.pm' to a directory
+named 'Digest/Perl/' in one of the paths
+from @INC.
+
+e.g. /home/lackas/usr/perl/Digest/Perl/MD5.pm
+
+and insert a 'use lib' statement to your code:
+use lib '/home/lackas/usr/perl/';
+use Digest::Perl::MD5
+

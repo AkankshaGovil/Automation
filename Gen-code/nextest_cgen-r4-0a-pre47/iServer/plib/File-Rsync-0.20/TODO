@@ -1,0 +1,14 @@
+Build more tests
+
+Add example code to manpage
+
+Figure out a scheme for including extended docs.  The new perl-style options
+      add a great deal of flexibility.  The ability to pass an array reference
+      to the 'source' option, and the include/exclude options means you can
+      build your own lists and pass them to the object when you are ready.  I
+      need to figure out a good (standard) way to include docs on this so
+      people don't have to figure this out the hard way.  Extended examples
+      should also be included (like one using Find.pm to build a complex
+      include/exclude list).
+
+Other suggestions welcome

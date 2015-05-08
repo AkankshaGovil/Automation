@@ -1,0 +1,243 @@
+#
+# Buildpatch - shell script for automatically building patch files
+#
+# $Id: Buildpatch,v 1.1 2002/07/04 12:53:10 agoyal Exp $
+#
+if [ $# = 0 ]; then
+	echo "usage: Buildpatch srcfiles..."
+	exit 1
+fi
+
+#
+# see if any files are still locked.  If so, we cannot proceed (they must be
+# unlocked before a patch file can be built
+#
+if rlog -l $* 2>rlog.err | grep "locked by:" >/dev/null; then
+	echo "all files must be checked in before a patch file can be built"
+	exit 1
+fi
+
+if [ -s rlog.err ]; then
+	echo "all files must be checked in before a patch file can be built"
+	exit 1
+fi
+
+rm -f rlog.err
+
+#
+# determine the old and new patch levels and name the patchfile
+#
+rm -f patchlevel	2> /dev/null
+co -q patchlevel 	2> /dev/null
+
+read title oldlevel < patchlevel
+
+if [ "$oldlevel" -lt 10 ]; then
+	OPATCH=patch.0$oldlevel
+	ODIR=patches/p.0$oldlevel
+else
+	OPATCH=patch.$oldlevel
+	ODIR=patches/p.$oldlevel
+fi
+
+#
+# if the old patch is still lying around, move it the the save directory
+#
+if [ -s "OPATCH" ]; then
+
+	if [ ! -d "$ODIR" ]; then
+		mkdir $ODIR
+	fi
+
+	mv ${OPATCH}* ${ODIR}
+
+	echo "Saved ${OPATCH} to ${ODIR}"
+fi
+
+level=`expr "$oldlevel" + 1`
+
+if [ "$level" -lt 10 ]; then
+	PATCH=patch.0$level
+else
+	PATCH=patch.$level
+fi
+	
+
+#
+# check out current version of all files
+#
+co -q -u $*
+
+#
+# create the new patchlevel file
+#
+echo "Buillding patch number $level..."
+co -q -l patchlevel
+echo "$title $level" > patchlevel 
+ci -u -q -m"patch number $level" -t/dev/null patchlevel
+
+#
+# create a new, empty patch file and empty directory for old versions of files
+# Note that if the patch file already exists, we assume it is special directions
+# for the patch and don't remove them.
+#
+if [ -s $PATCH.inst ]; then
+	cp $PATCH.inst $PATCH
+	chmod 644 $PATCH
+else
+	cp /dev/null $PATCH
+	chmod 644 $PATCH
+fi
+
+if [ -d old ]; then
+	rm -rf old
+fi
+mkdir old
+
+#
+# Unpack the old shar files into the old directory
+#
+(
+	echo "Building old directory for diff base"
+
+	cd old
+	if [ "$oldlevel" -lt 10 ]; then
+		oldlevel=0$oldlevel
+	fi
+
+	#
+	# if there isn't an oldshar directory, move them from the source
+	# directory to the oldshar directory
+	#
+	if [ !  -d ../oldshars/$oldlevel ]; then
+		mkdir ../oldshars/$oldlevel
+		mv ../mallocshar.* ../oldshars/$oldlevel
+	fi
+
+	#
+	# unshar them into the current directory	
+	#
+	unshar -h /dev/null ../oldshars/$oldlevel/* > /dev/null 2>&1
+
+	#
+	# if there are any commands to run before the patch is applied
+	# run them now so that they are used when the patch is generated
+	#
+	grep "^CMD:" ../$PATCH | sed -e "s/^CMD://" > commands
+
+	if [ -s commands ]; then
+		sh -x commands
+	fi
+)
+
+#
+# process each source file
+#
+echo "Generating diffs"
+for i in $*
+do
+	#
+	# if the file exists (then it has been changed and must be part of
+	# the patch file
+	#
+	if [ -s $i ]; then
+
+		#
+		# if the file hasn't changed, skip it
+		#
+		if cmp -s $i old/$i ; then
+			continue;
+		fi
+
+		#
+		# name the file
+		#
+		echo "\nIndex: $i" >> $PATCH
+
+		#
+		# if there is an old version, add the prerequisite
+		#
+		if [ -s old/$i ]; then
+			
+			#
+			# get old rcs id
+			#
+			PREREQ="`rlog -rpatchlevel_$oldlevel $i |
+				 grep '^revision' | cut -f2 -d' ' 2>/dev/null`"
+
+			#
+			# if the id is in the file, add the prereq line
+			#
+			if fgrep "$PREREQ" old/$i > /dev/null 2>&1; then
+
+				echo "Prereq: $PREREQ" >> $PATCH
+
+			elif [ "$i" = "patchlevel" ]; then
+
+				echo "Prereq: $oldlevel" >> $PATCH
+
+			fi
+		else
+			> old/$i
+		fi
+
+		# 
+		# diff the file to generate the patch stuff
+		#
+		diff -c old/$i $i >> $PATCH
+
+	fi
+
+done
+
+#
+# and now to check to verify that the patchfile correctly updates the
+# old code to the current version.  First apply the patch to the old
+# code and then see if there are any differences between the files.
+#
+echo "Verifying patch..."
+(
+	cd old
+
+	patch < ../$PATCH > /dev/null 2>&1
+)
+
+FILES="`
+for i in $*
+do
+	if cmp -s $i old/$i; then
+		continue;
+	fi
+
+	echo file $i did not patch correctly > /dev/tty
+	echo $i
+done `"
+
+if [ ! -z "$FILES" ]; then
+
+	echo "patch file did not build correctly($FILES)."
+	exit 1
+
+fi
+
+rm -rf old
+
+echo "Verification complete"
+
+#
+# and now freeze all the files at this patchlevel, and checkout the current
+# versions of the files
+#
+
+echo "freezing source at patch level $level"
+echo "." | rcsfreeze patchlevel_$level  > /dev/null 2>&1 
+
+echo "checking out current version (unlocked)"
+co -q -u -rpatchlevel_$level $*
+
+#
+# build patch shar files from patch file
+#
+shar3 -F -c -o$PATCH -L60 $PATCH
+
+exit 0

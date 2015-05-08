@@ -1,0 +1,212 @@
+#!/bin/sh
+#
+# DESCRIPTION: Use this script to generate iServer and Gen Licenses
+#
+
+# we need to get the -n funtionality from this $ECHO
+ECHO=/usr/ucb/echo
+
+if [ $# -gt 1 -o "$1" = "-h" -o "$1" = "-H" -o "$1" = "help" -o "$1" = "-help" ]
+then
+  $ECHO "Usage: `basename $0` [old license file]"
+  exit 0
+fi
+
+# sub routine to get user inputs
+GetAnswer ()
+{
+  $ECHO
+  if [ ! -z "$3" ]
+  then
+    $ECHO $3
+  fi
+  $ECHO -n "$1 [$2]: "
+  read answer
+
+  if [ -z "$answer" ]
+  then
+    answer=$2
+  fi
+}
+
+GetYN ()
+{
+  $ECHO
+  if [ ! -z "$3" -a "$2" = "$3" ]
+  then
+    prompt="[Y]/N"
+    default="Y"
+  else
+    prompt="Y/[N]"
+    default="N"
+  fi
+  $ECHO -n "$1? ($prompt): "
+  read answer
+
+  if [ -z "$answer" ]
+  then
+    answer=$default
+  fi
+}
+
+version="-"
+date="-"
+endpoints="-"
+vports="-"
+hostid="-"
+mrvports="-"
+h323="-"
+sip="-"
+fce="-"
+
+if [ $# -eq 1 ]
+then
+  # read the old license
+  if [ ! -r $1 ]
+  then
+    $ECHO "Unable to read file: $1"
+    exit 1
+  fi
+
+  FILE=$1
+
+  read dummy version date endpoints vports hostid mrvports < $FILE
+
+  FILE2=$FILE.tmp.`date '+%H%M%S`
+  grep -v iServer $FILE > $FILE2
+  read empty features < $FILE2
+  rm $FILE2
+  echo $features | grep H323 > /dev/null 2>&1
+  if [ $? -eq 0 ]
+  then
+    h323=H323
+  fi
+  echo $features | grep SIP > /dev/null 2>&1
+  if [ $? -eq 0 ]
+  then
+    sip=SIP
+  fi
+  echo $features | grep FCE > /dev/null 2>&1
+  if [ $? -eq 0 ]
+  then
+    fce=FCE
+  fi
+
+  count=1;
+  while [ 1 ]
+  do
+    name=`echo $FILE | cut -s -d"_" -f$count`
+    if [ -z "$name" ]
+    then
+      break
+    fi
+    count=`expr $count + 1`
+  done
+  count=`expr $count - 1`
+  field=1
+  if [ $count -gt 3 ]
+  then
+    field=1-`expr $count - 2`
+  fi
+   
+  custname=`basename $FILE | cut -d"_" -f$field`
+
+  $ECHO
+  $ECHO "Read old license for customer '$custname':"
+  $ECHO "$version $date $endpoints $vports $hostid $mrvports"
+  $ECHO "$h323 $sip $fce"
+  $ECHO 
+  $ECHO "Press <Enter> to continue..."
+  read x
+fi
+
+umask 022
+#clear
+
+$ECHO
+$ECHO "iServer License Generator"
+
+if [ ! -x ./lgen ]
+then
+  $ECHO "Need lgen in the current directory to run this script"
+  exit 1;
+fi
+
+GetAnswer "Enter the License Version" $version
+ver=$answer
+
+GetAnswer "Enter the expiration date (MM-DD-YYYY)" $date "(Eg. October 13th 2002 = 09-13-2002, or use 'timeless')"
+exp=$answer
+
+GetAnswer "Enter the number of endpoints" $endpoints
+lic=$answer
+
+GetAnswer "Enter the number of vports/maxcalls" $vports
+xcalls=$answer 
+
+GetAnswer "Enter the number of media routing vports" $mrvports
+mrcalls=$answer 
+
+GetAnswer "Enter the platform specific binding" $hostid "SUN - hostid, Linux - MAC Address, or 'unbound'"
+last=$answer
+
+$ECHO
+$ECHO "iServer $ver $exp $lic $xcalls $last $mrcalls"
+
+GetYN "Correct" "Y" "Y"
+if [ "$answer" = "y" ] || [ "$answer" = "Y" ];then
+  GetAnswer "Enter Customer Name (use underscore for spaces)" $custname
+  cust=$answer
+
+  name=../${cust}_${exp}_${last}
+
+  $ECHO "iServer $ver $exp $lic $xcalls $last $mrcalls" > $name
+  $ECHO -n "Features" >> $name
+  $ECHO
+  $ECHO "Enter Licensed Features:"
+
+  GetYN "Enable GEN" "GEN" $h323
+  if [ "$answer" = "y" ] || [ "$answer" = "Y" ];then
+    $ECHO -n " GEN" >> $name
+  else
+    GetYN "Enable H.323" "H323" $h323
+    if [ "$answer" = "y" -o "$answer" = "Y" ]
+    then
+      $ECHO -n " H323" >> $name
+    fi
+
+    GetYN "Enable SIP" "SIP" $sip
+    if [ "$answer" = "y" -o "$answer" = "Y" ]
+    then
+      $ECHO -n " SIP" >> $name
+    fi
+
+    if [ -z "$mrcalls" ]
+    then
+      mrcalls=0
+    fi
+    GetYN "Enable FCE" "FCE" $fce
+    if [ "$answer" = "y" -o "$answer" = "Y" ]
+    then
+      $ECHO -n " FCE" >> $name
+    else
+      if [ $mrcalls -gt 0 ]
+      then
+        $ECHO "Warning: FCE feature is disabled but MR vports are licensed!"
+      fi
+    fi
+  fi
+
+  $ECHO "" >> $name
+
+  ./lgen $name
+
+  $ECHO
+  $ECHO "License Created - File Named - $name"
+  $ECHO
+else
+  $ECHO "Exiting without generating a new license"
+  $ECHO
+fi
+
+

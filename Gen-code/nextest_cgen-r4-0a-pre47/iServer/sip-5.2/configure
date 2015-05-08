@@ -1,0 +1,1351 @@
+#!/bin/sh
+
+####################################################
+#
+#	Filename: configure
+#
+#   Description: This file is typically executed
+#	once after unpackaging the SIP stack. This
+#	script asks the user some simple compiling
+#	questions, and based on his answer, creates
+#	correct Makefiles and MakeVars.
+#	The user is free to fine-tune the generated
+#	MakeVars file to add/delete more compiler flags
+#	after configure generates it.
+#
+#	Usage: ./configure
+#
+#	Note that the user need not run configure
+#	each time he wants to compile the stack. He can
+#	simply run make directly.
+#	Typically, configure is needed only when he wants
+#	to change some SIP flags or use another compiler
+#
+#   WARNING: Running configure will overwrite
+#	any changes the user may have made to the 
+# 	generated MakeVars or Makefile.
+#
+#	DATE		NAME		REFERENCE	REASON	
+#	----    	----        ---------   -------
+#	12/12/2000  Arjun RC				Initial
+#
+####################################################
+
+
+
+####################################################
+# If these variables are filled in with values
+# then this script will not ask further questions
+# for these variables
+#
+# Note: if you define the COMPILER flag, then
+# you must also define the SHAREDFLAG and SHAREDAR
+# flags appropriately in case you are generating .so
+####################################################
+
+PLATFORM=
+COMPILER=
+CFLAGS= 
+
+# NEXTONE modification:  Added ../ to all -I flags throughout the file
+NEXTONEFLAGS="-DSIP_NO_CHECK -DYERROR_VERBOSE -O3 -ggdb"
+
+# Add any compiler specific warnings you want here
+
+SMALLCC_WFLAGS=" -v -xtransition "
+CC_WFLAGS=" +w2 +w  -xO5 "
+GCC_WFLAGS="  -Wimplicit -Wmissing-prototypes \
+                 -Wcomment -Waggregate-return \
+                -Wmissing-declarations -Wreturn-type \
+                -Wparentheses -Wpointer-arith \
+                -fno-builtin -fno-inline-functions \
+                -fsigned-char -pipe -Wstrict-prototypes \
+                -Wno-format -W -fcond-mismatch -Wnested-externs\
+                 -Wswitch -O2 "
+GCC_WFLAGS_FOR_CPP="  -Wimplicit -Wmissing-prototypes \
+                 -Wcomment \
+                -Wmissing-declarations -Wreturn-type \
+                -Wparentheses -Wpointer-arith \
+                -fno-builtin -fno-inline-functions \
+                -fsigned-char -pipe -Wstrict-prototypes \
+                -Wno-format -W -fcond-mismatch -Wnested-externs\
+                 -Wswitch -O2 "
+
+CCPPC_WFLAGS="-Wall"
+
+
+
+# Do NOT change these flags below
+
+# NEXTONE -- added ../ to -L below
+LDFLAGS="-L../lib/ -lxnet -lpthread"
+AR="ar -r"
+TESTINCLUDES="-I../source/parser/h -I../source/accessor/h -I../source/common/h \
+			  -I../source/accessor/h -I../source/common/ccp/h/ \
+			  -I../source/common/rpr/h/ -I../source/accessor/ccp/h -I../source/accessor/rpr/h"
+
+
+###########################################
+# Ask for platform for compilation
+###########################################
+
+# Essentially, this has be be a dynamic menu
+# The platforms depend on the kind of packaging
+# done by HSS. for each platform that is supported
+# , a file exists in makefiles/packages/
+# The menu should show options depending on this
+
+
+echo "Platform Selection Options "
+echo "==========================="
+if [  "${PLATFORM}" = "" ]
+then
+	OPTIONS="("
+	PLATFORM=SIP_SOLARIS
+	DEF_PLAT=
+	# Can this package be compiled under solaris ?
+	if [ -f makefiles/packages/PLATFORM_SOLARIS ]
+	then
+		echo "(s). Solaris"
+		OPTIONS="${OPTIONS} s"
+		if [ "${DEF_PLAT}" = "" ]; then DEF_PLAT=SIP_SOLARIS; CPU=solaris; fi
+	fi
+
+	# Can this package be compiled under linux ?
+	if [ -f makefiles/packages/PLATFORM_LINUX ]
+	then
+		echo "(l). Linux"
+		OPTIONS="${OPTIONS} l"
+		if [ "${DEF_PLAT}" = "" ]; then DEF_PLAT=SIP_LINUX; CPU=linux; fi
+	fi
+
+
+	# Can this package be compiled under vxworks ?
+	if [ -f makefiles/packages/PLATFORM_VXWORKS ]
+	then
+		echo "(v). VxWorks"
+		OPTIONS="${OPTIONS} v"
+		if [ "${DEF_PLAT}" = "" ]; then DEF_PLAT=SIP_VXWORKS; CPU=linux; fi
+	fi
+	OPTIONS="${OPTIONS} )"
+	echo  "Select ${OPTIONS}: "
+	read pla_var
+
+	if [ "${pla_var}" = "s" ];  then 
+		if [ -f makefiles/packages/PLATFORM_SOLARIS ]
+		then
+			PLATFORM=SIP_SOLARIS; CPU=solaris;
+		else
+			PLATFORM=${DEF_PLAT}
+		fi
+	elif [ "${pla_var}" = "l" ]; then 
+		if [ -f makefiles/packages/PLATFORM_LINUX ]
+		then
+			PLATFORM=SIP_LINUX; CPU=linux;
+			# In Linux, -xnet is not needed
+			# NEXTONE -- added ../ to -L below
+			LDFLAGS="-L../lib/ -lpthread"
+		else
+			PLATFORM=${DEF_PLAT}
+		fi
+	elif [ "${pla_var}" = "v" ]; then 
+		if [ -f makefiles/packages/PLATFORM_VXWORKS ]
+		then
+			PLATFORM=SIP_VXWORKS;CPU=vxworks;
+			LDFLAGS=-Llib/
+		else
+			PLATFORM=${DEF_PLAT}
+		fi
+	else
+			PLATFORM=${DEF_PLAT}
+			# NEXTONE -- added ../ to -L below
+                        if [ "${DEF_PLAT}" = "SIP_LINUX" ]; then LDFLAGS="-L../lib/ -lpthread"; fi
+	fi
+fi
+echo ${PLATFORM} selected
+echo
+
+###########################################
+# Ask for Compiler choice
+###########################################
+
+if [ -f makefiles/packages/PLATFORM_VXWORKS ]
+	then
+	if [ -f makefiles/packages/PLATFORM_SOLARIS ]
+	then
+		echo
+	else
+		if [ -f makefiles/packages/PLATFORM_OSE ]
+		then
+			echo
+		else
+			if [ -f makefiles/packages/PLATFORM_LINUX ]
+			then
+				echo
+			else
+				echo "Compiler Selection Options "
+				echo "==========================="
+				echo "1. Vxworks PPC compiler"
+				echo  "Select (1) (default=1): "
+				read com_var
+
+				COMPILER=ccppc
+				SHAREDFLAG=""
+				SHAREDAR=""
+				WARNINGSFLAGS=${CCPPC_WFLAGS}
+			fi
+		fi
+	fi
+fi
+				
+if [  "${COMPILER}" = "" ]
+then
+	echo "Compiler Selection Options "
+	echo "==========================="
+	COMPILER="gcc"
+	SHAREDFLAG="-fPIC"
+	SHAREDAR="gcc -shared -o"
+	WARNINGSFLAGS=${GCC_WFLAGS}
+
+
+
+	echo "1. gcc"
+	echo "2. cc"
+	echo "3. CC"
+	echo "4. g++"
+	
+	# Can this package be compiled under vxworks ?
+	if [ -f makefiles/packages/PLATFORM_VXWORKS ]
+	then	
+		echo "5. Vxworks PPC compiler"
+	fi
+	
+	echo  "Select (1,2,3,4) (default=1): "
+
+	read com_var
+
+	# User wants to compile with gcc
+	if [ "${com_var}" = "1" ];  then 
+			COMPILER="gcc"
+			SHAREDFLAG="-fPIC"
+			SHAREDAR="gcc -shared -o "
+			WARNINGSFLAGS=${GCC_WFLAGS}
+
+	# User wants to compile with sun cc
+	elif [ "${com_var}" = "2" ]; then 
+			if [ "${PLATFORM}" = "SIP_LINUX" ]
+			then
+				COMPILER=cc
+				SHAREDFLAG="-fPIC"
+				SHAREDAR="cc -shared -o "
+				WARNINGSFLAGS=${GCC_WFLAGS}
+			else
+				COMPILER=cc
+				SHAREDFLAG="-KPIC"
+				SHAREDAR="cc -G -o "
+				WARNINGSFLAGS=${SMALLCC_WFLAGS}
+			fi
+
+	#User wants to compile with sun CC
+	elif [ "${com_var}" = "3" ]; then 
+			COMPILER=CC
+			SHAREDFLAG="-KPIC"
+			SHAREDAR="CC -G -o "
+			WARNINGSFLAGS=${CC_WFLAGS}
+
+	#User wants to compile with g++
+	elif [ "${com_var}" = "4" ];  then 
+			COMPILER=g++
+			SHAREDFLAG="-fPIC"
+			SHAREDAR="g++ -shared -o "
+			WARNINGSFLAGS=${GCC_WFLAGS}
+
+	#User wants to compile with Vxworks compiler
+	# In vxworks, we dont support .so
+	elif [ -f makefiles/packages/PLATFORM_VXWORKS ]; then
+	 
+		if	[ "${com_var}" = "5" ];  then 
+				COMPILER=ccppc
+				SHAREDFLAG=""
+				SHAREDAR=""
+				WARNINGSFLAGS=${CCPPC_WFLAGS}
+		fi		
+	fi
+fi
+echo ${COMPILER} selected
+echo "Do you want me to include all warnings flags for your compiler ? [y] "
+read wrn_var;
+if [ "${wrn_var}" = "n" ]; then WARNINGSFLAGS=""; fi
+
+
+###########################################
+# Ask for Compiler Flags for SIP stack
+###########################################
+echo "Compiler Flags selection "
+echo "========================="
+if [ "${CFLAGS}" = "" ]
+then
+
+	# By deafault ANSI_PROTO and the platform flag
+	# MUST be included
+	CFLAGS="-Wall -DANSI_PROTO -D${PLATFORM} -D_REENTRANT"
+
+	# If user wants  to compile using VxWorks, SO is not asked
+	if [ "${PLATFORM}" = "SIP_VXWORKS" ]
+	then
+		so_var=n
+	else
+		echo  "Generate shared objects ? [n]"
+		read so_var
+	fi
+
+	if [ "${so_var}" != "y" ]; 
+	then 
+			
+			# If he does not want .so, do not add
+			# flag to make compiler generate relocatable
+			# code
+			SHAREDFLAG=""
+	else
+			# If user wants a .so, we cannot use ar for 
+			# archiving. We must use the compiler chosen
+			# with the correct option for shared objects
+
+			AR=${SHAREDAR};
+	fi
+		
+########################################
+# now go ahead and prompt for each flag
+########################################
+# Create the stack_config.h file, containing all
+# the flags that gets enabled by the user.
+# This file will be included by the application.
+rm -fr stack_config.h
+echo "/* Stack flags enabled by the user" >> stack_config.h
+echo " This is a generated file, please do not edit this file */" >> stack_config.h
+echo "" >> stack_config.h
+echo "#ifndef __STACK_CONFIG_H__" >> stack_config.h
+echo "#define __STACK_CONFIG_H__" >> stack_config.h
+echo "" >> stack_config.h
+echo "#define $PLATFORM" >> stack_config.h
+echo "#define ANSI_PROTO" >> stack_config.h
+
+	# TXN support
+	    echo  "Enable TXN Layer support ? [y]"
+		read txn_var
+		if [ "${txn_var}" != "n" ] 
+		then 
+			CFLAGS="${CFLAGS} -DSIP_TXN_LAYER -DSIP_THREAD_SAFE"
+			echo "#define SIP_TXN_LAYER" >> stack_config.h
+			echo "#define SIP_THREAD_SAFE" >> stack_config.h
+			txn_var=y
+		else
+			echo "#undef SIP_TXN_LAYER" >> stack_config.h
+		fi
+
+	# MIB support
+	    echo  "Enable MIB support ? [n]"
+		read mib_var
+		if [ "${mib_var}" = "y" ] 
+		then 
+			CFLAGS="${CFLAGS} -DSIP_MIB -DSIP_STATISTICS"
+			echo "#define SIP_MIB" >> stack_config.h
+			echo "#define SIP_STATISTICS" >> stack_config.h
+		else
+			echo "#undef SIP_MIB" >> stack_config.h
+		fi
+		
+	# SDP Over ATM support
+	    echo  "Enable SDP Over ATM support ? [n]"
+		read atm_var
+		if [ "${atm_var}" = "y" ] 
+		then 
+			CFLAGS="${CFLAGS} -DSIP_ATM"
+			echo "#define SIP_ATM" >> stack_config.h
+		else
+			echo "#undef SIP_ATM" >> stack_config.h
+			# SDP Over PINT support
+	    		echo  "Enable SDP Over PINT support ? [n]"
+			read pint_var
+			if [ "${pint_var}" = "y" ] 
+			then 
+				CFLAGS="${CFLAGS} -DSIP_PINT"
+				echo "#define SIP_PINT" >> stack_config.h
+			else
+				echo "#undef SIP_PINT" >> stack_config.h
+			fi
+		fi
+
+	# IMPP support
+	    echo  "Enable IMPP support ? [n]"
+		read impp_var
+		if [ "${impp_var}" = "y" ] 
+		then 
+			CFLAGS="${CFLAGS} -DSIP_IMPP"
+			echo "#define SIP_IMPP" >> stack_config.h
+		else
+			echo "#undef SIP_IMPP" >> stack_config.h
+		fi
+	
+	# MWI support
+	    echo  "Enable MWI support ? [n]"
+		read mwi_var
+		if [ "${mwi_var}" = "y" ] 
+		then 
+			CFLAGS="${CFLAGS} -DSIP_MWI"
+			echo "#define SIP_MWI" >> stack_config.h
+		else
+			echo "#undef SIP_MWI" >> stack_config.h
+		fi
+
+	# TEL URL support
+		echo  "Enable TEL support ? [n]"
+		read tel_var
+		if [ "${tel_var}" = "y" ] 
+		then 
+			CFLAGS="${CFLAGS} -DSIP_TEL"
+			TESTINCLUDES="${TESTINCLUDES}  -I../source/common/tel/h/ -I../source/accessor/tel/h/ -I../source/parser/tel/h/"
+			echo "#define SIP_TEL" >> stack_config.h
+		else
+			echo "#undef SIP_TEL" >> stack_config.h
+		fi
+
+	# PRES URL support
+		echo  "Enable PRES support ? [n]"
+		read pres_var
+		if [ "${pres_var}" = "y" ] 
+		then 
+			CFLAGS="${CFLAGS} -DSIP_PRES"
+			TESTINCLUDES="${TESTINCLUDES}  -I../source/common/h/ "
+			echo "#define SIP_PRES" >> stack_config.h
+		else
+			echo "#undef SIP_PRES" >> stack_config.h
+		fi
+	#Enable Security
+		echo  "Enable  Security support ? [n]"
+		read sec_var
+		if [ "${sec_var}" = "y" ] 
+		then 
+			CFLAGS="${CFLAGS} -DSIP_SECURITY"
+			echo "#define SIP_SECURITY" >> stack_config.h
+		else
+			echo "#undef SIP_SECURITY" >> stack_config.h
+		fi
+
+	#Enable SessionTimer
+		echo  "Enable session-timer support ? [n]"
+		read sess_var
+		if [ "${sess_var}" = "y" ] 
+		then 
+			CFLAGS="${CFLAGS} -DSIP_SESSIONTIMER"
+			echo "#define SIP_SESSIONTIMER" >> stack_config.h
+		else
+			echo "#undef SIP_SESSIONTIMER" >> stack_config.h
+		fi
+		
+
+	#Enable Caller-Callee preferences	
+		echo "Enable Caller and Callee Preferences  ? [n]"
+		read ccp_var
+		ccp_version=n
+		if [ "${ccp_var}" = "y" ]
+		then 
+			CFLAGS="${CFLAGS} -DSIP_CCP"
+			echo "#define SIP_CCP" >> stack_config.h
+			echo "Stack is compliant to draft-ietf-sip-callerprefs-6." 
+			echo "Do you want Compliance to draft-ietf-sip-callerprefs-10 ? [n]"
+			read ccp_version
+			if [ "${ccp_version}" = "y" ]
+            then
+			  CFLAGS="${CFLAGS} -DSIP_CCP_VERSION10"
+			  echo "#define SIP_CCP_VERSION10" >> stack_config.h
+			else
+			  echo "#define SIP_CCP_VERSION06" >> stack_config.h
+			  CFLAGS="${CFLAGS} -DSIP_CCP_VERSION06"
+			fi  
+		else	
+			echo "#undef SIP_CCP" >> stack_config.h
+		fi
+
+		if [ -f makefiles/packages/DCS ]
+		# Note: DCS not supported in CPP & MSGIF now
+			then
+				echo  "Enable DCS support ? [n]"
+				read dcs_var
+				if [ "${dcs_var}" = "y" ]
+					then CFLAGS="${CFLAGS} -DSIP_DCS"
+					echo "#define SIP_DCS" >> stack_config.h
+		 		TESTINCLUDES="${TESTINCLUDES} -I../source/accessor/dcs/h/ -I../source/common/dcs/h/"
+			 	else
+					echo "#undef SIP_DCS" >> stack_config.h
+				fi
+
+			else
+				echo "DCS support is not present in this release - skipping this part"
+				echo
+		fi
+		
+		#Enable Privacy 
+		echo  "Enable Privacy support ? [n]"
+		read priv_var
+		if [ "${priv_var}" = "y" ] 
+		then 
+			CFLAGS="${CFLAGS} -DSIP_PRIVACY"
+			echo "#define SIP_PRIVACY" >> stack_config.h
+		else
+			echo "#undef SIP_PRIVACY" >> stack_config.h
+		fi
+
+	#Enable 3gpp 
+	echo  "Enable 3GPP support ? [n]"
+	read gpp3_var
+	if [ "${gpp3_var}" = "y" ] 
+	then 
+		CFLAGS="${CFLAGS} -DSIP_3GPP"
+		echo "#define SIP_3GPP" >> stack_config.h
+	else
+		echo "#undef SIP_3GPP" >> stack_config.h
+	fi
+
+    #Enable Congestion control support 
+	echo  "Enable Congestion control support ? [n]"
+	read congest_var
+	if [ "${congest_var}" = "y" ] 
+	then 
+		CFLAGS="${CFLAGS} -DSIP_CONGEST"
+		echo "#define SIP_CONGEST" >> stack_config.h
+	else
+		echo "#undef SIP_CONGEST" >> stack_config.h
+	fi
+
+    #Enable Conferencing support 
+	echo  "Enable Conferencing support ? [n]"
+	read conf_var
+	if [ "${conf_var}" = "y" ] 
+	then 
+		CFLAGS="${CFLAGS} -DSIP_CONF"
+		echo "#define SIP_CONF" >> stack_config.h
+	else
+		echo "#undef SIP_CONF" >> stack_config.h
+	fi
+
+
+	# First ask for CPP as many others are dependant on it
+	if [ -f makefiles/packages/CPP  ]
+	then
+		echo "Enable C++ wrappers ? [n]" 
+	 	read cpp_var
+		if [ "${cpp_var}" = "y" ]; 
+		then
+			cpp_var=y
+		fi
+		 if [ "${cpp_var}" = "y" ]; 
+		 then 	
+			CFLAGS="${CFLAGS} -DSIP_NO_CALLBACK -DSIP_CPPWRAPPER -DSIP_BY_REFERENCE"
+			echo "#define SIP_NO_CALLBACK" >> stack_config.h
+			echo "#define SIP_CPPWRAPPER" >> stack_config.h
+			echo "#define SIP_BY_REFERENCE" >> stack_config.h
+			if [ "${com_var}" = "4" ];  then 
+				WARNINGSFLAGS=${GCC_WFLAGS_FOR_CPP}
+			fi
+			if [ "${COMPILER}" = "gcc" ]; then
+				WARNINGSFLAGS=${GCC_WFLAGS_FOR_CPP}
+			fi
+			TESTINCLUDES="${TESTINCLUDES} -I../source/c++/h"
+
+			# Now check if he selected a ++ compiler or not
+
+			if [ "${COMPILER}" = "gcc" ]
+			then
+					COMPILER=g++;
+					com_var=4;
+					echo "*NOTE*: For C++ wrappers, you must select a C++ compiler "
+					echo "I have changed your compiler selection from gcc to g++ "
+					echo
+			fi
+			if [ "${COMPILER}" = "cc" ]
+			then
+					COMPILER=CC;
+					com_var=3;
+					echo "*NOTE*: For C++ wrappers, you must select a C++ compiler "
+					echo "I have changed your compiler selection from cc to CC "
+					echo
+					SHAREDFLAG="-KPIC"
+					SHAREDAR="CC -G -o "
+					WARNINGSFLAGS=${CC_WFLAGS}
+			fi
+		else
+			echo "#undef SIP_CPPWRAPPER" >> stack_config.h
+		 fi
+	else
+		echo  "C++ API support is not present in this release - skipping this part"
+		echo
+	fi
+
+	# Following flags are asked only if CPP_WRAPPER is not selected
+	if [ "${cpp_var}" != "y" ]
+	then
+	
+		
+		# TEL URL support
+		#echo  "Enable TEL support ? [n]"
+		#read tel_var
+		#if [ "${tel_var}" = "y" ] 
+		#then 
+		#	CFLAGS="${CFLAGS} -DSIP_TEL"
+		#	TESTINCLUDES="${TESTINCLUDES}  -I../source/common/tel/h/ -I../source/accessor/tel/h/ -I../source/parser/tel/h/"
+		#fi
+
+		# IMPP support
+		#echo  "Enable IMPP support ? [n]"
+		#read impp_var
+		#if [ "${impp_var}" = "y" ] 
+		#then 
+		#	CFLAGS="${CFLAGS} -DSIP_IMPP"
+		#fi
+
+
+		# In CPP mode, BY_REFENCE is a MUST
+		echo "Enable By reference mode of compilation ? [y]"
+		read byref_var
+		if [ "${byref_var}" != "n" ]
+		then 
+			CFLAGS="${CFLAGS} -DSIP_BY_REFERENCE"
+			echo "#define SIP_BY_REFERENCE" >> stack_config.h
+		else
+			echo "#undef SIP_BY_REFERENCE" >> stack_config.h
+		fi
+
+		# If user has selected to make C++ wrapper, NO CALLBACK is implicitly defined
+		# Ask him only if C++ Wrappers is not selected
+	
+		if [ "${txn_var}" != "y" ]
+		then
+			echo "Enable No Callback Mode  ? [n]"
+			read cbk_var
+			if [ "${cbk_var}" = "y" ]
+			then 
+				CFLAGS="${CFLAGS} -DSIP_NO_CALLBACK "
+				echo "#define SIP_NO_CALLBACK" >> stack_config.h
+			else
+				echo "#undef SIP_NO_CALLBACK" >> stack_config.h
+			fi
+		else
+			CFLAGS="${CFLAGS} -DSIP_NO_CALLBACK "
+			echo "#define SIP_NO_CALLBACK" >> stack_config.h
+		fi
+
+	fi # of cpp_vars
+
+	# NOTE: if CPP is taken CCP must be on !!! - wil fix later 
+	#	echo "Enable Caller and Callee Preferences  ? [y]"
+	#	read ccp_var
+	#	if [ "${ccp_var}" != "n" ]; then CFLAGS="${CFLAGS} -DSIP_CCP"; fi
+
+	# In vxworks, we dont use pthreads
+	if [ "${txn_var}" != "y" ] 
+	then
+		if [ "${PLATFORM}" = "SIP_VXWORKS" ]
+		then
+			echo  "Enable Thread safety ? [y]"
+			read thr_var
+		else
+			echo  "Enable Thread safety ? [y]"
+			read thr_var
+		fi
+		if [ "${thr_var}" != "n" ]
+		then 
+			CFLAGS="${CFLAGS} -DSIP_THREAD_SAFE"
+			echo "#define SIP_THREAD_SAFE" >> stack_config.h
+		else
+			echo "#undef SIP_THREAD_SAFE" >> stack_config.h
+		fi
+	fi
+	
+	echo "Enable  Trace ? [n]"
+	read tra_var
+	if [ "${tra_var}" = "y" ]
+	then 
+		CFLAGS="${CFLAGS} -DSIP_TRACE"
+		echo "#define SIP_TRACE" >> stack_config.h
+		if [ "${PLATFORM}" = "SIP_VXWORKS" ] && [ "${thr_var}" != "n" ]
+	then 
+	echo "You have chosen the thread-safe option and also enabled tracing. "
+	echo "Shall I implement locks around print function used for tracing ? [y] "
+	echo "(For details refer MakeVars,  source/common/h/siptrace.h and "
+	echo "source/common/src/portlayer.c)"
+	echo ""
+	read prn_var
+	
+		if [ "${prn_var}" != "n" ]
+		then 
+			CFLAGS="${CFLAGS} -DPrintFunction=vxprintf"
+		fi
+	fi
+	else
+		echo "#undef SIP_TRACE" >> stack_config.h
+	fi
+
+	if [ "${mib_var}" != "y" ] 
+	then 
+		echo "Enable  Statistics ? [n]"
+		read sta_var
+		if [ "${sta_var}" = "y" ]
+		then 
+			CFLAGS="${CFLAGS} -DSIP_STATISTICS"
+			echo "#define SIP_STATISTICS" >> stack_config.h
+		else
+			echo "#undef SIP_STATISTICS" >> stack_config.h
+		fi
+	fi
+
+	echo "Enable  Debug ? [n]"
+	read dbg_var
+	if [ "${dbg_var}" = "y" ]
+	then 
+		CFLAGS="${CFLAGS} -DSIP_DEBUG"
+		echo "#define SIP_DEBUG" >> stack_config.h
+	else
+		echo "#undef SIP_DEBUG" >> stack_config.h
+		echo "#undef SIP_FNDEBUG" >> stack_config.h
+	fi
+
+	# Ask user to include function debug only if he has selected debug flag
+	# previously.
+
+	if [ "${dbg_var}" = "y" ]
+	then
+		echo "Enable Function Entry/Exit Debug ? [n]"
+		read fnd_var
+		if [ "${fnd_var}" = "y" ]
+		then 
+			CFLAGS="${CFLAGS} -DSIP_FNDEBUG"
+			echo "#define SIP_FNDEBUG" >> stack_config.h
+		else
+			echo "#undef SIP_FNDEBUG" >> stack_config.h
+		fi
+	fi
+	echo "Enable Error ? [y]"
+	read err_var
+	if [ "${err_var}" != "n" ]
+	then 
+		CFLAGS="${CFLAGS} -DSIP_ERROR"
+		echo "#define SIP_ERROR" >> stack_config.h
+	else
+		echo "#undef SIP_ERROR" >> stack_config.h
+	fi
+
+	echo "Enable Selective Parsing ? [y]"
+	read sel_var
+	if [ "${sel_var}" != "n" ]
+	then 
+		CFLAGS="${CFLAGS} -DSIP_SELECTIVE_PARSE"
+		echo "#define SIP_SELECTIVE_PARSE" >> stack_config.h
+	else
+		echo "#undef SIP_SELECTIVE_PARSE" >> stack_config.h
+	fi
+
+	echo "Enable buffer overflow check when forming a SIP MessageBuffer? [n]"
+	read msgcheck_var
+	if [ "${msgcheck_var}" = "y" ]
+	then 
+		CFLAGS="${CFLAGS} -DSIP_MSGBUFFER_CHECK"
+		echo "#define SIP_MSGBUFFER_CHECK" >> stack_config.h
+	else
+		echo "#undef SIP_MSGBUFFER_CHECK" >> stack_config.h
+	fi
+
+	echo "Enable Paranoid Message Length Checking ? [n]"
+	read len_var
+	if [ "${len_var}" = "y" ]
+	then 
+		CFLAGS="${CFLAGS} -DSIP_INCOMPLETE_MSG_CHECK"
+		echo "#define SIP_INCOMPLETE_MSG_CHECK" >> stack_config.h
+	else
+		echo "#undef SIP_INCOMPLETE_MSG_CHECK" >> stack_config.h
+	fi
+
+
+	# Some systems (SunOS 5.1) dont have snprintf() defined
+	echo "Does your system support snprintf system call  ? [n]" 
+	read snp_var
+	if [ "${snp_var}" != "y" ]
+	then 
+		CFLAGS="${CFLAGS} -DSIP_OVERRIDE_SNPRINTF"
+		echo "#define SIP_OVERRIDE_SNPRINTF" >> stack_config.h
+	else
+		echo "#undef SIP_OVERRIDE_SNPRINTF" >> stack_config.h
+	fi
+		
+	# Enable FlexRecovery
+	echo "Disable Flex Recovery ? [n]"
+	read flexerr_val
+	if [ "${flexerr_val}" = "y" ]
+	then 
+		CFLAGS="${CFLAGS} -DSIP_NOFLEXRECOVERY"
+		echo "#define SIP_NOFLEXRECOVERY" >> stack_config.h
+	else
+		echo "#undef SIP_NOFLEXRECOVERY" >> stack_config.h
+	fi
+
+	# Enable non FILESYS_DEP 
+if [ "${PLATFORM}" = "SIP_SOLARIS" ] || [ "${PLATFORM}" = "SIP_LINUX" ] || [ "${PLATFORM}" = "SIP_VXWORKS" ] ;then
+	echo "Enable Non-File System Dependency  mode [n]"
+	read filesys_dep
+	if [ "${filesys_dep}" = "y" ]
+	then 
+		CFLAGS="${CFLAGS} -DSIP_NO_FILESYS_DEP"
+		echo "#define SIP_NO_FILESYS_DEP" >> stack_config.h
+	else
+		echo "#undef SIP_NO_FILESYS_DEP" >> stack_config.h
+	fi
+fi
+	
+	#Enable callbacks for message retransmissions
+	if [ "${cpp_var}" != "y" ]
+	then
+		echo  "Enable callbacks for message retransmissions ? [n]"
+		read call_remote
+		if [ "${call_remote}" = "y" ] 
+		then 
+			CFLAGS="${CFLAGS} -DSIP_RETRANSCALLBACK"
+			echo "#define SIP_RETRANSCALLBACK" >> stack_config.h
+		else
+			echo "#undef SIP_RETRANSCALLBACK" >> stack_config.h
+		fi
+	fi
+	if [ "${thr_var}" != "n" ]
+	then
+		#Enable mutex locked refcount mechanism
+		echo  "Enable mutex locked reference count mechanism ? [n]"
+		read mutex_lock
+		if [ "${mutex_lock}" = "y" ] 
+		then 
+			CFLAGS="${CFLAGS} -DSIP_LOCKEDREFCOUNT"
+			echo "#define SIP_LOCKEDREFCOUNT" >> stack_config.h
+		else
+			echo "#undef SIP_LOCKEDREFCOUNT" >> stack_config.h
+		fi
+	fi
+	#Enable Serialization
+	if [ "${cpp_var}" = "y" ]
+		then 
+			echo  "Enable Serialization ? [n]"
+			read serial_var
+		if [ "${serial_var}" = "y" ] 
+		then 
+			CFLAGS="${CFLAGS} -DSIP_SERIALIZE"
+			echo "#define SIP_SERIALIZE" >> stack_config.h
+		else
+			echo "#undef SIP_SERIALIZE" >> stack_config.h
+	fi
+fi
+fi
+	echo "" >> stack_config.h
+	echo "#endif" >> stack_config.h
+	echo "" >> stack_config.h
+#end of Asking questions for flags
+
+# Copy all the header files into a common directory
+# Application now has to include only this directory path 
+	rm -fr stack_headers
+	mkdir stack_headers
+	cd source
+	cp `find ./ -name "*.h"` ../stack_headers
+	cd ..
+# Move the generated config file to stack_headers folder	
+	mv stack_config.h ./stack_headers
+echo 
+echo "##### All the header files are copied into the directory stack_headers #####"	
+echo "##### stack_config.h file is available at ./stack_headers folder #####"	
+echo 
+
+# NEXTONE -- Added DBMALLOCINC and DBMALLOCFLAGS
+CFLAGS="\${DBMALLOCINC} \${DBMALLOCFLAGS} \${PROFFLAGS} ${CFLAGS} ${WARNINGSFLAGS} ${SHAREDFLAG} ${NEXTONEFLAGS}"
+
+# Show all CFLAGS computed to user. Just a sanity print.
+echo "Compiler flags set: "
+echo ${CFLAGS}
+
+
+
+
+########################################
+# Now make the correct MakeVars and
+# Makefile according to inputs given
+########################################
+
+echo
+echo "Generating Makefile and MakeVars..."
+
+
+# There is one Makefile and MakeVars for all extensions to C stack
+# C++ stack uses a diff. set of Makefile/Vars
+# VxWorks uses a diff. set of Makefile/Vars
+
+MAKEFILE="Makefile"
+MAKEVARS="MakeVars"
+
+if [ "${cpp_var}" = "y" ]
+then
+	MAKEFILE="cpp/Makefile.cpp"
+fi
+
+# Vxworks has different Makefiles and MakeVars
+
+if [ "${PLATFORM}" = "SIP_VXWORKS" ]
+then
+	MAKEFILE="vxworks/Makefile.vxworks"
+	MAKEVARS="vxworks/MakeVars.vxworks"
+	CFLAGS="${CFLAGS} \${VXWORKS_CFLAGS}"
+	AR="arppc crus"
+fi	
+
+cp -f makefiles/${MAKEVARS}.stub MakeVars
+echo "#Test includes directory" >> MakeVars
+echo "TESTINCLUDES=${TESTINCLUDES}" >> MakeVars
+echo >> MakeVars
+
+echo "#Archiver to use" >> MakeVars
+echo "AR=${AR}" >> MakeVars
+echo >> MakeVars
+
+echo "#Compiler to use" >> MakeVars
+echo "CC=${COMPILER}" >> MakeVars
+echo "PURIFYCC=\${PURIFY} \${CC}" >> MakeVars
+
+echo >> MakeVars
+
+echo "#Flags for compilation" >> MakeVars
+echo "CFLAGS=${CFLAGS}" >> MakeVars
+echo >> MakeVars
+
+echo "#linker options to use" >> MakeVars
+echo "LDFLAGS=${LDFLAGS}" >> MakeVars
+echo >> MakeVars
+
+echo >> MakeVars
+
+cp -f makefiles/${MAKEFILE}.stub Makefile
+cp -f makefiles/${MAKEFILE}.accessor.stub source/accessor/Makefile
+cp -f makefiles/${MAKEFILE}.parser.stub source/parser/Makefile
+#if [ "${cpp_var}" != "y" ]
+#	then
+	cp -f makefiles/${MAKEFILE}.serialization.stub source/serialize/Makefile
+#fi	
+
+
+#############################################################
+#
+#	This is the place where the makefile and makevar
+#	are modified to have correct includes/links/rules
+#	for the extension chosen.
+#
+#	The stub files have a "@<extension>@<space>" before any rule
+#	or line that is specific to the extension. This script will
+#   now proceed to include or exclude these rules  depending
+#	on whether this extension is selected to be included.
+#
+#	NOTE: When adding new extensions, please ensure that the space
+#	exists after any new token !!!! Also be extra careful since
+#	you will be editing Makefiles - and make is very picky
+#	about spaces and tabs !!!!!
+#
+################################################################
+
+if [ "${atm_var}" != "y" ]
+then
+	if [ "${pint_var}" != "y" ]
+	then
+		# this is simple SDP * NO PINT and NO ATM *
+	cat source/parser/lex/Sdp_stub.l > source/parser/lex/Sdp.l
+	cat source/parser/bison/Sdp_stub.y > source/parser/bison/Sdp.y
+	cat source/parser/lex/Media_stub.l > source/parser/lex/Media.l
+	cat source/parser/bison/Media_stub.y > source/parser/bison/Media.y
+else
+		# this is PINT enabled but NO ATM 
+		cat source/parser/lex/Sdppint_stub.l > source/parser/lex/Sdp.l
+		cat source/parser/bison/Sdppint_stub.y > source/parser/bison/Sdp.y
+		cat source/parser/lex/Mediapint_stub.l > source/parser/lex/Media.l
+		cat source/parser/bison/Mediapint_stub.y > source/parser/bison/Media.y
+	fi
+else
+	cat source/parser/lex/Sdpatm_stub.l > source/parser/lex/Sdp.l
+	cat source/parser/bison/Sdpatm_stub.y > source/parser/bison/Sdp.y
+	cat source/parser/lex/Mediaatm_stub.l > source/parser/lex/Media.l
+	cat source/parser/bison/Mediaatm_stub.y > source/parser/bison/Media.y
+fi
+
+if [ "${dcs_var}" != "y" ]
+then
+	# If he doesnt have DCS, delete the full line
+	cat Makefile | sed "/@DCS@/d" >Makefile.tmp
+	cat source/accessor/Makefile | sed "/@DCS@/d" >source/accessor/Makefile.tmp
+	cat source/parser/Makefile | sed "/@DCS@/d" >source/parser/Makefile.tmp
+	cat source/serialize/Makefile | sed "/@DCS@/d" >source/serialize/Makefile.tmp
+	mv -f Makefile.tmp Makefile
+	mv -f source/accessor/Makefile.tmp source/accessor/Makefile
+	mv -f source/parser/Makefile.tmp source/parser/Makefile
+	mv -f source/serialize/Makefile.tmp source/serialize/Makefile
+else
+	#if he has DCS, remove the @DCS@ token
+	cat Makefile | sed "s/@DCS@ //g" >Makefile.tmp
+	cat source/accessor/Makefile | sed "s/@DCS@ //g" >source/accessor/Makefile.tmp
+	cat source/parser/Makefile | sed "s/@DCS@ //g" >source/parser/Makefile.tmp
+	cat source/serialize/Makefile | sed "s/@DCS@ //g" >source/serialize/Makefile.tmp
+	mv -f Makefile.tmp Makefile
+	mv -f source/accessor/Makefile.tmp source/accessor/Makefile
+	mv -f source/parser/Makefile.tmp source/parser/Makefile
+	mv -f source/serialize/Makefile.tmp source/serialize/Makefile
+fi
+
+if [ "${gpp3_var}" != "y" ]
+then
+	# If he doesnt have 3GPP, delete the full line
+	cat Makefile | sed "/@3GPP@/d" >Makefile.tmp
+	cat source/accessor/Makefile | sed "/@3GPP@/d" >source/accessor/Makefile.tmp
+	cat source/parser/Makefile | sed "/@3GPP@/d" >source/parser/Makefile.tmp
+	cat source/serialize/Makefile | sed "/@3GPP@/d" >source/serialize/Makefile.tmp
+	mv -f Makefile.tmp Makefile
+	mv -f source/accessor/Makefile.tmp source/accessor/Makefile
+	mv -f source/parser/Makefile.tmp source/parser/Makefile
+	mv -f source/serialize/Makefile.tmp source/serialize/Makefile
+else
+	#if he has 3GPP, remove the @3GPP@ token
+	cat Makefile | sed "s/@3GPP@ //g" >Makefile.tmp
+	cat source/accessor/Makefile | sed "s/@3GPP@ //g" >source/accessor/Makefile.tmp
+	cat source/parser/Makefile | sed "s/@3GPP@ //g" >source/parser/Makefile.tmp
+	cat source/serialize/Makefile | sed "s/@3GPP@ //g" >source/serialize/Makefile.tmp
+	mv -f Makefile.tmp Makefile
+	mv -f source/accessor/Makefile.tmp source/accessor/Makefile
+	mv -f source/parser/Makefile.tmp source/parser/Makefile
+	mv -f source/serialize/Makefile.tmp source/serialize/Makefile
+fi
+
+if [ "${ccp_var}" = "y" ]
+then
+	if [ "${ccp_version}" = "y" ]
+	then
+		cat source/parser/lex/AcceptContact_v10.l > source/parser/lex/AcceptContact.l
+		cat source/parser/lex/RejectContact_v10.l > source/parser/lex/RejectContact.l
+		cat source/parser/bison/AcceptContact_v10.y > source/parser/bison/AcceptContact.y
+		cat source/parser/bison/RejectContact_v10.y > source/parser/bison/RejectContact.y
+	else
+		cat source/parser/lex/AcceptContact_v6.l > source/parser/lex/AcceptContact.l
+		cat source/parser/lex/RejectContact_v6.l > source/parser/lex/RejectContact.l
+		cat source/parser/bison/AcceptContact_v6.y > source/parser/bison/AcceptContact.y
+		cat source/parser/bison/RejectContact_v6.y > source/parser/bison/RejectContact.y
+	fi
+fi
+
+if [ "${tel_var}" != "y" ]
+then
+	# If he doesnt have TEL, delete the full line
+	cat Makefile | sed "/@TEL@/d" >Makefile.tmp
+	cat source/accessor/Makefile | sed "/@TEL@/d" >source/accessor/Makefile.tmp
+	cat source/parser/Makefile | sed "/@TEL@/d" >source/parser/Makefile.tmp
+	cat source/serialize/Makefile | sed "/@TEL@/d" >source/serialize/Makefile.tmp
+	mv -f Makefile.tmp Makefile
+	mv -f source/accessor/Makefile.tmp source/accessor/Makefile
+	mv -f source/parser/Makefile.tmp source/parser/Makefile
+	mv -f source/serialize/Makefile.tmp source/serialize/Makefile
+else
+	#if he has TEL, remove the @TEL@ token
+	cat Makefile | sed "s/@TEL@ //g" >Makefile.tmp
+	cat source/accessor/Makefile | sed "s/@TEL@ //g" >source/accessor/Makefile.tmp
+	cat source/parser/Makefile | sed "s/@TEL@ //g" >source/parser/Makefile.tmp
+	cat source/serialize/Makefile | sed "s/@TEL@ //g" >source/serialize/Makefile.tmp
+	mv -f Makefile.tmp Makefile
+	mv -f source/accessor/Makefile.tmp source/accessor/Makefile
+	mv -f source/parser/Makefile.tmp source/parser/Makefile
+	mv -f source/serialize/Makefile.tmp source/serialize/Makefile
+fi
+
+
+#If one of pres and impp is enabled then only we should compile parser/lex files
+if [ "${pres_var}" != "y" ]
+then
+		if [ "${impp_var}" = "y" ]
+		then
+	           cat source/parser/Makefile | sed "s/@IMPPPRES@ //g" >source/parser/Makefile.tmp
+		         mv -f source/parser/Makefile.tmp source/parser/Makefile
+		fi
+else		
+			cat source/parser/Makefile | sed "s/@IMPPPRES@ //g" >source/parser/Makefile.tmp
+			mv -f source/parser/Makefile.tmp source/parser/Makefile
+fi
+
+if [ "${pres_var}" != "y" ]
+then
+	# If he doesnt have PRES, delete the full line
+	cat Makefile | sed "/@PRES@/d" >Makefile.tmp
+	cat source/accessor/Makefile | sed "/@PRES@/d" >source/accessor/Makefile.tmp
+	cat source/parser/Makefile | sed "/@PRES@/d" >source/parser/Makefile.tmp
+	cat source/parser/Makefile.tmp | sed "/@IMPPPRES@/d" >source/parser/Makefile.tmp1
+	cat source/serialize/Makefile | sed "/@PRES@/d" >source/serialize/Makefile.tmp
+	mv -f source/accessor/Makefile.tmp source/accessor/Makefile
+	mv -f source/parser/Makefile.tmp source/parser/Makefile
+	mv -f source/parser/Makefile.tmp1 source/parser/Makefile
+	mv -f source/serialize/Makefile.tmp source/serialize/Makefile
+else
+	#if he has PRES, remove the @PRES@ token
+	cat Makefile | sed "s/@PRES@ //g" >Makefile.tmp
+	cat source/accessor/Makefile | sed "s/@PRES@ //g" >source/accessor/Makefile.tmp
+	cat source/parser/Makefile | sed "s/@PRES@ //g" >source/parser/Makefile.tmp
+	cat source/serialize/Makefile | sed "s/@PRES@ //g" >source/serialize/Makefile.tmp
+	mv -f Makefile.tmp Makefile
+	mv -f source/accessor/Makefile.tmp source/accessor/Makefile
+	mv -f source/parser/Makefile.tmp source/parser/Makefile
+	mv -f source/serialize/Makefile.tmp source/serialize/Makefile
+fi
+
+if [ "${mib_var}" != "y" ]
+then
+	# If he doesnt have MIB, delete the full line
+	cat Makefile | sed "/@MIB@/d" >Makefile.tmp
+	cat source/accessor/Makefile | sed "/@MIB@/d" >source/accessor/Makefile.tmp
+	cat source/parser/Makefile | sed "/@MIB@/d" >source/parser/Makefile.tmp
+	cat source/serialize/Makefile | sed "/@MIB@/d" >source/serialize/Makefile.tmp
+	mv -f Makefile.tmp Makefile
+	mv -f source/accessor/Makefile.tmp source/accessor/Makefile
+	mv -f source/parser/Makefile.tmp source/parser/Makefile
+	mv -f source/serialize/Makefile.tmp source/serialize/Makefile
+else
+	#if he has MIB, remove the @MIB@ token
+	cat Makefile | sed "s/@MIB@ //g" >Makefile.tmp
+	cat source/accessor/Makefile | sed "s/@MIB@ //g" >source/accessor/Makefile.tmp
+	cat source/parser/Makefile | sed "s/@MIB@ //g" >source/parser/Makefile.tmp
+	cat source/serialize/Makefile | sed "s/@MIB@ //g" >source/serialize/Makefile.tmp
+	mv -f Makefile.tmp Makefile
+	mv -f source/accessor/Makefile.tmp source/accessor/Makefile
+	mv -f source/parser/Makefile.tmp source/parser/Makefile
+	mv -f source/serialize/Makefile.tmp source/serialize/Makefile
+fi
+
+if [ "${mwi_var}" != "y" ]
+then
+	# If he doesnt have MWI, delete the full line
+	cat source/accessor/Makefile | sed "/@MWI@/d" >source/accessor/Makefile.tmp
+	cat source/parser/Makefile | sed "/@MWI@/d" >source/parser/Makefile.tmp
+	mv -f source/accessor/Makefile.tmp source/accessor/Makefile
+	mv -f source/parser/Makefile.tmp source/parser/Makefile
+else
+	#if he has MWI, remove the @MWI@ token
+	cat source/accessor/Makefile | sed "s/@MWI@//g" >source/accessor/Makefile.tmp
+	cat source/parser/Makefile | sed "s/@MWI@//g" >source/parser/Makefile.tmp
+	mv -f source/accessor/Makefile.tmp source/accessor/Makefile
+	mv -f source/parser/Makefile.tmp source/parser/Makefile
+fi
+
+if [ "${txn_var}" != "y" ]
+then
+	# If he doesnt have TXN, delete the full line
+	cat source/accessor/Makefile | sed "/@TXN@/d" >source/accessor/Makefile.tmp
+	cat source/parser/Makefile | sed "/@TXN@/d" >source/parser/Makefile.tmp
+	cat Makefile | sed "/@TXN@/d" >Makefile.tmp
+	# If he doesnt have TXN,remove the @NOTXN@ token 
+	cat source/parser/Makefile.tmp | sed "s/@NOTXN@//g" >source/parser/Makefile.tmp1
+	cat Makefile.tmp | sed "s/@NOTXN@//g" >Makefile.tmp1
+	mv -f source/accessor/Makefile.tmp source/accessor/Makefile
+	mv -f source/parser/Makefile.tmp1 source/parser/Makefile
+	mv -f Makefile.tmp1 Makefile
+else
+	#if he has TXN, remove the @TXN@ token
+	cat source/accessor/Makefile | sed "s/@TXN@//g" >source/accessor/Makefile.tmp
+	cat source/parser/Makefile | sed "s/@TXN@//g" >source/parser/Makefile.tmp
+	cat Makefile | sed "s/@TXN@//g" >Makefile.tmp
+	#if he has TXN, remove the full line containing @NOTXN@ token
+	cat source/parser/Makefile.tmp | sed "/@NOTXN@/d" >source/parser/Makefile.tmp1
+	cat Makefile.tmp | sed "/@NOTXN@/d" >Makefile.tmp1
+	mv -f source/accessor/Makefile.tmp source/accessor/Makefile
+	mv -f source/parser/Makefile.tmp1 source/parser/Makefile
+	mv -f Makefile.tmp1 Makefile
+fi
+
+if [ "${impp_var}" != "y" ]
+then
+	# If he doesnt have IMPP, delete the full line
+	cat Makefile | sed "/@IMPP@/d" >Makefile.tmp
+	cat source/accessor/Makefile | sed "/@IMPP@/d" >source/accessor/Makefile.tmp
+	cat source/parser/Makefile | sed "/@IMPP@/d" >source/parser/Makefile.tmp
+	cat source/serialize/Makefile | sed "/@IMPP@/d" >source/serialize/Makefile.tmp
+	mv -f Makefile.tmp Makefile
+	mv -f source/accessor/Makefile.tmp source/accessor/Makefile
+	mv -f source/parser/Makefile.tmp source/parser/Makefile
+	mv -f source/serialize/Makefile.tmp source/serialize/Makefile
+else
+	#if he has IMPP, remove the @IMPP@ token
+	cat Makefile | sed "s/@IMPP@ //g" >Makefile.tmp
+	cat source/accessor/Makefile | sed "s/@IMPP@ //g" >source/accessor/Makefile.tmp
+	cat source/parser/Makefile | sed "s/@IMPP@ //g" >source/parser/Makefile.tmp
+	cat source/serialize/Makefile | sed "s/@IMPP@ //g" >source/serialize/Makefile.tmp
+	mv -f Makefile.tmp Makefile
+	mv -f source/accessor/Makefile.tmp source/accessor/Makefile
+	mv -f source/parser/Makefile.tmp source/parser/Makefile
+	mv -f source/serialize/Makefile.tmp source/serialize/Makefile
+fi
+
+if [ "${ccp_var}" != "y" ]
+then
+	# If he doesnt have CCP, delete the full line
+	cat Makefile | sed "/@CCP@/d" >Makefile.tmp
+	cat source/accessor/Makefile | sed "/@CCP@/d" >source/accessor/Makefile.tmp
+	cat source/parser/Makefile | sed "/@CCP@/d" >source/parser/Makefile.tmp
+	cat source/serialize/Makefile | sed "/@CCP@/d" >source/serialize/Makefile.tmp
+	mv -f Makefile.tmp Makefile
+	mv -f source/accessor/Makefile.tmp source/accessor/Makefile
+	mv -f source/parser/Makefile.tmp source/parser/Makefile
+	mv -f source/serialize/Makefile.tmp source/serialize/Makefile
+else
+	#if he has CCP, remove the @CCP@ token
+	cat Makefile | sed "s/@CCP@ //g" >Makefile.tmp
+	cat source/accessor/Makefile | sed "s/@CCP@ //g" >source/accessor/Makefile.tmp
+	cat source/parser/Makefile | sed "s/@CCP@ //g" >source/parser/Makefile.tmp
+	cat source/serialize/Makefile | sed "s/@CCP@ //g" >source/serialize/Makefile.tmp
+	mv -f Makefile.tmp Makefile
+	mv -f source/accessor/Makefile.tmp source/accessor/Makefile
+	mv -f source/parser/Makefile.tmp source/parser/Makefile
+	mv -f source/serialize/Makefile.tmp source/serialize/Makefile
+fi
+
+
+if [ "${cpp_var}" = "y" ]
+then
+	if [ "${serial_var}" = "y" ]
+	then
+		cp -f makefiles/cpp/Makefile.cpp.test.serialize.stub test/Makefile
+		cp -f makefiles/cpp/Makefile.cpp.serialization.stub source/serialize/Makefile
+		cat Makefile | sed "s/@SERIALIZE@//g" > Makefile.tmp
+		mv -f Makefile.tmp Makefile
+	else
+		cp -f makefiles/cpp/Makefile.cpp.test.stub test/Makefile
+		cat Makefile | sed "/@SERIALIZE@/d" >Makefile.tmp
+		mv -f Makefile.tmp Makefile
+	fi
+	if [ "${txn_var}" != "y" ]
+	then
+		# If he doesnt have TXN, delete the full line
+		cat test/Makefile | sed "/@TXN@/d" >test/Makefile.tmp
+		mv -f test/Makefile.tmp test/Makefile
+	else
+		# If he doesnt have TXN, delete the TXN token
+		cat test/Makefile | sed "s/@TXN@//g" >test/Makefile.tmp
+		mv -f test/Makefile.tmp test/Makefile
+	fi	
+	
+	cp -f makefiles/${MAKEFILE}.c++.stub source/c++/Makefile
+	if [ "${txn_var}" != "y" ]
+	then
+		cat source/c++/Makefile | sed "/@TXN@/d" >source/c++/Makefile.tmp
+		mv -f source/c++/Makefile.tmp source/c++/Makefile
+	else
+		cat source/c++/Makefile | sed "s/@TXN@//g" >source/c++/Makefile.tmp
+		mv -f source/c++/Makefile.tmp source/c++/Makefile
+	fi	
+	cat source/c++/Makefile | sed "s/@CCP@//g" >source/c++/Makefile.tmp
+	cat source/c++/Makefile.tmp | sed "s/@TEL@//g" >source/c++/Makefile
+	cat source/c++/Makefile | sed "s/@IMPP@//g" >source/c++/Makefile.tmp
+	mv -f source/c++/Makefile.tmp source/c++/Makefile
+fi
+
+if [ "${so_var}" = "y" ]
+then
+
+# We are generating Makefiles for shared objects
+# by modifying the makefles for static libraries
+# Essentially, every thing is  the same except the .a
+# now becomes .so So a simple search-and replace suffices.
+	
+	if [ "${cpp_var}" = "y" ]
+	then
+		cd test/perfTest
+		cat Makefile_Txn | sed "s/\.a/.so/g"  > Makefile.tmp
+		mv -f Makefile.tmp Makefile_Txn
+		cat Makefile_WTxn | sed "s/\.a/.so/g"  > Makefile.tmp
+		mv -f Makefile.tmp Makefile_WTxn
+		cd ../..
+	fi
+	cd source/accessor
+	cat Makefile | sed "s/\.a/.so/g"  > Makefile.tmp
+	mv -f Makefile.tmp Makefile
+
+	cd ../parser
+	cat Makefile | sed "s/\.a/.so/g"  > Makefile.tmp
+	mv -f Makefile.tmp Makefile
+
+        cd ../serialize
+        cat Makefile | sed "s/\.a/.so/g" > Makefile.tmp
+        mv -f Makefile.tmp Makefile
+
+	cd ../..
+	cat Makefile | sed "s/\.a/.so/g"  > Makefile.tmp
+	mv -f Makefile.tmp Makefile
+
+
+# CPP has one more makefile in  source/c++
+	if [ -f  source/c++/Makefile ]
+	then
+		cd source/c++
+		cat Makefile | sed "s/\.a/.so/g"  > Makefile.tmp
+		mv -f Makefile.tmp Makefile
+		cd ../..
+	fi
+
+	if [ "${cpp_var}" = "y" ]
+	then	
+		if [ -f  test/Makefile ]   
+		then   
+			cd test   
+			cat Makefile | sed "s/\.a/.so/g"  > Makefile.tmp   
+			mv -f Makefile.tmp Makefile   
+			cd ../   
+		fi
+	fi	
+fi
+if [ "${so_var}" != "y" ]
+then
+
+	if [ "${cpp_var}" = "y" ]
+	then
+		cd test/perfTest
+		cat Makefile_Txn | sed "s/\.so/.a/g"  > Makefile.tmp
+		mv -f Makefile.tmp Makefile_Txn
+		cat Makefile_WTxn | sed "s/\.so/.a/g"  > Makefile.tmp
+		mv -f Makefile.tmp Makefile_WTxn
+	fi
+fi
+
+if [ "${congest_var}" != "y" ]
+then
+	# If he doesnt have CONGEST, delete the full line
+	cat Makefile | sed "/@CONGEST@/d" >Makefile.tmp
+	cat source/accessor/Makefile | sed "/@CONGEST@/d" >source/accessor/Makefile.tmp
+	cat source/parser/Makefile | sed "/@CONGEST@/d" >source/parser/Makefile.tmp
+	cat source/serialize/Makefile | sed "/@CONGEST@/d" >source/serialize/Makefile.tmp
+	mv -f Makefile.tmp Makefile
+	mv -f source/accessor/Makefile.tmp source/accessor/Makefile
+	mv -f source/parser/Makefile.tmp source/parser/Makefile
+	mv -f source/serialize/Makefile.tmp source/serialize/Makefile
+else
+	#if he has CONGEST, remove the @CONGEST@ token
+	cat Makefile | sed "s/@CONGEST@ //g" >Makefile.tmp
+	cat source/accessor/Makefile | sed "s/@CONGEST@ //g" >source/accessor/Makefile.tmp
+	cat source/parser/Makefile | sed "s/@CONGEST@ //g" >source/parser/Makefile.tmp
+	cat source/serialize/Makefile | sed "s/@CONGEST@ //g" >source/serialize/Makefile.tmp
+	mv -f Makefile.tmp Makefile
+	mv -f source/accessor/Makefile.tmp source/accessor/Makefile
+	mv -f source/parser/Makefile.tmp source/parser/Makefile
+	mv -f source/serialize/Makefile.tmp source/serialize/Makefile
+fi
+
+echo ---------------------------------------------
+echo Configuration process over.
+echo A Makefile and MakeVars has now been created
+echo in  this directory.
+echo 
+echo You can modify MakeVars to add/remove 
+echo your compiler flags
+echo
+echo run 'make allclean; make' to make the stack.
+echo ---------------------------------------------
+

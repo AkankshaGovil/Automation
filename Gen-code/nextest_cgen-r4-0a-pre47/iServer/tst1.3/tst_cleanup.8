@@ -1,0 +1,25 @@
+.TH tst_cleanup 8 06/11/1999 "Version 1.1" "Ternary Search Trie Functions"
+.SH NAME
+tst_cleanup \- free memory associated with tree structure
+.SH SYNOPSIS
+.B cc
+.RI "[ " "flag" " \|.\|.\|. ] " "file" " \|.\|.\|."
+.B "\-ltst"
+.RI "[ " "library" " \|.\|.\|. ]"
+.LP
+#include <tst.h>
+.LP
+.RI "void tst_cleanup(struct tst *" "tst" ");"
+.SH DESCRIPTION
+tst_cleanup() frees all memory allocated to nodes, internal structures,
+as well as
+.I tst
+itself.
+.SH "RETURN VALUES"
+None.
+.SH "SEE ALSO"
+tst_insert(8), tst_search(8), tst_delete(8), tst_init(8)
+.SH NOTES
+Once tst_cleanup() is called
+.I tst
+is no longer a valid pointer and must not be accessed.
