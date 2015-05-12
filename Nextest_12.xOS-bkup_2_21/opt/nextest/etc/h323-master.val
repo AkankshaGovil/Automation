@@ -1,0 +1,379 @@
+######################################################################
+# NexTest Radvision Template File
+# WARNING: this file has been modified for use with the automated test
+# environment!
+######################################################################
+# RADVision H.323 Stack Configuration File
+#
+# Value encodings:
+#    ''   -  String (and asciiz is not appended)
+#    ""   -  BMP string of ASCII charactes
+#    []   -  Hex octet string
+#    <>   -  IP
+#    {}   -  Object ID
+#   Other -  Integer
+
+#   ~~ - NexTone automation variable
+
+1 system = 0
+2  maxCalls = 200
+2  maxChannels = 12
+   maxRasOutTransactions = 200
+   maxRasInTransactions = 200
+2  localIPAddress = <~srcaddr~>
+#2  allocations = 0
+#3   vtPoolSize = 110000   # 10000 + 1000*calls
+#3   vtNodeCount = 100100  # 100 + 1000*calls
+#3   channels =4515        # 15 + 18*calls
+#3   chanDescs = 5
+#3   messages = 1260       # 10 + 5*calls
+#3   nameChans = 10
+#3   tpktChans = 205      # 5 + 2*calls
+#3   udpChans = 3
+#3   protocols = 3755      # 5 + 15*calls
+#3   maxProcs = 3755       # 5 + 15*calls
+
+1 RAS = 0
+2 maxFail = 1
+#2  gatekeeper = 1
+2  responseTimeOut = 5
+2  rasPort = 1719
+#2  allowCallsWhenNonReg = 0
+#2  manualRegistration = 0
+#2  manualRAS = 0
+2  manualDiscovery = 0
+3   defaultGatekeeper = 0
+4    ipAddress = 0
+5     ip = <~gkaddr~>
+5     port = 1719
+2  registrationInfo = 0
+3   terminalType = 0
+4    vendor = 0
+5     vendor = 0
+6      t35CountryCode = 11
+6      t35Extension = 11
+6      manufacturerCode = 11
+5     productId = 'TestcGK application'
+5     versionId = 'RADVision 0.1'
+4    terminal = 0
+4    mc = 0
+4    undefinedNode = 0
+3   terminalAlias = 0
+4    * = 0
+5     e164 = '~srcnum~'
+~disableh323id~4    * = 0
+5     h323-ID = "~h323id~"
+3   keepAlive = 1
+3   timeToLive = 30
+
+1 Q931 = 0
+2  responseTimeOut = 60
+2  connectTimeOut = 300
+2  callSignalingPort = 1720
+2 maxCalls = ~maxcalls~
+2 manualAccept = 0
+#2 manualCallProceeding = 0
+2  h245Tunneling = 0
+#2  earlyH245 = 0
+
+1 h245 = 0
+2  masterSlave = 0
+3   terminalType = 50
+3   timeout = 100
+2  capabilities = 0
+3   timeout = 100
+3   terminalCapabilitySet = 0
+4    sequenceNumber = 0
+4    protocolIdentifier = [00080007]
+4    multiplexCapability = 0
+5     h2250Capability = 0
+6      maximumAudioDelayJitter = 60
+6      receiveMultipointCapability = 0
+7       multicastCapability = 0
+7       multiUniCastConference = 0
+7       mediaDistributionCapability = 0
+8        * = 0
+9         centralizedControl = 0
+9         distributedControl = 0
+9         centralizedAudio = 0
+9         distributedAudio = 0
+9         centralizedVideo = 0
+9         distributedVideo = 0
+
+6      transmitMultipointCapability = 0
+7       multicastCapability = 0
+7       multiUniCastConference = 0
+7       mediaDistributionCapability = 0
+8        * = 0
+9         centralizedControl = 0
+9         distributedControl = 0
+9         centralizedAudio = 0
+9         distributedAudio = 0
+9         centralizedVideo = 0
+9         distributedVideo = 0
+
+6      receiveAndTransmitMultipointCapability = 0
+7       multicastCapability = 0
+7       multiUniCastConference = 0
+7       mediaDistributionCapability = 0
+8        * = 0
+9         centralizedControl = 0
+9         distributedControl = 0
+9         centralizedAudio = 0
+9         distributedAudio = 0
+9         centralizedVideo = 0
+9         distributedVideo = 0
+
+6      mcCapability = 0
+7       centralizedConferenceMC = 0
+7       decentralizedConferenceMC = 0
+6      rtcpVideoControlCapability = 0
+6      mediaPacketizationCapability = 0
+7       h261aVideoPacketization = 0
+
+4    capabilityTable = 0
+5     * = 0
+6      capabilityTableEntryNumber = 7111
+6      capability = 0
+7       receiveAudioCapability = 0
+8        g711Ulaw64k = 60
+
+5     * = 0
+6      capabilityTableEntryNumber = 7110
+6      capability = 0
+7       receiveAudioCapability = 0
+8        g711Alaw64k = 60
+
+5     * = 0
+6      capabilityTableEntryNumber = 728
+6      capability = 0
+7       receiveAudioCapability = 0
+8        g728 = 60
+
+5     * = 0
+6      capabilityTableEntryNumber = 729
+6      capability = 0
+7       receiveAudioCapability = 0
+8        g729 = 60
+
+5     * = 0
+6      capabilityTableEntryNumber = 7231
+6      capability = 0
+7       receiveAudioCapability = 0
+8        g7231 = 0
+9         maxAl-sduAudioFrames = 8
+9         silenceSuppression = 0
+
+
+#5     * = 0
+#6      capabilityTableEntryNumber = 261
+#6      capability = 0
+#7       receiveVideoCapability = 0
+#8        h261VideoCapability = 0
+#9         qcifMPI = 1
+#9         cifMPI = 1
+#9         temporalSpatialTradeOffCapability = 0
+#9         maxBitRate = 600
+#9         stillImageTransmission = 0
+#
+#5     * = 0
+#6      capabilityTableEntryNumber = 263
+#6      capability = 0
+#7       receiveVideoCapability = 0
+#8        h263VideoCapability = 0
+#9         sqcifMPI = 1
+#9         qcifMPI = 1
+#9         cifMPI = 1
+#9         maxBitRate = 1000
+#9         unrestrictedVector = 0
+#9         arithmeticCoding = 0
+#9         advancedPrediction = 0
+#9         pbFrames = 0
+#9         temporalSpatialTradeOffCapability = 0
+#9         errorCompensation = 0
+#
+#5     * = 0 # Sequence
+#6      capabilityTableEntryNumber = 120 # INTEGER [1..65535]
+#6      capability = 0
+#7       receiveAndTransmitDataApplicationCapability = 0 # Sequence
+#8        application = 0
+#9         t120 = 0
+#10         separateLANStack = 0 # NULL [0..0]
+#8        maxBitRate = 1000 # INTEGER [0..4294967295]
+
+5     * =0
+6      capabilityTableEntryNumber  = 90
+6      capability = 0
+7       receiveAndTransmitDataApplicationCapability = 0
+8        application = 0
+9         t38fax = 0
+10          t38FaxProtocol = 0
+11           udp = 0
+10          t38FaxProfile
+11           fillBitRemoval = 0
+11           transcodingJBIG = 0
+11           transcodingMMR = 0
+11           version = 0
+11           t38FaxRateManagement = 0
+12            transferredTCF = 0
+11           t38FaxUdpOptions = 0
+12            t38FaxMaxBuffert38FaxMaxDatagram = 316
+12            t38FaxUdpEC = 0
+13             t38UDPFEC = 0
+8        maxBitRate = 0
+
+4    capabilityDescriptors = 0
+5     * = 0
+6      capabilityDescriptorNumber = 0
+6      simultaneousCapabilities = 0
+7       * = 0
+8        * = 7111
+8        * = 7110
+8        * = 7231
+8        * = 728
+8        * = 729
+8        * = 90
+#7       * = 0
+#8        * = 261
+#8        * = 263
+#7       * = 0
+#8        * = 120
+#3   manualOperation = 0
+
+
+2  channels = 0
+3   * = 0
+4    name = 'g711Alaw64k'
+4    dataType = 0
+5     audioData = 0
+6      g711Alaw64k = 20
+
+3   * = 0
+4    name = 'g711Ulaw64k'
+4    dataType = 0
+5     audioData = 0
+6      g711Ulaw64k = 20
+
+3   * = 0
+4    name = 'g728'
+4    dataType = 0
+5     audioData = 0
+6      g728 = 60
+
+3   * = 0
+4    name = 'g729'
+4    dataType = 0
+5     audioData = 0
+6      g729 = 3
+
+3   * = 0
+4    name = 'g729AnnexA'
+4    dataType = 0
+5     audioData = 0
+6      g729AnnexA = 3
+
+3   * = 0
+4    name = 'g7231'
+4    dataType = 0
+5     audioData = 0
+6      g7231 = 0
+7       maxAl-sduAudioFrames = 8
+7       silenceSuppression = 0
+
+3   * = 0
++    name = 't38fax'
+     dataType = 0
++     data = 0
++      application = 0
++       t38fax = 0
++        t38FaxProtocol = 0
++         udp = 0
+-        t38FaxProfile = 0
++         fillBitRemoval = 0
+          transcodingJBIG = 0
+          transcodingMMR = 0
+          version = 0
+          t38FaxRateManagement = 0
++          localTCF = 0
+
+6      maxBitRate = 144
+
+#3   * = 0
+#4    name = 'h261VideoCapability'
+#4    dataType = 0
+#5     videoData = 0
+#6      h261VideoCapability = 0
+#7       qcifMPI = 1
+#7       cifMPI = 1
+#7       temporalSpatialTradeOffCapability = 0
+#7       maxBitRate = 600
+#7       stillImageTransmission = 0
+#
+#3   * = 0
+#4    name = 'h263VideoCapability'
+#4    dataType = 0
+#5     videoData = 0
+#6      h263VideoCapability = 0
+#7       sqcifMPI = 1
+#7       qcifMPI = 1
+#7       cifMPI = 1
+#7       maxBitRate = 1000
+#7       unrestrictedVector = 0
+#7       arithmeticCoding = 0
+#7       advancedPrediction = 0
+#7       pbFrames = 0
+#7       temporalSpatialTradeOffCapability = 0
+#7       errorCompensation = 0
+#
+#3   * = 0
+#4    name = 't120'
+#4    dataType = 0
+#5     data = 0
+#6      application = 0
+#7       t120 = 0
+#8        separateLANStack = 0
+#6      maxBitRate = 1000
+
+2  modes = 0
++   * = 0
++    name = 'g729a'
+     mode = 0
++     type = 0
++      audioMode = 0
++       g729AnnexA = 0
+5     genericModeParameters = 0
++      capabilityIdentifier = 0
++       standard = [00080007]
+
+3   * = 0
++    name = 'g729'
+     mode = 0
++     type = 0
++      audioMode = 0
++       g729 = 0
+5     genericModeParameters = 0
++      capabilityIdentifier = 0
++       standard = [00080007]
+
+3   * = 0
++    name = 't38fax'
+     mode = 0
++     type = 0
++      dataMode = 0
++       application = 0
++        t38fax = 0
++         t38FaxProtocol = 0
++          udp = 0
+-         t38FaxProfile = 0
++          fillBitRemoval = 0
+           transcodingJBIG = 0
+           transcodingMMR = 0
+           version = 0
+           t38FaxRateManagement = 0
++           localTCF = 0
+
+7       bitRate = 144
+5     h225ModeParameters = 0
+      genericModeParameters = 0
++      capabilityIdentifier = 0
++       standard = [00080007]

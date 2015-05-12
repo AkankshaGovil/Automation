@@ -1,0 +1,28 @@
+<?xml version="1.0" ?>
+<!DOCTYPE class-directory
+  PUBLIC '-//QM/2.2/Class-Directory//EN'
+  'http://www.codesourcery.com/qm/dtds/2.2/-//qm/2.2/class-directory//en.dtd'>
+<class-directory>
+ <class kind="result_stream" name="html_result_stream.HtmlResultStream"/>
+ <class kind="resource" name="call.Endpoint"/>
+ <class kind="resource" name="call.H323Transmitter"/>
+ <class kind="resource" name="call.H323Receiver"/>
+ <class kind="resource" name="control.Dmalloc_Env"/>
+ <class kind="resource" name="control.MSW"/>
+ <class kind="resource" name="control.BkupMSW"/>
+ <class kind="resource" name="control.Realm"/>
+ <class kind="resource" name="control.Session"/>
+ <class kind="resource" name="control.LocalServer"/>
+ <class kind="resource" name="control.gnuGatekeeper"/> 
+ <class kind="resource" name="control-rad.RadiusServer"/>
+ <class kind="resource" name="control.asterisk"/>
+ <class kind="resource" name="control.opensipsServer"/>
+ <class kind="resource" name="control.openSerServer"/>
+ <class kind="resource" name="nxgen.Nxgen"/>
+ <class kind="resource" name="nat.Nat"/>
+ <class kind="test" name="benchmark.SIPStone"/>
+ <class kind="test" name="call.CallTest"/>
+ <class kind="test" name="call.CDRTest"/>
+ <class kind="test" name="configtest.ConfigTest"/>
+ <class kind="test" name="metaCallTest.MetaCallTest"/>
+</class-directory>

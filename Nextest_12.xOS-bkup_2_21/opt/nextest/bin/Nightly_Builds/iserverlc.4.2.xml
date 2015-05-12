@@ -1,0 +1,6 @@
+<LICENSE CUSTOMER = 'NexTone Customer' VERSION = '4.2' PRODUCT = 'iServer' PRODUCTVERSION = '4.2' EXPIRES = 'Sun Aug 26 04:00:00 2007'>
+    <SERVER hostid='unbound' />
+    <FEATURES NAT='1' SCM='1' SIPT='1' REGISTRAR='1' SIP='1' H323='1' FCE='1' RADIUS='1' CAC='1' GEN='1' QOS_TAG='1' QOS_POLICE='1' CALL_INTERCEPT='0' MAXEndpoints='100' MAXCalls='100' MRVport='100' Realms='0' DynamicEndpoints='0' Routes='0' MAXWarrants='0' />
+    <ENF TERM='0' INIT='1168541496' />
+    <SIGNATURE id='93a662b45b827d4759c5d0c956610ace'/>
+</LICENSE>

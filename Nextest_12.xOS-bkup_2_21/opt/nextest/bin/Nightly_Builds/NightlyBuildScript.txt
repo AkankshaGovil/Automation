@@ -1,0 +1,24 @@
+Setup Of the Nightly Install Scripts
+====================================
+If one were to setup the nightly build installation scripts for a brand new system (from scratch), the following actions need to be taken.
+You will need a GEN, and two SUTs. If the IPs are different from that of the GENs and SUTs contained in this document, then you will need to change the IPsfor the GEN, master, and slave SUTs accordingly (depending on if you are setting up a 4.0 or a 4.2 build).
+- In each of the SUTs you need to create the directory: /root/scripts/dailybuild, and then copy the files: applyPatch.exp, and iserverlc.xml.dailybuild 
+  (for 4.0). Use the chmod command to make applyPatch.exp an executable. For instance the command: "chmod 755 applyPatch.exp" will make applyPatch.exp an
+  executable file.
+- On the GEN copy the files: rebootGen.exp, kill_ssh.exp, and run_nextest to the /var/opt/nextest/tdb directory. Make sure the files have privileges of the  test user. If not, (and if you are a root user) change the file privileges as follows: "chown test:users kill_ssh.exp" . This will change the privileges   of the file kill_ssh.exp to that of the test user. Do the same thing for all the other files. Also make all of them executable, (as we did previously for  applyPatch.exp).
+- On some other machine (which will be used to lunch the main installation program), create a /root/scripts or /root/scripts/dailybuild directory.
+  Copy the installPatch4.0c1-3 program to the directory. Create a hard link between it and the installPatch4.2c1-3 program using the command: 
+  "link installPatch4.0c1-3 installPatch4.2c1-3". With this link, any changes you make on one file is reflected on the other file. Edit the cron table and   make an entry to it. For instance to have the nightly build running in SCM mode every night from Monady to Friday beginning at 8:00pm, we proceed as
+  follows: "crontab -e". This opens a vi editor into the cron table and we make an entry as follows: 
+  "00 20 * * 1-5 /usr/bin/expect /root/scripts/dailybuild/installPatch4.0c1-3 on". 
+  Save and exit the cron table. With this entry in the cron table, every da y at 8;00 pm, the script will kick in automatically.
+- Using yast utility setup expect on the GEN, and SUTs.
+
+
+Running the Script Manually
+===========================
+If  you were to run the scripts manually, log into the machine where the main installation program resides. Issue the command:
+- "expect installPatch4.0c1-3 on" will run release 4.0 in SCM mode.
+- "expect installPatch4.0c1-3" will run release 4.0 nightly build in stand alone mode
+- "expect installPatch4.2c1-3 on" will run release 4.2 in SCM mode.
+- "expect installPatch4.2c1-3" will run release 4.2 nightly build in stand alone mode.

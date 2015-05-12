@@ -1,0 +1,27 @@
+/acc-create.sql/1.2/Thu Nov 20 09:55:16 2008//Tnextest-r8-2a-pre92
+/alias_db-create.sql/1.2/Thu Nov 20 09:55:16 2008//Tnextest-r8-2a-pre92
+/auth_db-create.sql/1.2/Thu Nov 20 09:55:16 2008//Tnextest-r8-2a-pre92
+/avpops-create.sql/1.2/Thu Nov 20 09:55:16 2008//Tnextest-r8-2a-pre92
+/carrierroute-create.sql/1.2/Thu Nov 20 09:55:16 2008//Tnextest-r8-2a-pre92
+/cpl-create.sql/1.2/Thu Nov 20 09:55:16 2008//Tnextest-r8-2a-pre92
+/dialog-create.sql/1.2/Thu Nov 20 09:55:16 2008//Tnextest-r8-2a-pre92
+/dispatcher-create.sql/1.2/Thu Nov 20 09:55:16 2008//Tnextest-r8-2a-pre92
+/domain-create.sql/1.2/Thu Nov 20 09:55:16 2008//Tnextest-r8-2a-pre92
+/domainpolicy-create.sql/1.2/Thu Nov 20 09:55:16 2008//Tnextest-r8-2a-pre92
+/group-create.sql/1.2/Thu Nov 20 09:55:16 2008//Tnextest-r8-2a-pre92
+/imc-create.sql/1.2/Thu Nov 20 09:55:16 2008//Tnextest-r8-2a-pre92
+/lcr-create.sql/1.2/Thu Nov 20 09:55:16 2008//Tnextest-r8-2a-pre92
+/msilo-create.sql/1.2/Thu Nov 20 09:55:16 2008//Tnextest-r8-2a-pre92
+/openserdbctl.mysql/1.2/Thu Nov 20 09:55:16 2008//Tnextest-r8-2a-pre92
+/pdt-create.sql/1.2/Thu Nov 20 09:55:16 2008//Tnextest-r8-2a-pre92
+/permissions-create.sql/1.2/Thu Nov 20 09:55:16 2008//Tnextest-r8-2a-pre92
+/presence-create.sql/1.2/Thu Nov 20 09:55:16 2008//Tnextest-r8-2a-pre92
+/registrar-create.sql/1.2/Thu Nov 20 09:55:16 2008//Tnextest-r8-2a-pre92
+/rls-create.sql/1.2/Thu Nov 20 09:55:16 2008//Tnextest-r8-2a-pre92
+/serweb-create.sql/1.2/Thu Nov 20 09:55:31 2008//Tnextest-r8-2a-pre92
+/siptrace-create.sql/1.2/Thu Nov 20 09:55:31 2008//Tnextest-r8-2a-pre92
+/speeddial-create.sql/1.2/Thu Nov 20 09:55:31 2008//Tnextest-r8-2a-pre92
+/standard-create.sql/1.2/Thu Nov 20 09:55:31 2008//Tnextest-r8-2a-pre92
+/uri_db-create.sql/1.2/Thu Nov 20 09:55:31 2008//Tnextest-r8-2a-pre92
+/usrloc-create.sql/1.2/Thu Nov 20 09:55:31 2008//Tnextest-r8-2a-pre92
+D

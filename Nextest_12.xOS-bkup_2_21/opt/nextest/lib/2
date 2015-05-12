@@ -1,0 +1,95 @@
+Binary file qm-old/test/execution_thread.pyc matches
+Binary file qm-old/test/execution_thread.pyo matches
+Binary file qm-old/test/cmdline.pyc matches
+Binary file qm-old/test/cmdline.pyo matches
+qm-old/test/cmdline.py:from   qm.test.execution_engine import *
+qm-old/test/cmdline.py:from   qm.test.endurance_engine import *
+qm-old/test/cmdline.py:        "Use the endurance execution engine to run tests for specified time."
+qm-old/test/cmdline.py:	self.engine.RequestTermination()
+qm-old/test/cmdline.py:        if self.engine.watcher_bkup:
+qm-old/test/cmdline.py:            self.engine.watcher_bkup.request('STOP')
+qm-old/test/cmdline.py:            self.engine.watcher_bkup.join()    
+qm-old/test/cmdline.py:        if self.engine.watcher:
+qm-old/test/cmdline.py:           self.engine.watcher.request('STOP')
+qm-old/test/cmdline.py:           self.engine.watcher.join()
+qm-old/test/cmdline.py:        # Run the tests, passing the engine to the watcher so they
+qm-old/test/cmdline.py:	    # Use a special execution engine that allows time-limited loop
+qm-old/test/cmdline.py:	    self.engine = EnduranceEngine(database, test_ids, context, targets,
+qm-old/test/cmdline.py:            self.engine = ExecutionEngine(database, test_ids, context, targets,
+qm-old/test/cmdline.py:            self.engine.watcher = msw.CoreWatcher(host,context, self.engine,toaddrs,fromaddr,\
+qm-old/test/cmdline.py:                self.engine.watcher_bkup = msw.CoreWatcher('bkupmsw',context, self.engine,toaddrs,fromaddr,\
+qm-old/test/cmdline.py:        # Start the test execution engine.
+qm-old/test/cmdline.py:            if self.engine.watcher:
+qm-old/test/cmdline.py:                self.engine.watcher.start()
+qm-old/test/cmdline.py:                if self.engine.watcher_bkup:
+qm-old/test/cmdline.py:                    self.engine.watcher_bkup.start()
+qm-old/test/cmdline.py:	    if self.engine.Run():
+qm-old/test/cmdline.py:            self.engine.RequestTermination()
+qm-old/test/cmdline.py:        if self.engine.watcher_bkup:
+qm-old/test/cmdline.py:            self.engine.watcher_bkup.request('STOP')
+qm-old/test/cmdline.py:            self.engine.watcher_bkup.join()
+qm-old/test/cmdline.py:        if self.engine.watcher:
+qm-old/test/cmdline.py:            self.engine.watcher.request('STOP')
+qm-old/test/cmdline.py:            self.engine.watcher.join()
+qm-old/test/target.py:    def Start(self, response_queue, engine=None):
+qm-old/test/target.py:        'engine' -- The 'ExecutionEngine' that is starting the target,
+qm-old/test/target.py:        self.__engine = engine
+qm-old/test/target.py:        del self.__engine
+qm-old/test/target.py:            if scm and self.__engine.swap:
+qm-old/test/target.py:                    self.__engine.swap = False
+qm-old/test/target.py:                    if self.__engine.hostsFile:
+qm-old/test/target.py:                        self.__engine.hostsFile = False
+qm-old/test/target.py:                if self.__engine.swap:
+qm-old/test/target.py:                    if not self.__engine.hostsFile:
+qm-old/test/target.py:                       self.__engine.hostsFile = True
+qm-old/test/target.py:                       if self.__engine.revertBack:    
+qm-old/test/target.py:                           self.__engine.swap = False
+qm-old/test/target.py:                           self.__engine.hostsFile = False
+qm-old/test/target.py:                           self.__engine.bkupObj = None
+qm-old/test/target.py:                           self.__engine.revertBack = False
+qm-old/test/target.py:                    if not self.__engine.bkupObj:   
+qm-old/test/target.py:                       self.__engine.bkupCtrl = msw.MSWInfo('mymsw')
+qm-old/test/target.py:                       cont = {'mswinfo':self.__engine.bkupCtrl}   
+qm-old/test/target.py:                       self.__engine.bkupObj = SSH(['root@mymsw'],ctxt=cont)
+qm-old/test/target.py:                    context['msw'] = self.__engine.bkupObj
+qm-old/test/target.py:                    context['mswinfo'] = self.__engine.bkupCtrl  
+qm-old/test/target.py:                context['msw_restart'] = self.__engine.msw_restart 
+qm-old/test/target.py:                    if context['hValNotChecked'] or not self.__engine.msw_restart: 
+qm-old/test/target.py:                            self.__engine.msw_restart = True
+qm-old/test/target.py:                            self.__engine.msw_restart = False
+qm-old/test/target.py:            # engine to stop.
+qm-old/test/target.py:            if self.__engine:
+qm-old/test/target.py:                self.__engine.RequestTermination()
+qm-old/test/target.py:                # Ask the execution engine to stop running tests.
+qm-old/test/target.py:                if self.__engine:
+qm-old/test/target.py:                    self.__engine.RequestTermination()
+qm-old/test/target.py:            # engine to stop.
+qm-old/test/target.py:            if self.__engine:
+qm-old/test/target.py:                self.__engine.RequestTermination()
+qm-old/test/execution_thread.py:from   qm.test.execution_engine import *
+Binary file qm-old/test/target.pyc matches
+Binary file qm-old/test/target.pyo matches
+qm-old/test/endurance_engine.py:# File:   execution_engine.py
+qm-old/test/endurance_engine.py:        """Request that the execution engine stop executing tests.
+qm-old/test/endurance_engine.py:        value is -1, the execution engine should simply terminate
+qm-old/test/endurance_engine.py:        Reset all necessary data structures for execustion engine to
+qm-old/test/endurance_engine.py:        The execution engine will periodically monitor 'fd'.  When input
+qm-old/test/execution_engine.py:# File:   execution_engine.py
+qm-old/test/execution_engine.py:        """Request that the execution engine stop executing tests.
+qm-old/test/execution_engine.py:        value is -1, the execution engine should simply terminate
+qm-old/test/execution_engine.py:        The execution engine will periodically monitor 'fd'.  When input
+Binary file qm-old/test/execution_engine.pyc matches
+Binary file qm-old/test/execution_engine.pyo matches
+Binary file qm-old/test/classes/process_target.pyc matches
+Binary file qm-old/test/classes/process_target.pyo matches
+qm-old/test/classes/process_target.py:    def Start(self, response_queue, engine=None):
+qm-old/test/classes/process_target.py:        'engine' -- The 'ExecutionEngine' that is starting the target,
+qm-old/test/classes/process_target.py:        Target.Start(self, response_queue, engine)
+qm-old/test/classes/process_target.py:            engine.AddInputHandler(e.response_pipe[0], self.__ReadResults)
+qm-old/test/classes/thread_target.py:    def Start(self, response_queue, engine=None):
+qm-old/test/classes/thread_target.py:        'engine' -- The 'ExecutionEngine' that is starting the target,
+qm-old/test/classes/thread_target.py:        Target.Start(self, response_queue, engine)
+qm-old/test/classes/thread_target.py:        # The execution engine should never be trying to run a test
+qm-old/test/classes/thread_target.py:        # Pass the result back to the execution engine.
+Binary file qm-old/test/classes/thread_target.pyc matches
+Binary file qm-old/test/classes/thread_target.pyo matches

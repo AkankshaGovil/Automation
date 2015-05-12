@@ -1,0 +1,57 @@
+#!/bin/sh
+
+
+#Date=`date +%Y%m%d`
+Date=`date +%Y%m%d-%H%M`
+resultDir=results_$Date
+mkdir $resultDir
+
+echo "about to start nextest"
+sleep 5
+echo "Executing----------- production_components.provision------------"
+> /tmp/nextest.log
+/opt/nextest/bin/qmtest run  -c nextest.scm_configuration=ON -c nextest.trace_level=DEBUG -c nextest.disable_debugflags=OFF production_components.provision
+sleep 10
+mv results.qmr results_provision.qmr
+cp /tmp/nextest.log /tmp/provision.log
+qmtest summarize -f full results_provision.qmr > results_provision.txt
+cp results_provision.qmr $resultDir
+cp results_provision.txt $resultDir
+
+#echo "Kill zombie SSH connections
+#./kill_ssh.exp
+
+echo "Run OBP"
+> /tmp/nextest.log
+/opt/nextest/bin/qmtest run  -c nextest.scm_configuration=ON -c nextest.trace_level=DEBUG -c nextest.disable_debugflags=OFF production_components.obp
+#/opt/nextest/bin/qmtest run  -c nextest.trace_level=DEBUG production_components.obp
+sleep 10
+mv results.qmr  results_obp.qmr
+cp /tmp/nextest.log /tmp/obp.log
+qmtest summarize -f full results_obp.qmr > results_obp.txt
+cp results_obp.qmr $resultDir
+cp results_obp.txt $resultDir
+
+
+# Kill zombie ssh process
+./kill_ssh.exp
+
+
+#echo "Executing----------- production_components.mirrorproxy------------"
+#> /tmp/nextest.log
+#/opt/nextest/bin/qmtest run  -c nextest.trace_level=DEBUG -c nextest.scm_configuration=ON -c nextest.disable_debugflags=OFF production_components.mirrorproxy
+#sleep 10
+#mv results.qmr results_mirrorproxy.qmr
+#cp /tmp/nextest.log /tmp/mirror.log
+#qmtest summarize -f full results_mirrorproxy.qmr > results_mirrorproxy.txt
+#cp results_mirrorproxy.qmr $resultDir
+#cp results_mirrorproxy.txt $resultDir
+
+
+## Kill zombie ssh process
+#./kill_ssh.exp
+
+
+
+# Reboot the GEN
+./rebootGen.exp

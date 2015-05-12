@@ -1,0 +1,150 @@
+#!/bin/bash
+#
+# Set up the test account for use with NexTest - SuSE 9.1 only
+prog=`basename $0`
+
+# Message logging function
+log () {
+    echo -e "\n$1\n"
+}
+
+# Check OS
+[[ "`uname`" != "Linux" ]] && {
+    echo "Sorry, Linux only"
+    exit 1
+}
+
+#[Ticket 19061]: Display a user friendly message on user interrupt
+function clean_up {
+    echo "Exiting z01-user-setup installation..."
+    exit 0
+}
+
+trap clean_up SIGINT SIGTSTP
+
+#----------------------------------------------------
+log "Creating the user account..."
+#----------------------------------------------------
+#Path for nextestrc file
+rcfile=/home/test/.nextestrc
+
+#[Ticket 19061]: Check for existance of user account "test"
+if [ -d "/home/test" ] && [ `grep test /etc/passwd` ]
+then
+   log "Test account already exists."
+   test -f $rcfile && mv $rcfile $rcfile.old
+else
+   #[Ticket 19061]: Allow creation of the user account if using sudo command
+   if [ `echo $USER` == "root" ]
+   then
+      export PATH=/usr/sbin:${PATH}
+   fi
+   useradd -m test &> /tmp/err
+   #
+   err=$?
+   [[ $err != 0 ]] && {
+       log "Unexpected error from useradd:"
+       cat /tmp/err
+       exit 1
+   }
+   #----------------------------------------------------
+   log "Setting the test account password"
+   #----------------------------------------------------
+   log "Password should be \"test\", (ignore too-short warning)..."
+   passwd test
+fi
+#
+#[Ticket 19061]: Modified environment settings for nextest
+#----------------------------------------------------------
+log "Setting up nextestrc file..."
+#----------------------------------------------------------
+echo '
+# NexTest environment variables and aliases
+export PATH=$PATH:/sbin
+export PATH=$PATH:/usr/sbin
+export PATH=$PATH:/usr/lib/SunJava2/jre/bin
+export PATH=$PATH:/opt/nextest/bin
+export PATH=$PATH:/usr/local/nxgen/bin
+export QMTEST_DB_PATH=/var/opt/nextest/tdb
+export QMTEST_CLASS_PATH=/opt/nextest/lib/qmext
+export CLASSPATH=/opt/nextest/lib/java:/opt/nextest/lib/java/jServer.jar
+export PYTHONPATH=/opt/nextest/lib/python2.3/site-packages
+alias qmt="qmtest gui --no-browser --address=mygen --port=8787 -c nextest.trace_level=DEBUG"
+alias qmrun="qmtest run -c nextest.trace_level=DEBUG"
+PS1="\u@\h \W $ "
+alias dbgon="export NEXTEST_DEBUG=1"
+alias dbgoff="unset NEXTEST_DEBUG"
+' > $rcfile
+
+grep -q nextestrc /home/test/.bashrc || {
+    echo 'test -s ~/.nextestrc && . ~/.nextestrc' >> /home/test/.bashrc
+}
+#
+log "Adding test account to sudoers list..."
+#
+[[ ! -f /etc/sudoers ]] && {
+    log "Error: cannot find sudoers file - install package 'sudo'"
+    exit 1
+}
+#[Ticket 19061]: Add "test' to sudoers if not already present
+[[ `grep test /etc/sudoers | wc -l` == 0 ]] && {
+    echo 'test      ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+}
+#----------------------------------------------------
+log "Logging in as 'test' to complete setup..."
+#
+keyfile=/home/test/.ssh/id_dsa
+#----------------------------------------------------
+log "Creating SSH identity..."
+#----------------------------------------------------
+mkdir -p /home/test/.ssh
+chmod 700 /home/test/.ssh
+chown test:users /home/test/.ssh
+[[ -f $keyfile ]] && {
+    echo "SSH key file exists, deleting..."
+    rm -f $keyfile $keyfile.pub
+}
+su test -c "ssh-keygen -t dsa -f $keyfile -q -N ''"
+
+ping -W 2 -c 1 mymsw &> /dev/null && {
+    #
+    log "Copy public keyfile to root@mymsw..."
+    #
+    su test -c "ssh-copy-id -i $keyfile root@mymsw &> /dev/null"
+    [[ $? != 0 ]] && {
+         echo "Failed to copy key file; continuing..."
+    }
+} || {
+    log "MSW is not reachable at the moment - skipping SSH key copy..."
+}
+
+log "Do you wish to allow SCM mode (y or n)?"
+read ans
+while [ $ans != "n" ] && [ $ans != "y" ]; do
+    log "Please enter y or n!"
+    log "Do you wish to allow SCM mode (y or n)?"
+    read ans
+done
+
+if [ $ans = "y" ]
+then
+    ping -W 2 -c 1 bkupmsw &> /dev/null && {
+        #
+        log "Copy public keyfile to root@bkupmsw..."
+        #
+        su test -c "ssh-copy-id -i $keyfile root@bkupmsw &> /dev/null"
+        [[ $? != 0 ]] && {
+            echo "Failed to copy key file; continuing..."
+        }
+    } || {
+        log "Backup MSW is not reachable at the moment - skipping SSH key copy..."
+    }
+fi
+
+#
+#----------------------------------------------------
+log "User setup complete."
+#----------------------------------------------------
+#
+exit 0
+#

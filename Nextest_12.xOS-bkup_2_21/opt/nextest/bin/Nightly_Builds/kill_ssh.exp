@@ -1,0 +1,23 @@
+#! /usr/bin/expect -f
+
+# Created by JMO
+#set ScriptsDir /home/jokafor/scripts/wip/scripts
+set User [exec whoami]
+set EOF -1
+set CUR_DIR [exec pwd]
+set linux_prompt "(%|#|\\\$) $"
+
+#spawn $env(SHELL)       ; set shell $spawn_id
+
+
+set sshCount [exec ps -ef | grep test | grep "ssh " | grep -v grep | grep ?]
+   exec echo $sshCount > ZOMBIE_SSH_PID.txt
+   exec echo > test_ssh_result.txt
+   set fp [open "ZOMBIE_SSH_PID.txt" "r"]
+   while {[gets $fp PID] != -1} {
+      set KillPID [lindex $PID 1]
+      set KillPIDPort [lindex $PID 8]
+      catch { exec echo $KillPID $KillPIDPort >> test_ssh_result.txt}
+      catch {exec kill -9 $KillPID}
+   }
+   close $fp

@@ -1,0 +1,354 @@
+NexTest 3.2i Release Notes
+----------------------------
+July 26, 2005
+
+Overview
+--------
+
+	This release contains
+
+		* Bug fixes
+
+		* Stability enhancements
+
+		* Setup Notes
+		  This section has several entries, so be sure to read it prior
+		  performing installation.
+
+		* NOTICE: As has been advised, the Solaris version of NexTest
+		  is deprecated. Moving forward, no new development will be 
+		  performed for dual-implementation. Also, automated setup for 
+		  new features, improvements in existing setup, and stability 
+		  upgrades may also not appear in NexTest for Solaris. Some 
+		  or most of existing functionality will likely continue to 
+		  function, but is not guarranteed to do so. For the next 
+		  several releases, we will explicitly note when backwards 
+		  compatibility is not provided, or when we know existing 
+		  functionality no longer works on Solaris.
+
+Outstanding Bugs That May Affect You
+------------------------------------
+	11694	CoreWatcher currently watches hardcoded 
+		directories. When MSW implements configurable 
+		path, it may break the current appproach and 
+		we will have to adapt.
+
+	13452	"Null text data??" may appear on stdout from SetiServerConfig 
+		command, and therefore in NexTest output any time that 
+		command is called. SetiServerConfig is used to update 
+		MSx system parameters not modifiable from cli. The 
+		errant message does not appear to have any functional 
+		effect.
+
+	12523	Several NAT tests fail
+		From 3-10 random NAT tests fail due to Media assertion, 
+		but pass on manual qmtr re-test. Analysis of this problem 
+		is ongoing.
+
+	14735	Mirrorproxy and OBP DHCP tests fail
+		These tests fail randomly as part of larger runs, but pass
+		on manual qmtr re-test. Analysis of this problem is 
+		ongoing.
+
+NexTest Tickets
+---------------
+
+	14303 - Guarrantee SetiServerConfig() in sync with latest .jar file. 
+                ==> See Setup Notes section of this document 
+
+	12367 -	Enhance NexTest results output
+
+	13325 -	Bring NexTest installation web documentation up to date (Linux)
+		This is internally avalable on http://eng/~slowrey/nextest, 
+		may also be installed on any web server from checked out source.
+
+	14162 -	Ownership of test user's home directory
+		Install script now correctly provisions test account's home 
+		directory.
+
+	14233 -	Handle Hunt CDR file change
+		Now NexTest captures CDRs written to "call legs" CDR file, 
+		which will include hunt CDRs in upcoming releases. Hunt 
+		CDRs have previously been written to the end1 CDR file. 
+		This fix is backwards-compatible.
+
+	14329 -	MSW with CDR default directory of "." does not work
+		If server.cfg specifies '.' as CDR directory, NexTest now 
+		infers /usr/local/nextone/bin, and changes MSW to match.
+
+	13390 -	Integrate SIPp in Nextest
+		Internal framework capabilities added - no change to tests.
+		SIPp will not function in Solaris NexTest.
+
+	13391 -	Integrate MSx logs into Nextest
+		Provide new assertion capabilities on MSx logs. Capabilities
+		only, no change to current tests.
+
+	12797 -	RADIUS AAA
+		This contains client and server RADIUS classes for use in 
+		test suites. 
+                ==> See Setup Notes section of this document 
+
+Stability Enhancements
+----------------------
+	14303 - Guarrantee SetiServerConfig() in sync with latest .jar file. 
+		Previously, NexTest used a redundant copy of nexcommon.jar that
+		occasonally suffered release incompatibility with jServer under  
+		test. This induced instability. Now, we use jServer.jar, and 
+		copy the current one from the MSW under test in order to ensure 
+		version compatibility with jServer under test.
+
+Setup Notes 
+-----------
+	14303 - Guarrantee SetiServerConfig() in sync with latest .jar file. 
+
+		Linux 
+		-----
+		Setup of this new arrangement is automatic, but you must 
+		log out, then log back in for the new CLASSPATH environment 
+		variable to take effect. Opening a new Xterm will have like 
+		effect.
+
+		Solaris
+		-------
+		Solaris setup is not automated. These steps must be taken:
+		1) Install the new NexTest
+		2) Learn where CLASSPATH is being assigned. This would likely 
+		   be in either: ~/.bashrc, ~/.nextestrc. Edit the file and 
+		   assign CLASSPATH as follows:
+		      export CLASSPATH=/opt/nextest/lib/java:/opt/nextest/lib/java/jServer.jar
+		3) Log out, then log back in for the new CLASSPATH environment 
+		   variable to take effect.  Opening a new Xterm will have like 
+		   effect.
+
+	12797 -	RADIUS AAA
+		This feature requires the configuration of one each additional public 
+		and private addresses at install time for radiusclients. Use the address
+		previously used for public20 and private20, which are no longer used.
+
+Call Generator Tickets
+----------------------
+
+
+----------------------------------------------------------------------
+NOTES FROM PREVIOUS RELEASES
+----------------------------------------------------------------------
+
+Outstanding Bugs That May Affect You
+------------------------------------
+
+	8876 	Network aliases disappear after reboot
+	14595	Run SER if needed by NexTest
+	14414	Automate setup of logical IF on Linux
+	12505	Automate NAT setup
+
+	(See these tickets for workarounds - fix planned for next release!)
+
+MSW Configuration Notes
+-----------------------
+
+	NexTest now requires that CDRs be stored in "fixed" file
+	format, rather than "daily".  If you did not install/upgrade
+	the MSW with this option set, do the following:
+
+		1) change to /usr/local/nextone/bin
+
+		2) run 'sconfig'
+
+		3) Billing -> CDR File Format -> "fixed"
+
+		4) run 'iserver all reconfig'
+
+	You MUST add an entry for qanextest.com in the /etc/hosts
+	file as follows.  The IP address should match that of
+	dynamicrealm and prv_rsa. The entry should include the 
+	dot-terminated FQDN. 
+
+	Example:
+
+		10.1.3.138  qanextest.com qanextest.com.
+
+Call Gen System Setup
+---------------------
+
+	The installation script does not prompt for the qanextest.com
+	address.  Enter the same line in the call gen /etc/hosts file
+	as described the MSW Configuration Notes above.
+
+NexTest Support for SuSE 9.1
+----------------------------
+
+	The NexTest framework and all tests developed for iServer
+	release 3.1.1 have been ported to the SuSE 9.1 Linux system.
+	Most of the code adapts to the underlying OS automatically and
+	requires no user action.  Because of install peculiarities,
+	however, two separate distributions will be maintained; the
+	system administrator should choose the "SunOS" or "Linux"
+	distro.
+
+	See the companion document README.SuSE91 for Linux
+	installation instructions.
+
+IP Address Resolution
+---------------------
+
+	The remap function is obsolete in version 3.1.1r.  This step
+	was necessary in past releases so that built-in IP addresses
+	could be changed to fit the test environment.
+
+	In 3.1.1r, the installation procedure prompts the installer
+	for all necessary IP addresses.  Local IP aliases (also known
+	as "logical interfaces") are set up at install time and are no
+	longer dynamically managed by the test framework.
+
+	In addition to setting up the aliases, the /etc/hosts file is
+	updated so that all names will be resolved correctly.  There
+	are no longer any IP addresses specified in the newer test
+	suites.
+
+	It is important that you define the "mymsw" IP address to that
+	of the management interface on your MSW.
+
+	You must define the "qanextest.com" and "qanextest.com."
+	addresses manually on the MSW.  These names and associated IP
+	addresses should be added to /etc/hosts so that the SIP
+	dial-by-URI tests work.
+
+	Some of the IP addresses are multiply defined - i.e., an IP
+	address may be mapped to multiple names.  This is normal.
+
+	Here is a sample from a working test system to guide you:
+
+	    #
+	    # Internet host table
+	    #
+	    127.0.0.1       localhost       loghost
+	    #
+	    # The MSW:
+	    10.1.2.130      mymsw pub_rsa staticrealm
+	    10.1.3.130      prv_rsa dynamicrealm qanextest.com qanextest.com.
+	    #
+	    # The gen:
+	    10.1.2.142      interface-e1000g0 
+	    10.1.3.142      interface-e1000g1 
+	    10.1.3.148      qanextest.com qanextest.com.
+	    #
+	    # Written by NexTest install:
+	    # (Except where shown, EP addresses should be unique)
+	    10.1.2.142      public1 mygen pub_nat pub_ep
+	    10.1.2.143      public2
+	    10.1.2.144      sipproxy
+	    10.1.2.145      seattle
+	    10.1.2.146      portland
+	    10.1.2.147      newyork
+	    10.1.2.148      boston
+	    10.1.3.142      private1 prv_nat prv_nat prv_ep
+	    10.1.3.143      private2
+	    10.1.3.144      sandiego
+	    10.1.3.145      phoenix
+	    10.1.3.146      atlanta
+	    10.1.3.147      miami
+	    #
+	    10.1.2.1        defaultrouter
+
+SIP Outbound and Mirror Proxy Setup Notes
+-----------------------------------------
+
+	The mirrorproxy and obp suites require that a third-party SIP
+	proxy runs on the call generator.  Perform the following steps
+	at install time.
+
+	1. Define sipproxy address in /etc/hosts on the call generator
+
+	2. Respond affirmatively when the installer asks if you want 
+	   to run the SIP Express Router (ser).
+
+	The MSW must be in SIP OBP mode for the obp and mirrorproxy
+	tests.  For this release, you must run the 'sconfig' command
+	manually before running either suite.  You should run sconfig
+	again to return to 'stateful' mode afterward.
+
+	This function is currently automated in nextest.
+
+
+Here is the procedure to configure NAT on Linux:
+------------------------------------------------
+
+	1. Create the following interfaces
+
+		ip addr add dev eth0 192.168.0.100/24
+		ip addr add dev eth0 192.168.0.101/24
+		ip addr add dev eth1 192.168.1.100/24
+		ip addr add dev eth1 192.168.1.101/24
+
+	2. Add two host names into /etc/hosts file. (Usually it is best 
+	   to do this by configuring the network during NexTest 
+	   installation. Take defaults unless a specific alternative 
+	   configuration is sought.)
+
+		10.1.2.182 pub_nat # private nat ip address
+		10.1.3.182 prv_nat #  public nat ip address
+
+	3. Run the following command for setting on Source-NAT on Linux. 
+	   Thee iptables command must be run as root, not sudo. 
+	   Replace <public nat ip address> and <private nat ip address> 
+	   with public and private IP address of the Call Generator.
+
+		iptables -t nat -A POSTROUTING -p udp -s 192.168.0.100/24 -j SNAT --to-source <public nat ip address>:20000-29999
+		iptables -t nat -A POSTROUTING -p udp -s 192.168.1.100/24 -j SNAT --to-source <private nat ip address>:30000-39999
+
+
+NAT Traversal Setup Notes - SOLARIS ONLY
+----------------------------------------
+
+	NOTE: the nat suite has not been ported to work with a Linux call
+	gen in this release.
+
+	Plumb interfaces e1000g0 and e1000g1 as follows:
+
+	      ifconfig e1000g0 addif 192.168.0.100/24 up
+	      ifconfig e1000g0 addif 192.168.0.101/24 up
+	      ifconfig e1000g1 addif 192.168.1.100/24 up
+	      ifconfig e1000g1 addif 192.168.1.101/24 up
+
+	Change to the /opt/nextest/etc directory
+
+	     cd /opt/nextest/etc/
+
+	Remove the old NSF package with
+
+	     pkgrm nsf
+
+	Add the new package with
+
+	     pkgadd -d ipfilter_3.4.27_stock.pkg
+
+	Edit the ipnat configuration file /etc/opt/ipf/ipnat.conf 
+	and include the following two network address mappings:
+
+sudo map e1000g0 192.168.0.0/24 -> 10.1.0.72/24 portmap udp 20001:30000
+sudo map e1000g1 192.168.1.0/24 -> 10.1.1.72/24 portmap udp 30001:40000
+
+      	Note: Replace the NAT IP address 10.1.0.62 and 10.1.1.62 with 
+	correct IP address of the Solaris machine
+
+	Stop and start ipfilter with
+
+     		/etc/init.d/ipfboot stop
+     		/etc/init.d/ipfboot start
+
+	Check the IP address mappings with
+
+      		ipnat -l
+
+	The output would be like the following:
+
+    		List of active MAP/Redirect filters:
+    		map e1000g0 192.168.0.0/24 -> 10.1.0.62/32 portmap udp 20001:30000
+    		map e1000g1 192.168.1.0/24 -> 10.1.1.62/32 portmap udp 30001:40000
+
+    		List of active sessions:
+
+	The NAT setup should not negatively impact other tests.  It
+	simply replaces the NSF driver with the original Solaris
+	version. 

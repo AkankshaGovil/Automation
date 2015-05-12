@@ -1,0 +1,1461 @@
+#!/usr/bin/expect -f
+
+
+# FP 35028: This ticket is used to clean up the base code deleting deprecated lines of code, and unneeded 
+# lines of code and comments (that were commented out)
+
+set mainDir [pwd]
+
+# Getting the version to be installed from the command line
+set cmdVersion [string range $argv0 12 14]
+if { [string compare $cmdVersion "4.2"] == 0 } {
+     # IPAddress of Primary/Master Iserver machine  when SCM is ON,
+     # it is also used as the Standalone Ipaddr of Iserver machine when SCM is not ON,
+     # This IP address is configurable.   
+     set ipAddressMaster "10.19.0.158"
+     # Ip address of Slave in case of SCM as active
+     set scmIpAddressSlave "10.19.0.159"
+     # Version of MSW release on the Iserver machine.
+     # As it will be used across the procedures, so it is made global.
+     
+     # IP of GEN which will run Nextest
+     set genIP "10.19.0.157"
+     
+     set versionMaster "master"
+     set versionSlave "slave"
+     # setting the version of iserver to be installed
+     #set version "4.2.c1-X"
+     set version ""
+     ##########################################
+     # The ipadress of peer-Iserveris to be given from Primary and Secondary
+     # iservers machine in case of SCM being ON
+     set slave_peer_Iserver "10.10.10.21"
+     set master_peer_Iserver "10.10.10.20"
+
+     # management ip should be eth5 as control-introl-interface would remain eth2
+     # for both client and server
+     set mgmtip_slave "10.19.0.159"
+     set mgmtip_master "10.19.0.158"
+     puts "The mgmtip_master is $mgmtip_master\n"
+
+     # Setting the path for iserver release on bilbo
+     set releasePath "rel4.2/iserver/engtest/dailybuilds"
+} elseif { [string compare $cmdVersion "4.0"] == 0 } {
+     # IPAddress of Primary/Master Iserver machine  when SCM is ON,
+     # it is also used as the Standalone Ipaddr of Iserver machine when SCM is not ON,
+     # This IP address is configurable.
+     set ipAddressMaster "10.19.0.155"
+     # Ip address of Slave in case of SCM as active
+     set scmIpAddressSlave "10.19.0.156"
+     # Version of MSW release on the Iserver machine.
+     # As it will be used across the procedures, so it is made global.
+     
+     # IP of GEN which will run Nextest
+     set genIP "10.19.0.154"
+     
+     set versionMaster "master"
+     set versionSlave "slave"
+
+     # setting the version of iserver to be installed
+     #set version "4.0.c3-X"
+     set version ""
+     ##########################################
+     # The ipadress of peer-Iserveris to be given from Primary and Secondary
+     # iservers machine in case of SCM being ON
+     set slave_peer_Iserver "10.10.10.21"
+     set master_peer_Iserver "10.10.10.20"
+
+     # management ip should be eth5 as control-introl-interface would remain eth2
+     # for both client and server
+     set mgmtip_slave "10.19.0.156"
+     set mgmtip_master "10.19.0.155"
+
+     # Setting the path for iserver release on bilbo
+     set releasePath "rel4.0/iserver/engtest/dailybuilds"
+ 
+} else {
+set subject  "Nightly build can't be kicked-off"
+set msg  "\n\rThe name of the script to be supplied  is wrong and hence nightly build cann't be kicked-off\n\rRegards \n\rSIT Team\n\r"
+set sendMail [exec python2.3 $mainDir/mailwrapper.py $subject $msg]
+exit
+}
+
+# setting the value of flag scm_enable depending on the command line arguments
+# supplied with while executing the file.
+set scm_enable $argv
+if { $scm_enable != "on" } then {
+   set scm_enable "off" 
+}
+
+
+# Hard coding the Build Path for right now.
+if { [string compare $cmdVersion "4.2"] == 0 } {  
+   set mswPath "/root/IserverBuilds/dailybuilds"
+} elseif { [string compare $cmdVersion "4.0"] == 0 } {
+   set mswPath "/root/IserverBuilds/dailybuilds/"
+}
+
+# As Password is same for Master and Slave, so it is declared global in this case
+set passwd "shipped!!"
+
+# Opening a file for putting the installation and uninstallation related information. 
+set installuninstall [open "install-uninstall.txt" a]
+
+# Putting the the scm state in a file whether it is active or not
+puts $installuninstall "The SCM-state is => $scm_enable\n"
+puts $installuninstall "Path where build is kept => $mswPath\n"
+
+# Ip address of the build machine
+set buildMachine "172.16.0.129"
+
+# Directory from where scripts on the SUT will be lunched
+set scriptsDir        /root/scripts/dailybuild
+
+set env(TERM) vt100
+set env(SHELL) /bin/bash
+#spawn $env(SHELL)       ; set shell $spawn_id
+set env(PATH) ".:/usr/bin:/usr/local/nextone/bin:$env(PATH)"		;# set PATH variable
+set linux_prompt "(%|#|\\\$) #"
+
+
+# Setting the value of ping return for checking whether MSW machine are up or not
+set returnMaster  ""
+set returnSlave  ""
+set returntest "0 received"
+
+
+set procPrimary ""
+set procSecondary ""
+
+# This procedure is used for setting the spawn id for having single ssh connection.
+  
+proc getSpawnId { {ipaddress "None" } } {
+    global procPrimary
+    global procSecondary
+    global passwd
+    global ipAddressMaster
+    global scmIpAddressSlave
+    spawn ssh -l root $ipaddress
+    expect "Password:"
+    send "$passwd\r"
+    expect "#"
+    if { $ipaddress == $ipAddressMaster } {
+       set procPrimary $spawn_id
+       return $procPrimary
+       }
+    if { $ipaddress == $scmIpAddressSlave } {
+       set procSecondary $spawn_id
+       return $procSecondary
+       }
+
+    }
+
+# Procedure uninstall which handles the uninstallation
+# on iserver machine in case of SCM active and in case of Standalone iserver.
+# with ipaddress and argversion as the arguments with default value of "None"
+# When SCM is ON, then we have to unistall the iserver from both
+# Master and Slave and in case of standalone only from master whcih acts as
+# standalone in that case.
+ 
+proc uninstall { {ipaddress "None"} { argsversion "None"} } {
+    # To use the global variable we need to define them in the procedure  
+    global mswPath
+    global passwd
+    global linux_prompt
+    global cmdVersion
+    global ipAddressMaster
+    global scmIpAddressSlave
+    global procPrimary
+    global procSecondary
+    set fullPath $mswPath
+    if { $ipaddress == $ipAddressMaster } {
+         set spawn_id $procPrimary
+       }
+    if { $ipaddress == $scmIpAddressSlave } {
+         set spawn_id $procSecondary
+       }
+
+    send "cd $fullPath\r"
+    # flush expect buffer 
+    expect *
+
+    # Launch the iserver setup program
+    send "./setup\r"
+    # Password of Master Iserver Machine
+    # User Configurable
+    set timeout 10              ;# JMO
+    if { [string compare $cmdVersion "4.0"] == 0 } {
+         expect "Hit <CR> to continue..."
+         send "\r" 
+    }
+    expect "Select choice by number:" 
+# select 2.      Uninstall a version of software.
+    send "2\r"
+    if { [string compare $cmdVersion "4.0"] == 0 } {
+       expect "Select choice by number:" 
+# select 3.      Both
+       send "3\r"
+       expect "Hit <CR> to continue..."
+       send "\r"
+# Escape the [ character 
+       expect "Hit \[CR] to continue...."
+       send "\r"
+    }
+    expect "Are you sure you are uninstalling ISERVER"
+    send "y\r"
+
+    expect "Do you want to backup your database"
+    send "n\r"
+
+    expect "Do you want to backup your server configuration files"
+    send "n\r"
+
+    expect "Do you want to backup your iServer license file"
+    send "n\r"
+
+# Escape the [ character "
+    expect "Hit \[CR] to continue...."
+    send "\r"
+
+    expect "Select choice by number: "
+    send "q\r\r"
+    expect "*"
+
+################# Finish uninstall ########################
+#
+    send_user "iserver version $argsversion successfully uninstalled"
+    send "/usr/local/nextone/bin/iserver all status\r"
+    expect "iserver: command not found"
+    send_user "\n------------COMPLETE-------------\n"  
+    #catch {close -i $spawn_id}
+}
+
+# Procedure install which handles the installation
+# on iserver machine in case of SCM as on and without SCM.
+# with ipaddress, args and argsversion as the arguments with default value of "None,"off" and "None" respectively.
+
+proc install { {ipaddress "None" } {args  "off"} {argsversion "None"} } {
+    # To use the global variable we need to define them in the procedure  
+    global mgmtip_slave
+    global mgmtip_master
+    global linux_prompt
+    global mswPath
+    global cmdVersion 
+    global passwd
+    global ipAddressMaster
+    global scmIpAddressSlave
+    global slave_peer_Iserver
+    global master_peer_Iserver
+    global scriptsDir
+    global procPrimary
+    global procSecondary
+    set fullPath $mswPath
+    set license_dir   /usr/local/nextone/bin
+    if { $ipaddress == $ipAddressMaster } {
+         set spawn_id $procPrimary
+       }
+    if { $ipaddress == $scmIpAddressSlave } {
+         set spawn_id $procSecondary
+       }
+
+    send "cd $fullPath\r"
+    expect -re $linux_prompt
+    # flush the expect buffer
+    send "\r"
+    expect *
+  if { [string compare $cmdVersion "4.2"] == 0 } {
+    set timeout 10          ;# JMO
+
+    # Launch the iserver setup program
+    send "./setup\r"
+    expect "Hit <CR> to continue..."
+    send "\r"
+    expect "Select choice by number or type q to quit:"
+# select 1.      Install a version of software.
+    send "1\r"
+    send "q"
+    expect "Do you agree to the above license terms\? \[y/n\]:"
+    send "y\r"
+    expect "Are you sure you are installing iserver version"
+    send "\r"
+    expect "Do you want to start iServer when the system starts \?\[y\]:"
+    send "y\r"
+    
+    # Change in the installation steps in case of active SCM and on Master iserver machine
+    if { ($ipaddress == $ipAddressMaster) && ( $args == "on") } then {
+       # it will handle the master installation in SCM active case.
+       expect "Select your choice:"
+       send "b\r"
+       expect "Enter the redundancy type for this machine: master(m)/slave(s):\[m\]:"
+       send "m\r"
+       expect  "Do you want to configure a bonded control interface for redundancy\? \<y|\[n\]\>:"
+       send "\r"
+       expect "Select your choice:"
+       send "c\r"
+       expect "Enter peer control IP address \[\]:"
+       send "$slave_peer_Iserver\r"
+       # interface-monitor-list []: 
+       expect "Select your choice:"
+       send "a\r"                    ;# eth0
+       expect "Select your choice:"
+       send "b\r"		     ;# eth1
+       expect "Select your choice:"
+       send "c\r"                    ;# eth2
+       expect "Select your choice:"
+       send "f\r"		     ;# eth5
+       expect "Select your choice:"
+       send "g\r"		     ;# hk0,0
+       expect "Select your choice:"
+       send "h\r"		     ;# hk0,1
+       expect "Select your choice:"
+       send "q\r"		     ;# quit
+       #expect -re "mswname \[sut-158\]:"
+       expect -re "Enter the MSX host name \[*\]:"
+       send "\r"
+       expect "Enter the management IP address \[\]:"
+       send "$mgmtip_master\r"
+       expect "Select your choice:"
+       send "a\r"
+       expect "Select your choice:"
+       send "\r"
+
+    }
+    if {$args != "on" } {
+       # Installation steps for standalone Iserver
+       expect "Select your choice:"
+       send "a\r"
+       expect -re "Enter the MSX host name \[*\]:"
+       send "\r"
+       expect "Enter the management IP address \[\]:"
+       send "$mgmtip_master\r"
+       expect "Select your choice:"
+       send "a\r"
+       expect "Select your choice:"
+       send "\r"
+
+    }
+    # Change in the installation steps in case of active SCM and on Slave iserver machine
+    if { $ipaddress == $scmIpAddressSlave } {
+       expect "Select your choice:"
+       send "b\r"
+       expect "Enter the redundancy type for this machine: master(m)/slave(s):\[m\]:"
+       send "s\r"
+       expect  "Do you want to configure a bonded control interface for redundancy\? \<y|\[n\]\>:"
+       send "\r"
+       expect "Select your choice:"
+       send "c\r"
+       expect "Enter peer control IP address \[\]:"
+       send "$master_peer_Iserver\r"
+       # interface-monitor-list []: 
+       expect "Select your choice:"
+       send "a\r"                    ;# eth0
+       expect "Select your choice:"
+       send "b\r"                    ;# eth1
+       expect "Select your choice:"
+       send "c\r"                    ;# eth2
+       expect "Select your choice:"
+       send "f\r"                    ;# eth5
+       expect "Select your choice:"
+       send "g\r"                    ;# hk0,0
+       expect "Select your choice:"
+       send "h\r"                    ;# hk0,1
+       expect "Select your choice:"
+       send "q\r"                    ;# quit
+       #expect -re "mswname \[sut-158\]:"
+       expect -re "Enter the MSX host name \[*\]:"
+       send "\r"
+       expect "Enter the management IP address \[\]:"
+       send "$mgmtip_slave\r"
+       expect "Select your choice:"
+       send "a\r"
+       expect "Select your choice:"
+       send "\r"
+    }
+
+
+    expect "Do you want to commit the changes(y/n)\? \[y\]:"
+    send "y\r"
+
+    expect "Hit \[CR\] to continue...."
+    send "\r"
+    expect "Select choice by number or type q to quit:"
+    send "q\r"
+    expect "#"
+    send_user "iserver version $argsversion successfully installed"
+# Modify server.cfg file (set memwrapper on)
+# Update the server.cfg file with the memwrapper flag (for libwrap)
+    #send "exec vi $license_dir/server.cfg\n/gis local\no\tmemwrapper on\033:wq\r"
+    #expect -re $linux_prompt
+
+    send_user "\n------------COMPLETE-------------\n"
+
+} elseif { [string compare $cmdVersion "4.0"] == 0 } { 
+
+
+    set timeout 10          ;# JMO
+
+    # Launch the iserver setup program
+    send "./setup\r"
+    expect "Hit <CR> to continue..."
+    send "\r"
+    expect "Select choice by number:"
+# select 1.      Install a version of software.
+    send "1\r"
+    send "q"
+    expect "Do you agree to the above license terms\? \[y/n\]:"
+    send "\r\r"
+    expect *
+    send "y\r"
+    expect "Select choice by number:"
+  # select 3.      Both
+    send "3\r"
+  
+    expect "Enter media or file \[iserverinstall.tar\]:"
+    send "\r"
+    expect "Enter temporary directory to use for the install"
+    send "\r"
+    expect "Are you sure you are installing iserver version"
+    send "\r"
+    expect "Do you want to start iserver on boot ?\[y\]:"
+    send "n\r"
+    expect "MSW Name? "
+# Flush the expect buffer 
+    expect *
+    send "\r"
+
+# Billing:
+    expect "Billing Type? "
+    send "\r"
+    expect "Billing Format? "
+    send "\r"
+    expect "CDR File Format?"
+    send "\r"
+    expect "Do you want to send Radius accounting messages? "
+    send "\r"
+
+# Configuration Server:
+    expect "Configuration Server Log File? "
+    send "\r"
+    expect "(Enter up to 16 characters):"
+    send "\r"
+    expect "(Enter up to 16 characters):"
+    send "\r"
+    expect "Use compression? "
+    send "\r"
+
+# SIP:
+    expect "SIP Authentication? "
+    send "\r"
+    expect "SIP Server Name?"
+    send "\r"
+    expect "SIP Server Type? "
+    send "\r"
+    expect "SIP OPTIONS Response Codec List "
+    send "\r"
+
+# H.323:
+    expect "H.323 Instances? "
+    send "\r"
+    expect "H.323 Calls"
+    send "\r"
+    expect "H.323 Max Calls? "
+    send "\r"
+    expect "H.323 Information Transfer Capablity? "
+    send "\r"
+    expect "H.323 Routed Calls? "
+    send "\r"
+    expect "H.323 Fast Start? "
+    send "\r"
+    expect "H.245 Routing? "
+    send "\r"
+    expect "HairPin Calls? "
+    send "\r"
+    expect "Local Proceeding? "
+    send "\r"
+    expect "H245 Tunneling ? "
+    send "\r"
+    expect "Remove TCS 2833 CAP? "
+    send "\r"
+    expect "Remove TCS T38FAX CAP? "
+    send "\r"
+
+# Other:
+    expect "ENUM Domain? "
+    send "\r"
+    expect "Allow All Source Numbers?"
+    send "\r"
+
+# Firewall:
+    expect "Firewall Control Proxy? "
+    send "enable\r"
+    expect "Firewall name \[none]: "
+    send "HKNIFE\r"
+    expect "Internal interfaces? "
+    send "\r"
+
+#QoS:
+    expect "Qos Tagging? "
+    send "\r"
+    expect "Qos Policing? "
+    send "\r"
+    expect "Jitter Buffer "
+    send "\r"
+    expect "Enter (0-6) :"
+    send "\r"
+
+# iServer Peering Configuration:
+    # Change in the installation steps in case of active SCM and on Master iserver machine
+    if { ($ipaddress == $ipAddressMaster) && ( $args == "on") } then {
+# iServer Peering Configuration:
+   expect "Redundant Peer Configuration? <enable|\[disable]>: "
+   send "enable\r"
+
+   expect "Do you want to configure bonded interface for redundancy? <y|\[n]>: "
+   send "\r"
+
+   expect "Control   interface name   ? <eth0|eth1|eth2|eth5>: "
+   send "eth2\r"
+
+   expect "Control   iServer peer\[1]"
+   send "$slave_peer_Iserver\r"
+
+   expect "Control   iServer peer\[2]"
+   send "\r"
+
+   expect "Monitor interface eth0"
+   send "y\r"
+
+   expect "Monitor interface "
+   send "\r"
+   expect "Monitor interface "
+   send "\r"
+   expect "Monitor interface "
+   send "\r"
+   expect "Monitor interface "
+   send "\r"
+   expect "Monitor interface "
+   send "\r"
+   expect "Monitor interface "
+   send "\r"
+
+   expect "stateful call migration? <enable|\[disable]>: "
+   send "enable\r"
+
+}  elseif { $ipaddress == $scmIpAddressSlave } {
+#    # Change in the installation steps in case of active SCM and on Slave iserver machine
+
+# iServer Peering Configuration:
+   expect "Redundant Peer Configuration? <enable|\[disable]>: "
+   send "enable\r"
+
+   expect "Do you want to configure bonded interface for redundancy? <y|\[n]>: "
+   send "\r"
+
+   expect "Control   interface name   ? <eth0|eth1|eth2|eth5>: "
+   send "eth2\r"
+
+   expect "Control   iServer peer\[1]"
+   send "$master_peer_Iserver\r"
+   expect "Control   iServer peer\[2]"
+
+   send "\r"
+   expect "Monitor interface eth0"
+
+   send "y\r"
+   expect "Monitor interface "
+   send "\r"
+   expect "Monitor interface "
+   send "\r"
+   expect "Monitor interface "
+   send "\r"
+   expect "Monitor interface "
+   send "\r"
+   expect "Monitor interface "
+   send "\r"
+   expect "Monitor interface "
+   send "\r"
+   expect "stateful call migration? <enable|\[disable]>: "
+   send "enable\r"
+
+} else {
+
+# iServer Peering Configuration:
+   expect "Redundant Peer Configuration? <enable|\[disable]>: "
+   send "enable\r"
+}
+
+if { ($ipaddress == $ipAddressMaster) && ( $args == "on") } then {
+    # it will handle the master installation in SCM active case.
+
+   # iServer Database Replication Server Configuration:
+   expect "Replication Server Configuration?"
+   send "enable\r"
+
+   expect "replication server interface name"
+   send "eth2\r"
+
+   expect "multicast address for replication server? <\[230.1.1.1]>:"
+   send "\r"
+
+   expect "multicast port for replication server? <\[5000]>:"
+   send "\r"
+
+   # Make iserver the master by setting db controller to 1
+   expect "This host's priority for database controller? <\[0]>:"
+   send "1\r"
+
+# iServer Cmd Execution Server Configuration:
+    expect "Cmd Execution Server Configured? "
+    send "\r"
+
+#  iServer Management Interface Configuration:
+    expect "Management Interface Address  ?"
+    send "$mgmtip_master\r"
+
+} elseif { $ipaddress == $scmIpAddressSlave } {
+   # iServer Database Replication Server Configuration:
+   expect "Replication Server Configuration?"
+   send "enable\r"
+   expect "replication server interface name"
+
+   send "eth2\r"
+   expect "multicast address for replication server? <\[230.1.1.1]>:"
+   send "\r"
+   expect "multicast port for replication server? <\[5000]>:"
+   send "\r"
+
+   # Make iserver the slave by leaving db controller at 0
+   expect "This host's priority for database controller? <\[0]>:"
+   send "\r"
+
+# iServer Cmd Execution Server Configuration:
+    expect "Cmd Execution Server Configured? "
+    send "\r"
+
+#  iServer Management Interface Configuration:
+    expect "Management Interface Address  ?"
+    send "$mgmtip_slave\r"
+
+} else {
+
+   # iServer Database Replication Server Configuration:
+   expect "Replication Server Configuration?"
+   send "\r"
+
+# iServer Cmd Execution Server Configuration:
+    expect "Cmd Execution Server Configured? "
+    send "\r"
+
+#  iServer Management Interface Configuration:
+    expect "Management Interface Address  ?"
+    send "$mgmtip_master\r"
+}
+
+    expect "Enter license file path "
+    send "\r"
+
+# Escape the [ character "
+    expect "Hit \[CR] to continue...."
+    send "\r"
+
+# Escape the [ character "
+    expect "Hit \[CR] to continue...."
+    send "\r"
+
+    expect "Hit <CR> to continue..."
+    send "\r"
+
+    expect "Enter mediafile "
+    send "\r"
+
+# Escape the [ character "
+    expect "Hit \[CR] to continue...."
+    send "\r"
+    expect "Select choice by number: "
+
+    send "q\r\r"
+    expect -re $linux_prompt
+
+####################### Update Iserver license ################
+    set timeout 10     ;# JMO
+    send "/bin/cp $license_dir/iserverlc.xml $license_dir/iserverlc.xml.orig\r"
+    expect -re $linux_prompt
+    set timeout 10     ;# JMO
+    send "/bin/cp $scriptsDir/iserverlc.xml.dailybuild $license_dir/iserverlc.xml\r"
+    expect -re $linux_prompt
+
+    # Modify server.cfg file (set memwrapper on)
+    # Update the server.cfg file with the memwrapper flag (for libwrap)
+    #    send "exec vi $license_dir/server.cfg\n/gis local\no\tmemwrapper on\033:wq\r"
+    #    expect -re $linux_prompt
+
+    send_user "iserver version $argsversion successfully installed"
+    send_user "\n------------COMPLETE-------------\n"
+
+    #    catch {close -i $spawn_id}
+}
+
+}
+
+#In this procedure the iserver version running on msw is extracted for both Master and Slave 
+# in case of active SCM and in case of without SCM, the Master's version is used.
+
+  
+proc getIserverVersion { { ipaddress "None" }} {
+    set retVersion  ""
+    global passwd
+    global ipAddressMaster
+    global scmIpAddressSlave
+    global procPrimary
+    global procSecondary
+    if { $ipaddress == $ipAddressMaster } {
+         set spawn_id $procPrimary
+       }
+    if { $ipaddress == $scmIpAddressSlave } {
+         set spawn_id $procSecondary
+       }
+
+    send "/usr/local/nextone/bin/cli -v | grep '^Nex'| cut -d' ' -f6| tr -d 'v,' \r"
+    expect "#"
+    set buffer_out $expect_out(buffer)
+    #puts $buffer_out
+    regexp "4(.*)\r\n" $buffer_out retVersion
+    set retVersion [string trim $retVersion]
+    return $retVersion 
+    # catch {close -i $spawn_id}
+    
+}
+
+# To pick the MSW build from the bilbo machine and copy them to MSW machine
+
+proc buildCopy { { ipaddress  "None" } { argsversion "None" } } {
+    global buildMachine
+    global mswPath
+    global passwd
+    global releasePath
+    global linux_prompt
+    global mainDir
+    global ipAddressMaster
+    global scmIpAddressSlave
+    global procPrimary
+    global procSecondary
+    set username "releases"
+    set pwd "\$oftw@re"
+    set retBinary ""
+    global cmdVersion
+    if { $ipaddress == $ipAddressMaster } {
+         set spawn_id $procPrimary
+       }
+    if { $ipaddress == $scmIpAddressSlave } {
+         set spawn_id $procSecondary
+       }
+
+    set fullPath $releasePath
+    send "cd $mswPath\r"
+    expect -re $linux_prompt
+    send "scp releases@$buildMachine:$releasePath/* $mswPath\r"
+    set timeout 60 
+    expect {
+       "Are you sure you want to continue connecting (yes/no)\?" {
+           send "yes\r"
+           expect "password:" {send "$pwd\r"}
+       }
+       "password:" {send "$pwd\r"}
+    }
+    expect -re $linux_prompt
+    set timeout 5
+    send "\r"
+    expect *
+    sleep 3
+    # determine if there are patch files
+    log_user 0
+    send "eval exec ls | grep -v i686 | grep -v symbol | grep -v txt > patchFiles.txt\r"
+    expect -re $linux_prompt
+    sleep 2
+    log_user 1
+
+    set timeout 10
+    puts "Diagnosis taking place\n"
+    sleep 2
+    #log_file jmo.log
+    #exp_internal 1
+    #expect *
+
+    send "/usr/bin/find . -name \"*86*.nc\" -exec ls {} \\;\r"
+    sleep 3
+    expect -re "\r\n(.*)\r\n"
+    expect "#"
+    sleep 3
+    set tempBuffer $expect_out(buffer)
+    sleep 3
+    send "exec echo $tempBuffer | grep -i msw\r"
+    expect -re "\r\n(.*)\r\n"
+    set buffer_out $expect_out(buffer)
+    puts "\nThe value of buffer_out is => $buffer_out \nand expect_buffer is=> $expect_out(buffer)\n"
+    puts "\nThe value of buffer_out is => $buffer_out \nand expect_buffer is=> $expect_out(buffer)\n"
+    sleep 5
+    regexp "i686*\.nc\r\n" $buffer_out retBinary
+    regexp "i686(.*)\.nc\r\n" $buffer_out retBinary
+    #tar.gz.nc\r\n
+    set retBinary [string trim $retBinary]
+    puts "The return binary is:  ===>> $retBinary\n"
+    #log_file
+    if { [string compare $retBinary ""] == 0} {
+      set subject  "Nightly build can't be kicked-off"
+      set msg  "\n\rThe Binary file => $retBinary is not present in the nightly builds so regression can't be kicked-off\n\rRegards \n\rSIT Team\n\r"
+      set sendMail [exec python2.3 $mainDir/mailwrapper.py $subject $msg]
+      #puts $msg
+      sleep 10
+      exit
+    }
+
+    # catch {close -i $spawn_id}
+}
+
+
+# decrypting and untarring the msw release
+
+proc decryptUntar { {ipaddress "None"} {argversion "None"} } {
+    global mswPath
+    global passwd
+    global cmdVersion 
+    global linux_prompt
+    global scriptsDir
+    global ipAddressMaster
+    global scmIpAddressSlave
+    global procPrimary
+    global procSecondary
+ if { [string compare $cmdVersion "4.2"] == 0 } {   
+    set passPharase "accustom" 
+    set fullPath $mswPath$argversion
+ } elseif {[string compare $cmdVersion "4.0"] == 0 } {
+    set passPharase "rel40crypt"
+    set fullPath $mswPath
+ } 
+    if { $ipaddress == $ipAddressMaster } {
+         set spawn_id $procPrimary
+       }
+    if { $ipaddress == $scmIpAddressSlave } {
+         set spawn_id $procSecondary
+       }
+  
+    send "cd $fullPath\r"
+    expect "#"
+
+    send "/usr/bin/find . -name \"i686*.nc\" -exec mcrypt -d {} \\;\r"
+    #set timeout 5
+    sleep 3
+    expect {
+       #### Decide how to handle timeout situation #####
+       timeout  {puts "Timed out before decrypting the binary\n"; send "\r"}
+       "do you wish to overwrite" {send "y\r"}
+       "Enter passphrase:" {send "$passPharase\r"; sleep 3}
+    }
+    expect -re $linux_prompt
+
+    send "/usr/bin/find . -name \"i686*.gz\" -exec tar -zxvf {} \\;\r"
+    expect "*"
+    sleep 6
+    send "/usr/bin/find . -name \"ins*.tar\" -exec tar -xvf {} \\;\r"
+    expect "*"
+    sleep 5
+
+    set timeout 90
+    # FP 35088 Adds a call to update_nxlinux.sh utility (in the remote SUT)
+    # Moves the call for intall_hotknife.exp to the installHotknife procedure
+    send "exec $scriptsDir/update_nxlinux.sh\r"
+    expect -re $linux_prompt
+
+    # catch {close -i $spawn_id}
+}
+
+proc postInstallation { { ipaddress "None" } {timer "None"} } {
+    set system "down"
+    set pingParam "Bytes from"
+    set pingReturn "ping"
+    set ProcessValue ""
+    global passwd
+    global returntest
+    global ipAddressMaster
+    global scmIpAddressSlave
+    global procPrimary
+    global procSecondary
+    sleep 15
+    while { $timer > 0} {
+       set retping [exec sh -c "ping $ipaddress -c 1 | grep received | cut -d, -f2"]
+       set retping [string trim $retping]
+       if { $retping !=  $returntest} {
+          set system  "up"
+          break
+       } 
+       set timer [expr $timer - 5]
+       sleep 5
+    }
+    if { $system  != "up" }  {
+      puts stdout "System hasn't got up"
+      exit }
+    puts "sytem  has come up"
+    sleep 10
+    if { $ipaddress == $ipAddressMaster } {
+         set spawn_id $procPrimary
+       }
+    if { $ipaddress == $scmIpAddressSlave } {
+         set spawn_id $procSecondary
+       }
+
+    set timeout 60            ;# JMO
+    send "/usr/local/nextone/bin/iserver all stop\r"
+    expect "#\n"
+    set timeout 90            ;# JMO
+    send "/usr/local/nextone/bin/iserver all start\r"
+    expect "#"
+    send "pidof gis\r"
+    expect "#"
+    set retVersion  [ getIserverVersion $ipaddress]
+    set argsversion [string map { "c" ".c" } $retVersion]
+    if { $argsversion == $retVersion} then { 
+         puts stdout "Processes are not up"
+         exit  
+    } else {
+         puts "\n\nthe system is up and running\n\n"
+    }
+    set timeout 5
+    # catch {close -i $spawn_id}
+}
+
+proc rebootMachine { { ipaddress "None" } {timer "None"} } {
+    set system "down"
+    set pingParam "Bytes from"
+    set pingReturn "ping"
+    set ProcessValue ""
+    global passwd
+    global returntest
+    global ipAddressMaster
+    global scmIpAddressSlave
+    global procPrimary
+    global procSecondary
+    if { $ipaddress == $ipAddressMaster } {
+         set spawn_id $procPrimary
+       }
+    if { $ipaddress == $scmIpAddressSlave } {
+         set spawn_id $procSecondary
+       }
+
+    set timeout 15   ;# JMO
+    send "/sbin/reboot\r"
+    expect "#"
+    # catch {close -i $spawn_id}
+}
+
+# Login and delete old files in dailybuild directory
+proc deleteOldBuild { {ipaddress "None"} {argversion "None"} } {
+    global mswPath
+    global passwd
+    global cmdVersion
+    global ipAddressMaster
+    global scmIpAddressSlave
+    global procPrimary
+    global procSecondary
+ if { [string compare $cmdVersion "4.2"] == 0 } {  
+    set fullPath $mswPath$argversion
+ } elseif { [string compare $cmdVersion "4.0"] == 0 } {
+    set fullPath $mswPath
+ }
+    if { $ipaddress == $ipAddressMaster } {
+         set spawn_id $procPrimary
+       }
+    if { $ipaddress == $scmIpAddressSlave } {
+         set spawn_id $procSecondary
+       }
+
+    send "cd $fullPath\r"
+    expect "#"
+    set timeout 25   ;# JMO
+    send "/bin/rm -rf $fullPath/*\r"
+    expect "#"
+    sleep 10
+
+    # catch {close -i $spawn_id}
+}
+
+
+# Run Regression on Nextest
+proc runNextest {ipaddress} {
+    global mswPath
+    global passwd
+    set tdbDir         /var/opt/nextest/tdb
+    set linux_prompt "(%|#|\\\$) #"
+    
+    spawn ssh -l root $ipaddress
+    set timeout 10
+       expect {
+           timeout  {puts "Timed out before connection to the GEN\r"; exit}
+           "Are you sure you want to continue connecting (yes/no)?" {
+               send "yes\r"
+               expect "Password:" { send "$passwd\r" }
+           }
+           "Password:" { send "$passwd\r" }
+       }
+       expect -re $linux_prompt
+
+    send "cd $tdbDir\r"
+    expect -re $linux_prompt
+
+    # Flush the expect buffer
+    send "\r"
+    expect *
+
+    # Become a nextest user
+    send "/bin/su test\r"
+    expect -re $linux_prompt
+
+    # Turn off expect timer
+    set timeout -1 
+
+    # Run nextest. run_nextest_hourly is run (when modifying the scripts)
+    # run_nextest should be uncommented and used for daily build runs
+    send "exec $tdbDir/run_nextest_hourly\r"      ;# run nextest hourly
+    #send "exec $tdbDir/run_nextest\r"            ;# run nextest daily
+
+#  Put defensive code that will allow you to handle a test user Password: prompt
+#  with a <--| return
+
+    expect -re $linux_prompt
+    set timeout 2
+
+    # catch {close -i $spawn_id}
+}
+
+# Apply patch to the system (if there are patch files)
+proc applyPatch { { ipaddress "None" }} {
+    global passwd
+    global mswPath
+    global linux_prompt
+    global cmdVersion
+    global scriptsDir
+    global ipAddressMaster
+    global scmIpAddressSlave
+    global procPrimary
+    global procSecondary
+    set fullPath $mswPath
+    set nextone_bin_dir   /usr/local/nextone/bin
+    if { $ipaddress == $ipAddressMaster } {
+         set spawn_id $procPrimary
+       }
+    if { $ipaddress == $scmIpAddressSlave } {
+         set spawn_id $procSecondary
+       }
+
+
+    send "cd $fullPath\r"
+    expect -re $linux_prompt
+
+    # Flush the expect buffer
+    send "\r"
+    expect *
+
+    # Set timeout that will be enough to run the patch from the remote server
+    set timeout 20
+
+    # Call applyPatch.exp (in the remote machine to apply patches {if necessary})
+    # Use $cmdVersion to differentiate between releases
+    send "exec $scriptsDir/applyPatch.exp $cmdVersion\r"
+    expect -re $linux_prompt
+
+    puts "Done Patching\n"
+    # catch {close -i $spawn_id}
+}
+
+
+# FP 35088: Add a new procedure to handle Hotknife installation
+# Install hot knife
+proc installHotknife { { ipaddress "None" }} {
+    global passwd
+    global mswPath
+    global linux_prompt
+    global scriptsDir
+    set fullPath $mswPath
+    spawn ssh -l root $ipaddress
+    set timeout 10
+    expect {
+        timeout  {puts "Timed out before connection to the SUT\r"; exit}
+        "Are you sure you want to continue connecting (yes/no)?" {
+            send "yes\r"
+            expect "Password:" { send "$passwd\r" }
+        }
+        "Password:" { send "$passwd\r" }
+    }
+    expect -re $linux_prompt
+
+    send "cd $fullPath\r"
+    expect -re $linux_prompt
+
+    # Flush the expect buffer
+    send "\r"
+    expect *
+
+    # Set timeout that will be enough to run the patch from the remote server
+    set timeout 90
+    send "exec $scriptsDir/install_hotknife.exp\r"
+    expect -re $linux_prompt
+
+    puts "Done Patching\n"
+    catch {close -i $spawn_id}
+}
+
+
+# FP 35088 Add a new procedure to check if the system is up before continuing 
+# with installation
+proc checkSystem { { ipaddress "None" } {timer "None"} } {
+    set system "down"
+    set pingParam "Bytes from"
+    set pingReturn "ping"
+    set ProcessValue ""
+    global passwd
+    global returntest
+    sleep 15
+    while { $timer > 0} {
+       set retping [exec sh -c "ping $ipaddress -c 1 | grep received | cut -d, -f2"]
+       set retping [string trim $retping]
+       if { $retping !=  $returntest} {
+          set system  "up"
+          sleep 20
+          puts stdout "The system is up"
+          break
+       }
+       set timer [expr $timer - 5]
+       sleep 5
+    }
+    if { $system  != "up" }  {
+      puts stdout "System hasn't got up"
+      set system  "not_up"
+    }
+
+    return $system
+
+    catch {close -i $spawn_id}
+}
+      
+
+    
+     
+# Calling procedues for uninstallation and installtion of iserver.
+
+
+# Checking whether MSW is up or not only to continue if MSW is up
+
+if { $scm_enable == "on" } {
+
+# Checking for Master Machine
+
+   set returnMaster [exec sh -c "ping $ipAddressMaster -c 1 | grep received | cut -d, -f2"]
+   set returnMaster [string trim $returnMaster]
+   if { $returnMaster ==  $returntest} {
+      set subject  "Nightly build can't be kicked-off"
+      set msg "\nThe Master iserver machine => $ipAddressMaster is not up\n" 
+      puts "\nThe Master iserver machine => $ipAddressMaster is not up\n"
+      set sendMail [exec python2.3 $mainDir/mailwrapper.py $subject $msg]
+      puts "\t\nexiting.....\n"
+      exit 
+   }
+
+# Checking for Slave machine
+
+   set returnSlave [exec sh -c "ping $scmIpAddressSlave -c 1 | grep received | cut -d, -f2"]
+   set returnSlave [string trim $returnSlave]
+   if { $returnSlave ==  $returntest} {
+      set subject  "Nightly build can't be kicked-off"
+      set msg "\nThe Slave iserver machine => $scmIpAddressSlave is not up\n" 
+      puts "\nThe Slave iserver machine => $scmIpAddressSlave is not up\n"
+      set sendMail [exec python2.3 $mainDir/mailwrapper.py $subject $msg]
+      puts "\t\nexiting.....\n"
+      exit 
+   }
+} else {
+   set returnMaster [exec sh -c "ping $ipAddressMaster -c 1 | grep received | cut -d, -f2"]
+   set returnMaster [string trim $returnMaster]
+   if { $returnMaster ==  $returntest} {
+      set subject  "Nightly build can't be kicked-off"
+      set msg "\nThe Master iserver machine => $ipAddressMaster is not up\n"
+      puts "\nThe Master iserver machine => $ipAddressMaster is not up\n"
+      set sendMail [exec python2.3 $mainDir/mailwrapper.py $subject $msg]
+      puts "\t\nexiting.....\n"
+      exit
+   }
+}
+
+## Pre-installation procedures
+
+# Calling the procedures getSpawnID Using, it returns 
+
+if { $scm_enable == "on" } {
+ 
+    getSpawnId $ipAddressMaster
+    getSpawnId $scmIpAddressSlave
+} else {
+    getSpawnId $ipAddressMaster 
+}   
+
+# Settting the version related variables
+
+set versionPrimary ""
+set versionSecondary ""
+if { $scm_enable == "on" } then {
+# Copy the msw builds from Bilbo to iserver machine as scm is on build will be coppied on both the master and slave 
+#buildCopy $ipAddressMaster $version
+#buildCopy $scmIpAddressSlave $version 
+#set versionMaster [ getIserverVersion  $ipAddressMaster ] 
+#set versionSlave  [ getIserverVersion $scmIpAddressSlave ] 
+} else {
+# Case when SCM is off
+# Copying the builds from the bilbo to standalone msw machine
+#buildCopy $ipAddressMaster $version 
+#set versionMaster [getIserverVersion $ipAddressMaster ] 
+} 
+## End of ef else case, where we copied the build to msw machine and also checked the version.
+
+if { $scm_enable == "on" }  {
+  if { $versionMaster != "" } {
+      # This puts command is used tell the user that uninstalltion process has begun
+      # Copying the builds from server the one whcih we want to uninstall
+      puts "Uninstallation of Master begins .........\n"
+      set uninstallbegin [exec date]
+      puts $installuninstall "The IPasdress of the Master in case of SCM other this is also ip for standalone machine is => $ipAddressMaster\n"
+      puts $installuninstall "Uninstallation of Master begins if SCM is 'on' else uninstallation of standalone setup\n"
+      puts $installuninstall "Uninstallation begins at time => $uninstallbegin \n"
+
+      # Calling the uninstall procedure
+      set versionPrimary [getIserverVersion $ipAddressMaster ]
+      if { $versionPrimary != "" } { 
+           uninstall $ipAddressMaster $version
+         }
+      wait -nowait
+
+      set uninstallend [exec date]
+      puts $installuninstall "Uninstallation ends at time => $uninstallend \n"
+      puts $installuninstall "Uninstallaton is successful"
+      # This puts command is used tell the user that uninstalltion process has begun
+#     puts "iserver on slave iserver machine is uninstalled\n"
+
+      # Login and remove friles!!
+      deleteOldBuild $ipAddressMaster $version
+      wait -nowait
+
+      # Copying the builds from server the one whcih we want to uninstall
+      buildCopy $ipAddressMaster $version
+      wait -nowait
+
+      # Flush the expect buffer
+      expect *
+      sleep 3
+
+     decryptUntar $ipAddressMaster $version
+     expect *
+     sleep 3
+      wait -nowait
+
+     # FP 35088: Call checkSystem. If system is up, continue with the installation
+     set timer 450
+     set System  [ checkSystem  $ipAddressMaster $timer]
+     if { $System == "up" } then {
+
+        # FP35088: Install the hotknife card
+        installHotknife $ipAddressMaster 
+
+        puts "Installtion of Master begins .........\n"
+        set installmaster [exec date]
+        puts $installuninstall "Installation of iServer begins on a Master machine as SCM is active\n"
+        puts $installuninstall "Installation begins at time => $installmaster \n"
+
+        install $ipAddressMaster $argv $version
+
+        set installmasterend [exec date]
+        puts $installuninstall "Installation of iServer end on a Master machine as SCM is active\n"
+        puts $installuninstall "Installation ends at time => $installmasterend \n"
+
+        applyPatch $ipAddressMaster
+        #wait -nowait
+        puts "\nThe Apply Patch is Done\n"
+     
+        set timer 15
+        rebootMachine $ipAddressMaster $timer
+
+     } else {
+        puts stdout "The system did not come up"
+        # The system did not come up after reboot
+        exit
+     } 
+     # End FP35088
+
+   } else {
+     puts "The Iserver on master is already uninstalled\n"
+     puts $installuninstall "The Iserver on master is already uninstalled\n" 
+   }
+   if { $versionSlave != "" } then {
+      puts "Uninstallation of Slave begins .........\n"
+      puts $installuninstall "The IPasdress of the Slave is => $scmIpAddressSlave\n"
+      set uninstallslave [exec date]
+      puts $installuninstall "Uninstallation of Slave begins as SCM is 'on'\n"
+      puts $installuninstall "Uninstallation of slave begins at time => $uninstallslave \n"
+
+      set versionSecondary [getIserverVersion $scmIpAddressSlave ]
+      if { $versionSecondary != "" } { 
+           uninstall $scmIpAddressSlave $version
+         }
+      #wait -nowait
+
+      set uninstallendslave [exec date]
+      puts $installuninstall "Uninstallaton is successful"
+      puts $installuninstall "Uninstallation of slave ends at time => $uninstallendslave \n"
+      puts "iserver on slave iserver machine is uninstalled\n"
+      
+      # Login and remove friles!!
+      deleteOldBuild $scmIpAddressSlave $version
+      #wait -nowait
+     
+      buildCopy $scmIpAddressSlave $version
+      wait -nowait
+
+      decryptUntar $scmIpAddressSlave $version
+      expect *
+      sleep 3
+      wait -nowait
+
+
+     # FP 35088: Call checkSystem. If system is up, continue with the installation
+      set timer 450
+      set System  [ checkSystem  $scmIpAddressSlave $timer]
+      if { $System == "up" } then {
+
+         # FP35088: Install the hotknife card
+         installHotknife $scmIpAddressSlave
+
+         puts "Installtion of Slave begins .........\n"
+         set installslave [exec date]
+         puts $installuninstall "Installation of iServer begins on a Slave machine as SCM is active\n"
+         puts $installuninstall "Installation begins at time => $installslave \n"
+
+         install $scmIpAddressSlave $argv $version
+
+         set installslaveend [exec date]
+         puts $installuninstall "Installation of iServer ends on a Slave machine as SCM is active\n"
+         puts $installuninstall "Installation ends at time => $installslaveend \n"
+
+         applyPatch $scmIpAddressSlave
+         #wait -nowait
+         puts "\nThe Apply Patch is Done\n"
+
+         puts $installuninstall "Reboot the Slave machine begin\n"
+         set timer 15
+         rebootMachine $scmIpAddressSlave $timer
+
+     } else {
+        puts stdout "The system did not come up"
+        # The system did not come up after reboot
+        exit
+     } 
+     # End FP35088
+
+    } else {
+      puts "The Iserver on slave is already uninstalled\n"
+      puts $installuninstall "The Iserver on slave is already uninstalled\n" 
+    }
+
+   }  else {
+   if { $versionMaster != "" } then {
+
+      puts $installuninstall "Uninstallation of Master begins in case of standalone setup\n"
+      set uninstallbegin [exec date]
+      puts $installuninstall "Uninstallation begins at time => $uninstallbegin \n"
+
+      set versionPrimary [getIserverVersion $ipAddressMaster ]
+      if { $versionPrimary != "" } { 
+           uninstall $ipAddressMaster $version
+      }
+      #wait -nowait
+
+      set uninstallend [exec date]
+      puts $installuninstall "Uninstallation ends at time => $uninstallend \n"
+
+      # Login and remove friles!!
+      deleteOldBuild $ipAddressMaster $version
+      puts "\nThe Deletion of old build is  complete\n"
+      #wait -nowait
+    
+      #set timeout 30
+      buildCopy $ipAddressMaster $version
+      #wait -nowait
+      puts "\nThe  BuildCopy function is complete\n"
+
+      decryptUntar $ipAddressMaster $version
+      puts "\nThe  Decrypt and Untarring is Done\n"
+      #wait -nowait
+
+     # FP 35088: Call checkSystem. If system is up, continue with the installation
+     set timer 450
+     set System  [ checkSystem  $ipAddressMaster $timer]
+     if { $System == "up" } then {
+
+        # FP35088: Install the hotknife card
+        installHotknife $ipAddressMaster
+
+        # This puts command is used tell the user that installtion process has begun
+        puts "Installtion begins .........\n"
+        set installbegin [exec date]
+        puts $installuninstall "Installation of iServer begins on a Standalone machine\n"
+        puts $installuninstall "Installation begins at time => $installbegin \n"
+
+        install  $ipAddressMaster $argv $version
+        puts "\nThe Installation is Done\n"
+        #wait -nowait
+
+        set installends [exec date]
+        puts $installuninstall "Installation of iServer ends on a Standalone machine\n"
+        puts $installuninstall "Installation ends at time => $installends \n"
+
+        applyPatch $ipAddressMaster
+        #wait -nowait
+        puts "\nThe Apply Patch is Done\n"
+
+        puts $installuninstall "Reboot the Standalone machine begin\n"
+        set timer 15
+        rebootMachine $ipAddressMaster $timer
+        puts "\nThe Reboot is Done\n"
+        puts $installuninstall "Reboot the Standalone machine End\n"
+
+     } else {
+        puts stdout "The system did not come up"
+        # The system did not come up after reboot
+        exit
+     }
+     # End FP35088
+
+   }
+}
+
+
+# Reboot the GEN machine 
+set timer 15
+rebootMachine $genIP $timer
+
+# Sleep for 8 minutes; Wait for the rebooted machines to come back to service
+sleep 480
+      
+#  Post Installation Process
+
+set timer 450
+if { $scm_enable == "on" } then {
+   postInstallation $ipAddressMaster $timer
+   postInstallation $scmIpAddressSlave $timer
+} else {
+   postInstallation $ipAddressMaster $timer
+}
+
+
+# Connect to GEN
+#source /root/scripts/jmo.runRegression.exp 10.19.0.154  
+runNextest $genIP
+
+# Reboot the GEN machine
+#set timer 15
+#rebootMachine $genIP $timer

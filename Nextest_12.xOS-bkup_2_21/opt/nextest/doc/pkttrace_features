@@ -1,0 +1,43 @@
+PLEASE NOTE THAT FROM NEXTEST-R4-0A-PRE43 ON TEH PKTTRACE FEATURE IS CALLED FROM ECAH TEST CASE ITSELF.
+YOU DON'T NEED TO CALL IT FROM COMMAND LINE.
+
+Nextest Features that use Packet Analyser Library
+-------------------------------------------------
+
+The following features involve verification of the ethereal packets
+using the pktInspect library. Hence the command line argument
+nextest.pkttrace needs to be set "ON" while running these features.
+Otherwise an error, 'The context variable "pdmlPkts" was not defined'
+will be encountered while running these scripts.
+
+Subsuites under production_components:
+-------------------------------------
+call_routing.qms/cac.qms
+timerc.qms
+privacy_iw.qms
+h225messages.qms
+h323registration.qms
+h245messages.qms
+transcoding.qms
+tcst38_fax.qms
+restricted_ani.qms
+multiple_sip_ports.qms
+radius_pod.qms
+mastergk.qms
+radius_prepaid.qms
+trunkgroup.qms
+causecode_new.qms
+sipregistration.qms
+rad_accounting.qms/regression.qms
+radius.qms
+
+Subsuites under 4_0_2_features:
+------------------------------
+enum.qms
+
+Command to be used:
+------------------
+qmtest run -c nextest.pkttrace="ON"
+
+PLEASE NOTE THAT FROM NEXTEST-R4-0A-PRE43 ON TEH PKTTRACE FEATURE IS CALLED FROM ECAH TEST CASE ITSELF.
+YOU DON'T NEED TO CALL IT FROM COMMAND LINE.

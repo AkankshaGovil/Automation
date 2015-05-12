@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+#
+# Switch NexTest versions
+
+usage() {
+    echo "Usage: $0 VERSION"
+    echo ""
+    echo "Switch NexTest executable and database environments to VERSION."
+}
+
+if [ $# -lt 1 ]; then
+    usage
+fi
+
+tag=$1
+newbin="nextest-$tag"
+newdb="tdb-$tag"
+
+# Get the old version
+pushd /opt/nextest > /dev/null
+oldbin=`basename \`pwd -P\``
+popd > /dev/null
+
+echo "Switching from $oldbin to $newbin"
+
+pushd /opt > /dev/null
+rm nextest
+ln -s $newbin nextest
+popd > /dev/null
+
+
+pushd /var/opt/nextest/tdb > /dev/null
+olddb=`basename \`pwd -P\``
+popd > /dev/null
+
+echo "Switching from $olddb to $newdb"
+
+pushd /var/opt/nextest > /dev/null
+rm tdb
+ln -s $newdb tdb
+
+echo "Switch complete."
+
+

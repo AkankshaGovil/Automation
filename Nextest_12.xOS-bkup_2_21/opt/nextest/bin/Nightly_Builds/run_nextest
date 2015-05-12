@@ -1,0 +1,255 @@
+#!/bin/sh
+
+
+#Create result directory based on date
+Date=`date +%Y%m%d`
+sleep 2
+resultDir=results_$Date
+mkdir $resultDir
+#resultDir=results_20061205
+
+echo "about to start nextest"
+sleep 5
+echo "Executing----------- production_components.provision------------"
+> /tmp/nextest.log
+/opt/nextest/bin/qmtest run  -c nextest.scm_configuration=ON -c nextest.trace_level=DEBUG -c nextest.disable_debugflags=OFF production_components.provision
+sleep 10
+mv results.qmr results_provision.qmr
+cp /tmp/nextest.log /tmp/provision.log
+qmtest summarize -f full results_provision.qmr > results_provision.txt
+cp results_provision.qmr $resultDir
+cp results_provision.txt $resultDir
+
+#echo "Kill zombie SSH connections
+#./kill_ssh.exp
+sleep 5
+
+echo "Run OBP"
+> /tmp/nextest.log
+/opt/nextest/bin/qmtest run  -c nextest.scm_configuration=ON -c nextest.trace_level=DEBUG -c nextest.disable_debugflags=OFF production_components.obp
+sleep 10
+mv results.qmr  results_obp.qmr
+cp /tmp/nextest.log /tmp/obp.log
+qmtest summarize -f full results_obp.qmr > results_obp.txt
+cp results_obp.qmr $resultDir
+cp results_obp.txt $resultDir
+
+# Kill zombie ssh process
+./kill_ssh.exp
+sleep 5
+
+echo "Executing----------- production_components.call_routing------------"
+> /tmp/nextest.log
+/opt/nextest/bin/qmtest run  -c nextest.trace_level=DEBUG -c nextest.scm_configuration=ON -c nextest.disable_debugflags=OFF production_components.call_routing
+sleep 10
+mv results.qmr results_call_routing.qmr
+cp /tmp/nextest.log /tmp/call_routing.log
+qmtest summarize -f full results_call_routing.qmr > results_call_routing.txt
+cp results_call_routing.qmr $resultDir
+cp results_call_routing.txt $resultDir
+
+# Kill zombie ssh process
+./kill_ssh.exp
+sleep 5
+
+echo "Executing----------- production_components.mirrorproxy------------"
+> /tmp/nextest.log
+/opt/nextest/bin/qmtest run  -c nextest.trace_level=DEBUG -c nextest.scm_configuration=ON -c nextest.disable_debugflags=OFF production_components.mirrorproxy
+sleep 10
+mv results.qmr results_mirrorproxy.qmr
+cp /tmp/nextest.log /tmp/mirror.log
+qmtest summarize -f full results_mirrorproxy.qmr > results_mirrorproxy.txt
+cp results_mirrorproxy.qmr $resultDir
+cp results_mirrorproxy.txt $resultDir
+
+# Kill zombie ssh process
+./kill_ssh.exp
+sleep 5
+
+echo "Executing----------- production_components.causecode------------"
+> /tmp/nextest.log
+/opt/nextest/bin/qmtest run  -c nextest.trace_level=DEBUG -c nextest.scm_configuration=ON -c nextest.disable_debugflags=OFF production_components.causecode
+sleep 10
+mv results.qmr results_causecode.qmr
+cp /tmp/nextest.log /tmp/causecode.log
+qmtest summarize -f full results_causecode.qmr > results_causecode.txt
+cp results_causecode.qmr $resultDir
+cp results_causecode.txt $resultDir
+
+# Kill zombie ssh process
+./kill_ssh.exp
+sleep 5
+
+echo "Executing----------- production_components.functional------------"
+> /tmp/nextest.log
+/opt/nextest/bin/qmtest run  -c nextest.trace_level=DEBUG -c nextest.scm_configuration=ON -c nextest.disable_debugflags=OFF production_components.functional
+sleep 10
+mv results.qmr results_functional.qmr
+cp /tmp/nextest.log /tmp/functional.log
+qmtest summarize -f full results_functional.qmr > results_functional.txt
+cp results_functional.qmr $resultDir
+cp results_functional.txt $resultDir
+
+# Kill zombie ssh process
+./kill_ssh.exp
+sleep 5
+
+echo "Executing----------- production_components.nat------------"
+> /tmp/nextest.log
+/opt/nextest/bin/qmtest run  -c nextest.trace_level=DEBUG  -c nextest.scm_configuration=ON -c nextest.disable_debugflags=OFF production_components.nat
+sleep 10
+mv results.qmr results_nat.qmr
+cp /tmp/nextest.log /tmp/nat.log
+qmtest summarize -f full results_nat.qmr > results_nat.txt
+cp results_nat.qmr $resultDir
+cp results_nat.txt $resultDir
+
+# Kill zombie ssh process
+./kill_ssh.exp
+sleep 5
+
+echo "Executing----------- production_components.radius------------"
+> /tmp/nextest.log
+/opt/nextest/bin/qmtest run  -c nextest.trace_level=DEBUG -c nextest.scm_configuration=ON -c nextest.disable_debugflags=OFF production_components.radius
+sleep 10
+mv results.qmr results_radius.qmr
+cp /tmp/nextest.log /tmp/radius.log
+qmtest summarize -f full results_radius.qmr > results_radius.txt
+cp results_radius.qmr $resultDir
+cp results_radius.txt $resultDir
+
+
+# Kill zombie ssh process
+./kill_ssh.exp
+sleep 5
+
+echo "Executing----------- production_components.sipt------------"
+> /tmp/nextest.log
+/opt/nextest/bin/qmtest run  -c nextest.trace_level=DEBUG -c nextest.scm_configuration=ON -c nextest.disable_debugflags=OFF production_components.sipt
+sleep 10
+mv results.qmr results_sipt.qmr
+cp /tmp/nextest.log /tmp/sipt.log
+qmtest summarize -f full results_sipt.qmr > results_sipt.txt
+cp results_sipt.qmr $resultDir
+cp results_sipt.txt $resultDir
+
+# Kill zombie ssh process
+./kill_ssh.exp
+sleep 5
+
+echo "Executing----------- production_components.trunkgrp------------"
+> /tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.trace_level=DEBUG  -c nextest.scm_configuration=ON -c nextest.disable_debugflags=OFF production_components.trunkgroup
+sleep 10
+mv results.qmr results_trunkgroup.qmr
+cp /tmp/nextest.log /tmp/trunkgroup.log
+qmtest summarize -f full results_trunkgroup.qmr > results_trunkgroup.txt
+cp results_trunkgroup.qmr $resultDir
+cp results_trunkgroup.txt $resultDir
+
+# Kill zombie ssh process
+./kill_ssh.exp
+sleep 5
+
+echo "Executing----------- production_components.timerc------------"
+> /tmp/nextest.log
+/opt/nextest/bin/qmtest run -cnextest.trace_level=DEBUG -cnextest.pkttrace=ON -c nextest.dbglog=OFF -cnextest.disable_debugflags=OFF -c nextest.scm_configuration=ON production_components.timerc
+sleep 10
+mv results.qmr results_timerc.qmr
+cp /tmp/nextest.log /tmp/timerc.log
+qmtest summarize -f full results_timerc.qmr > results_timerc.txt
+cp results_timerc.qmr $resultDir
+cp results_timerc.txt $resultDir
+
+
+# Kill zombie ssh process
+./kill_ssh.exp
+sleep 5
+
+#echo "Executing----------- production_components.3xx------------"
+#> /tmp/nextest.log
+#/opt/nextest/bin/qmtest run  -c nextest.trace_level=DEBUG  -c nextest.scm_configuration=ON production_components.3xx
+#sleep 10
+#mv results.qmr results_3xx.qmr
+#cp /tmp/nextest.log /tmp/3xx.log
+#qmtest summarize -f full results_3xx.qmr > results_3xx.txt
+#cp results_3xx.qmr $resultDir
+#cp results_3xx.txt $resultDir
+
+
+## Kill zombie ssh process
+#./kill_ssh.exp
+
+
+#echo "Executing----------- production_components.cdr------------"
+#> /tmp/nextest.log
+#/opt/nextest/bin/qmtest run  -c nextest.trace_level=DEBUG -c nextest.scm_configuration=ON production_components.cdr
+#sleep 10
+#mv results.qmr results_cdr.qmr
+#cp /tmp/nextest.log /tmp/cdr.log
+#qmtest summarize -f full results_cdr.qmr > results_cdr.txt
+#cp results_cdr.qmr $resultDir
+#cp results_cdr.txt $resultDir
+
+
+## Kill zombie ssh process
+#./kill_ssh.exp
+
+
+#echo"Executing----------- production_components.privacy_iw-----------"
+#> /tmp/nextest.log
+#/opt/nextest/bin/qmtest run -cnextest.trace_level=DEBUG -cnextest.pkttrace=ON -c nextest.dbglog=OFF -cnextest.disable_debugflags=OFF -c nextest.scm_configuration=ON production_components.privacy_iw
+#mv results.qmr results_privacyiw.qmr
+#cp /tmp/nextest.log /tmp/privacy_iw.log
+#qmtest summarize -f full results_privacyiw.qmr > results_privacyiw.txt
+#cp results_privacyiw.qmr $resultDir
+#cp results_privacyiw.txt $resultDir
+
+
+## Kill zombie ssh process
+#./kill_ssh.exp
+
+
+#echo"Executing----------- production_components.causecode_2-----------"
+#> /tmp/nextest.log
+#/opt/nextest/bin/qmtest run -c nextest.trace_level=DEBUG -c nextest.scm_configuration=ON production_components.causecode_2
+#mv results.qmr results_causecode_2.qmr
+#cp /tmp/nextest.log /tmp/causecode_2.log
+#qmtest summarize -f full results_causecode_2.qmr > results_causecode_2.txt
+#cp results_causecode_2.qmr $resultDir
+#cp results_causecode_2.txt $resultDir
+
+
+## Kill zombie ssh process
+#./kill_ssh.exp
+
+
+#echo "Executing----------- production_components.multiple_sip_ports-----------"
+#> /tmp/nextest.log
+#/opt/nextest/bin/qmtest run -cnextest.trace_level=DEBUG -cnextest.pkttrace=ON -c nextest.dbglog=OFF -cnextest.disable_debugflags=OFF -c nextest.scm_configuration=ON 4_0_2_features.multiple_sip_ports
+#mv results.qmr results_multiple_sip_ports.qmr
+#cp /tmp/nextest.log /tmp/multiple_sip_ports.log
+#qmtest summarize -f full results_multiple_sip_ports.qmr > results_multiple_sip_ports.txt
+#cp results_multiple_sip_ports.qmr $resultDir
+#cp results_multiple_sip_ports.txt $resultDir
+
+
+## Kill zombie ssh process
+#./kill_ssh.exp
+
+#echo "Executing----------- production_components.restricted_ani-----------"
+#> /tmp/nextest.log
+#/opt/nextest/bin/qmtest run -cnextest.trace_level=DEBUG -cnextest.pkttrace=ON -c nextest.dbglog=OFF -cnextest.disable_debugflags=OFF -c nextest.scm_configuration=ON 4_0_2_features.restricted_ani
+#mv results.qmr results_restricted_ani.qmr
+#cp /tmp/nextest.log /tmp/restricted_ani.log
+#qmtest summarize -f full results_restricted_ani.qmr > results_restricted_ani.txt
+#cp results_restricted_ani.qmr $resultDir
+#cp results_restricted_ani.txt $resultDir
+
+
+# Process results into a .csv spreadsheet FP-35605
+./generateResult.sh $resultDir
+
+
+# Reboot the GEN
+./rebootGen.exp

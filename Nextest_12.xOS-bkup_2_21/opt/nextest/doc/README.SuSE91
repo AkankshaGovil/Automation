@@ -1,0 +1,133 @@
+NexTest SuSE 9.1 Installation Notes
+-----------------------------------
+$Id: README.SuSE91,v 1.3 2007/08/22 17:43:29 bgundlach Exp $
+
+Overview
+--------
+
+	This document contains information pertaining to the
+	installation of a fresh SuSE 9.1 OS for NexTest.
+
+Hardware Requirements
+---------------------
+
+	You should have a box with at least two Ethernet interfaces,
+	each cabled to separate networks.  Each network should be able
+	to route to the System Under Test (SUT).
+
+	A CD-ROM or DVD drive is required.  The system BIOS should be
+	configured to boot from the CD/DVD first.
+
+
+SuSE Base Installation
+----------------------
+
+	You'll need at least the first two CD's (or the DVD) of the
+	SuSE 9.1 distribution.
+
+	An excellent feature is to store the SuSE ISO images on local
+	machine so that they can be exported by NFS.  The SuSE system
+	administration tool (YaST) can then be configured to download
+	and install packages from the NFS service.  HTTP and FTP,
+	among others, can also be configured to serve the
+	distribution.  See the SuSE documentation for more info.
+
+	Insert CD 1 of the distribution (or the DVD) into the drive
+	and reboot the system.
+
+	Select Installation from the menu.
+
+	After SuSE has finished building an installation
+	configuration, select the "Software" link on the menu and
+	change the installation type to "Minimal Installation".
+
+	Proceed with the installation.  When the installer is
+	finished, it will reboot the system.  You will not have any
+	GUI display capability after reboot - YaST (the system
+	configuration tool) will come up in text mode.
+
+System Administration Tasks
+---------------------------
+
+	After logging in as root, run "yast" from the command line.
+	Use the arrow keys to navigate the interface or simply look
+	for the yellow characters in the prompts -- you can then type
+	Alt-char to select that item.
+
+	Set up the IP addresses for two Ethernet interfaces by
+	navigating to Network Devices -> Network Cards.  You should
+	turn off DHCP, set up static addresses, define a hostname, a
+	DNS server and a default route (which would be the IP address
+	of the gateway router nearest your switch, if any).
+
+SuSE Package Installation
+-------------------------
+
+	Use the YaST software installation menu to install the
+	following packages.  Packages can be located by using Alt-s to
+	bring up the search window.  When you find a package you want
+	to install, navigate to it and press the space bar to select
+	it.
+
+		python
+		python-devel
+		python-xml
+                pyxml
+		sudo
+		java2-jre
+		expect
+		xntp
+                libogg
+                libvorbis
+                bison
+                ncurses
+                ncurses-devel
+                zlib
+                zlib-devel
+                openssl
+                openssl-devel
+
+	Some of the other packages that are required by Nextest can be found 
+	in components directory. 'components' directory will be created under 
+	installation directory after Nextest is installed. Ethereal, Nxgen are
+        the other software packages that are required by Nextest which can be
+	found in components directory. When a newer version of Nextest is 
+	installed, verify that the version of the packages(Ethereal, Nxgen, etc)
+	installed on the machine matches the version present in components directory.
+
+Service Configuration
+---------------------
+
+	In order to maintain correct system date and time, use YaST to
+	configure NTP.  You will need the IP address of an NTP
+	server.  If you don't have a local time server, you can find
+	public servers on the Internet.
+
+	First, start YaST and access the System -> Date and Time menu
+	to select your country and time zone.
+
+	Next, navigate to the Network Services -> NTP Client menu to
+	enter the IP address of your chosen NTP service.
+
+	If the NTP service is reachable, the system time will be set
+	immediately upon exiting YaST.  Verify with the 'date'
+	command.
+
+User Configuration
+------------------
+
+	Create a directory named '.nextest' under /home/test. Execute the
+	following command to copy the userConfig file.
+
+	cp /etc/userConfig.sample /home/test/.nextest/userConfig.cfg
+
+	After the file is copied, please update the parameters in userConfig.cfg
+	with appropriate values. The file contains sample values and needs to be
+	updated with relevant values. Please comment out the parameters that
+	are irrelevant by prepending the line with a #. For example, all the 
+	parameters under Transcoder Section can be commented if the testbed
+	does not contain a Transcoder.
+	
+	While upgrading with a newer version of Nextest, compare the file 
+	against /etc/userConfig.sample and make sure that the userConfig.cfg
+	file is updated with newer parameters, if any.

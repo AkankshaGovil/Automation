@@ -1,0 +1,109 @@
+#! /usr/bin/expect -f
+
+set buildPath         /root/IserverBuilds/dailybuilds
+set rpmPatch no_patch
+set PATCH_INFO 0	
+
+set num 0
+set patchFiles [exec cat $buildPath/patchFiles.txt]
+puts "patchFiles are :\n$patchFiles\n"
+foreach line $patchFiles {
+  #puts "line $num is: $line\n"
+  set rpmTest586 [lindex [split $line .] 1]
+  # FP37866 Begin
+  if { $rpmTest586 != "i586" } { 
+     # We probably have the cavium hotknife package
+     set rpmTest586 [lindex [split $line .] 2] 
+  }
+  # FP37866 End
+
+  set fileToInstall [lindex [split $line .] 0]
+
+
+  # FP37866 Begin
+  set HK [lindex [split $fileToInstall -] 0]
+  if {[string compare $HK "hk"] == 0} {
+     # We have the hk-xxx.rpm hotknife. Modify it accordingly
+     # $fileToInstall contains field1 (eg hk-1), concatnate it 
+     # with field #2 to produce something like (hk-1.0-6)
+     set field2 [lindex [split $line .] 1]
+     set fileToInstall [concat $fileToInstall.$field2]
+  }
+  # FP37866 End
+
+  if { $PATCH_INFO == 0 } {
+     set PATCH_INFO 1
+  }	
+  incr num
+
+# puts "Testing for patch\n"
+  if {[string compare $rpmTest586 "i586"] == 0} {
+     set hkPackage $line
+     set rpmPatch patchRPM_exists
+     set rpmTest $fileToInstall
+  }
+}
+
+
+# FP37866 Begin
+# Determine the type of installed hotknife
+set c2611RPM [catch {exec rpm -qa | grep c2611} hotknife]
+set rpmStat $c2611RPM
+if { $c2611RPM == 1 } {
+   # Getting here at least implies that c2611-XXX.i586.rpm type of 
+   # hotknife binary is not installed. Test to see if the CAVIUM type
+   # of hotknife is installed
+   set hkRPM [catch {exec rpm -qa | grep hk} hotknife]
+   set rpmStat $hkRPM
+}
+# FP37866 End
+
+# Apply hotknife RPM
+#set rpmStat [catch {exec rpm -qa | grep c2611} hotknife]
+if {[string compare $rpmPatch "patchRPM_exists"] == 0} {
+   if {$rpmStat == 1} {
+      # There is no current hotknife installed. Install the patch RPM
+      system exec rpm -ivh $buildPath/$hkPackage
+      puts "installed patchRPM is: $hkPackage\n"
+   } else {
+      if {[string compare $hotknife $rpmTest] == 0} {
+         puts "The installed hotknife and the patch hotknife are the same\n"
+         puts "The hotknife will not be changed\n"
+         sleep 1
+      } else {
+         puts "The old hotknife will be removed first, please be patient\n"
+         system exec rpm -e $hotknife
+         puts "Installing  the new hotknife ...\n"
+         system exec rpm -ivh $buildPath/$hkPackage
+         puts "installed patchRPM is: $hkPackage\n"
+      }
+   }
+} else {
+   # FP37866 Begin
+   set hkStat [catch {lindex [glob $buildPath/c2611*rpm] 0} hkPackage]
+   set rpmToInstall [lindex [split $hkPackage .] 0]
+   if { $hkStat == 1 } {
+      set hkStat [catch {lindex [glob $buildPath/hk*rpm] 0} hkPackage]
+      set field2 [lindex [split $hkPackage .] 1]
+      set rpmToInstall [concat [lindex [split $hkPackage .] 0].$field2]
+   }
+   # FP37866 End
+   if {$rpmStat == 1} {
+       system exec rpm -ivh $hkPackage
+       puts "installed hot knife is: $hkPackage\n"
+   } else {
+      # ***** /root/IserverBuilds/dailybuilds/c2611-3_2-c2_23 *****
+      set installed_hk [file tail $rpmToInstall]
+      if {[string compare $hotknife $installed_hk] == 0} {
+         puts "The installed hotknife and the new hotknife are the same\n"
+         puts "The hotknife will not be changed\n"
+         sleep 1
+      } else {
+         puts "The old hotknife will be removed first, please be patient\n"
+         system exec rpm -e $hotknife
+         puts "Installing  the new hotknife ...\n"
+         system exec rpm -ivh $hkPackage
+         puts "installed hot knife is: $hkPackage\n"
+      }
+   }
+}

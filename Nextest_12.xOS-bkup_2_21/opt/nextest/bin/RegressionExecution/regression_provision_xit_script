@@ -1,0 +1,121 @@
+#!/usr/bin/expect -f 
+
+#exp_internal 1
+
+
+
+#####################################################################################
+#
+# This script accept a file which contains list of test cases required to add provision
+# and xit for individual execution
+#
+# Author: Bhuvnesh Jain; Global Logic Jan 2013
+######################################################################################
+
+# Script Execution starts from here following which there is a set of procedures written in a 
+# modular way which will be called from the next subsection of the script marked by CONT...
+
+# Getting the directory of the program
+set mainDir [file dirname $argv0]
+puts $mainDir
+
+# Obtain the config file from the comand line
+set configFile $argv
+
+# Define End of file variable
+set EOF -1
+
+# Validation of input config file and Print usage message
+if { $configFile == "" } {
+   puts "usage example: expect $argv0 file (file which contain test list)"
+   exit 1
+} else {
+   # Test to see that the supplied input is actually a file
+   if { [file isfile $configFile] } {
+      puts "The file name is: $configFile\n"
+      #sleep 3
+   } else {
+      puts "$configFile is not a regular file.\n"
+      puts "You must use a regular file to setup the config info\n"
+      exit
+   }
+}
+
+set reportfile "reports_[exec date +%y%m%d]"
+set reports [open $reportfile w]
+
+# Open the config file for reading and variable assignment
+set Status [catch {open $configFile "r"} fp]
+if {$Status == 0} {
+   set lastrow "Bhuvnesh"
+   set _end {}
+   while {[gets $fp line] != -1} {
+      if {$fp == $EOF} break
+      if {$line == ""} continue
+      set variableName $line
+      puts $variableName
+      if {$variableName != "#"} {
+         set varibaleSplit [split $variableName "."]
+         puts $variableName
+         set joiner ""
+         if { [string compare $lastrow "Bhuvnesh"] == 0} {
+            set lastrow $varibaleSplit
+            foreach i $varibaleSplit {
+                if { [string compare $joiner ""] == 0} {
+                   set joiner $i
+                   puts $reports "$joiner.provision"
+                   lappend _end "$joiner.xit"
+                } else {
+                   set joiner "$joiner.$i"
+                   if { [string compare $joiner $variableName] != 0} {
+                      puts $reports "$joiner.provision"
+                      lappend _end "$joiner.xit"
+                   }
+                } 
+            }
+         } else {
+            set joiner ""
+            set xit_done "n"
+            for {set x 0} {$x < [llength $varibaleSplit]} {incr x} {
+               if { [string compare [lindex $varibaleSplit $x] [lindex $lastrow $x]] == 0 } {
+                  if { [string compare $joiner ""] == 0} {
+                     set joiner [lindex $varibaleSplit $x]
+                  } else {
+                     set joiner $joiner.[lindex $varibaleSplit $x]
+                  }  
+               } else {
+                  if {[string compare $xit_done "n" ] == 0 } {
+                     set z 0
+                     for {set y $x} {$y < [llength $_end]} {incr y} {
+                         puts $reports [lindex $_end end-$z]
+                         set z [expr $z+1]
+                     }
+                     if {$x < [llength $_end] } {
+                        set _end [lreplace $_end $x end]
+                        set xit_done "y"
+                     }
+                  }
+                  if { [string compare $joiner ""] == 0} {
+                     set joiner [lindex $varibaleSplit $x]
+                     puts $reports "$joiner.provision"
+                     lappend _end "$joiner.xit"
+                  } else {
+                     set joiner $joiner.[lindex $varibaleSplit $x]
+                     if { [string compare $joiner $variableName] != 0} {
+                        puts $reports "$joiner.provision"
+                        lappend _end "$joiner.xit"
+                     }
+                  }
+               }
+            }  
+            set lastrow $varibaleSplit
+         }
+         puts $reports $variableName
+      }
+   }  ;# End while loop
+   for {set p 0} {$p <[llength $_end]} {incr p} {
+        puts $reports [lindex $_end end-$p]
+   }
+
+   close $fp
+}   ;# End If

@@ -1,0 +1,279 @@
+#!/usr/bin/env python
+import ipsetup
+import os
+import sys
+
+#check for names in host file and on remote
+
+def AddToHostFile(additions):
+    "Add host names and IP entries to hosts file as needed."
+    global hfile    
+    for host in additions.keys():
+        lineno = 0
+        for line in hfile:
+            if line.find(additions[host]) == 0:
+                newline = line.rstrip() + ' ' + host + '\n'
+                #print "hosts: adding %s to %s" % (host, additions[host])
+                hfile[lineno] = newline
+                del additions[host]
+                break
+            lineno += 1
+
+    # add new lines for IP addresses that do not exist in hosts file
+
+    if len(additions) > 0:
+        for host in additions.keys():
+            newline = '%s %s\n' % (additions[host], host)
+            #print "hosts: appending %s" % newline
+            hfile.append(newline)
+
+def DeleteHosts(updates):
+    global hfile
+    # find and delete
+    for host in updates.keys():
+        #print "deleting %s" % host
+        lineno = 0
+        for line in hfile:
+            if line.find(host) > 0:
+                #print "old: %s" % line
+                newline = line.replace(host, '')
+                if len(newline) <= 13:
+                    #print "no more hosts: delete line", line
+                    del hfile[lineno]
+                else:
+                    #print "new: %s" % newline
+                    hfile[lineno] = newline
+            lineno += 1
+
+def RewriteHostFile():
+    global hfile
+    print "backing up hosts file..."
+    backup = open('hosts.backup','w')
+    backup.writelines(hfile)
+    backup.close()
+    print "creating new /etc/hosts file..."
+    f = open('/tmp/hosts.new','w')
+    f.writelines(hfile)
+    f.close()
+    os.system('sudo cp /tmp/hosts.new /etc/hosts')
+    print "new hosts file complete; backup is ./hosts.backup"
+
+def UserConfirms(prompt):
+    yesno = ('yes', 'no', 'y', 'n')
+    validResponse = False
+    while not validResponse:
+        response = raw_input(prompt + " ")
+        if response.lower() in yesno:
+            validResponse = True
+        else:
+            print "Enter yes or no"
+    if response.lower()[0] == 'y': return True
+    return False
+
+##################################################################################
+#15015
+def AddToRemoteHostFile(additions,remoteHfile):
+    """
+    Add host names and IP entries to hosts file as needed.
+    """
+    for host in additions.keys():
+        lineno = 0
+        for line in remoteHfile:
+            # 29332 -- Modified for adding this entry to /etc/hosts file
+            # during nextest installation
+            if line.find(additions[host]) == 0:
+                # 29332 -- Modified for adding this entry to /etc/hosts file
+                # during nextest installation
+                if host == 'qanextest.com' or host == 'qanextest.com.':
+                    newline = line.rstrip() + ' ' + 'qanextest.com' + ' qanextest.com.'
+                else:
+                    newline = line.rstrip() + ' ' + host + '\n'
+                remoteHfile[lineno] = newline
+                del additions[host]
+                break
+            lineno += 1
+
+    # add new lines for IP addresses that do not exist in hosts file
+
+    if len(additions) > 0:
+        for host in additions.keys():
+            # 29332 -- Modified for adding this entry to /etc/hosts file
+            # during nextest installation
+            if host == 'qanextest.com' or host == 'qanextest.com.':
+                newline = '%s %s\n' % (additions[host],'qanextest.com qanextest.com.')       
+            else:
+                newline = '%s %s\n' % (additions[host], host)
+            remoteHfile.append(newline)
+
+def DeleteRemoteHosts(updates,remoteFile):
+    """
+    Find if the host name already exists in the file and delete the
+    entry if it exists
+    """
+    for host in updates.keys():
+        lineno = 0
+        for line in remoteFile:
+            if line.find(host) > 0:
+                # 29332 -- Modified for deleting this entry 
+                if host == 'qanextest.com' or host == 'qanextest.com.':
+                    newline = line.replace('qanextest.com.','')
+                    newline = line.replace('qanextest.com','')
+                else:
+                    newline = line.replace(host, '')
+                if len(newline) <= 15:
+                    del remoteFile[lineno]
+                else:
+                    remoteFile[lineno] = newline
+            lineno += 1
+
+
+def RewriteRemoteHostFile(remoteHfile):
+    """
+    Write the updates to the file
+    """
+    f1 = open('/tmp/tmphosts','w')
+    f1.writelines(remoteHfile)
+    f1.close()
+
+
+def RemoteHostUpdate(hostName,hostIp):
+    """
+    Read the MSW's /etc/hosts file contents. Find out if the entries -
+    qanextest.com and qanextest.com. already exists in the file. If so,
+    delete the old entry and add a new entry. If it does not exist, add
+    a new entry for qanextest.com and qanextest.com.
+    """
+    remoteFile = open('/tmp/tmphosts')
+    remoteHfile = remoteFile.readlines()
+    remoteFile.close()
+
+    additions = {}
+    updates = {}
+    patternfound = False
+    for line in remoteHfile:
+      if line.find(hostName) > -1:
+          patternfound = True
+          if ipm.getAddr(hostName) != hostName:
+              # 29332 -- Modified for adding this entry to /etc/hosts file
+              # during nextest installation 
+              if hostName == 'qanextest.com' or hostName == 'qanextest.com.':
+                  updates['qanextest.com'] = hostIp
+              else:
+                  updates[hostName] = hostIp
+          break
+    if not patternfound:
+        # 29332 -- Modified for adding this entry to /etc/hosts file
+        # during nextest installation
+        if hostName == 'qanextest.com' or hostName == 'qanextest.com.':
+            additions['qanextest.com'] = hostIp
+        else: 
+            additions[hostName] = hostIp
+    remoterewrite = False
+    if len(updates) > 0:
+       DeleteRemoteHosts(updates,remoteHfile)
+       additions.update(updates)
+       remoterewrite = True
+
+    if len(additions) > 0:
+        AddToRemoteHostFile(additions,remoteHfile)
+        remoterewrite = True
+
+    if remoterewrite:
+        RewriteRemoteHostFile(remoteHfile)
+##################################################################################
+
+#[Ticket 19061]: Display a user frinedly message on user interrupt
+try:
+   if not UserConfirms("Do you want to configure the network?"):
+       sys.exit(0)
+    
+   # resolve local host names and set up IP aliases
+   # use two iterations: once for "public" interface 0 and again for i/f 1
+
+   ipm = ipsetup.IPManager()
+   network = ['localpublic', 'localprivate']
+   prompt = "\nAddresses will be configured on interface %s \n\n"
+
+   for interface in (0, 1):
+       ipm.resolve(network[interface])
+       hosts = ipm.getHosts(network[interface])
+       print prompt % interface
+       #if UserConfirms(prompt % interface):
+           #for elem in range(len(hosts)):
+               #if not ipm.getDevice(hosts[elem][1]):
+                   #ipm.makeAlias(hosts[elem][1], interface)
+
+   #ipsetup.EnableAll()
+   
+   # resolve remote hosts - no need to deal with IP aliases here
+
+   ipm.resolve('remotepublic')
+   ipm.resolve('remoteprivate')
+
+   # Put all host names into hosts file if they aren't there already
+
+   f = open('/etc/hosts')
+   hfile = f.readlines()
+   f.close()
+   all = ipm.getHosts('all')
+   additions = {}
+   updates = {}
+   for elem in range(len(all)):
+       #print "----------- looking for %s" % host
+       found = False
+       for line in hfile:
+           if line.find(all[elem][0]) > -1:
+               found = True
+               if ipm.getAddr(all[elem][0]) != all[elem][1]:
+                   updates[all[elem][0]] = all[elem][1]
+               break
+       if not found:
+           additions[all[elem][0]] = all[elem][1]
+
+   # Delete all the stale hosts from the hosts file and add them to the
+   # "additions" list
+   rewrite = False
+   if len(updates) > 0:
+       DeleteHosts(updates)
+       additions.update(updates)
+       rewrite = True
+
+   # Add all new hosts to the host file
+   if len(additions) > 0:
+       AddToHostFile(additions)
+       rewrite = True
+
+   if rewrite:
+       RewriteHostFile()
+
+   ##################################################################################
+   #15015
+   # Copy the /etc/hosts file of the MSW to a temporary file
+   os.system('sudo -u test scp -q root@mymsw:/etc/hosts /tmp/tmphosts')
+
+   # Create a backup of the original /etc/hosts file of the MSW
+   os.system("cp /tmp/tmphosts mswhosts.backup")
+   print "backing up MSW /etc/hosts file to mswhosts.backup..."
+
+   for i in ipm.remotePrivate:
+      # 29332 -- Modified for adding this entry to /etc/hosts file
+      # during nextest installation
+      if i[0] == 'qanextest.com':
+        RemoteHostUpdate(i[0],i[1])
+
+   # 29332 -- Modified for adding this entry to /etc/hosts file
+   # during nextest installation
+   for i in ipm.remotePublic:
+      if i[0] == 'pub_test.com':
+        RemoteHostUpdate(i[0],i[1]) 
+
+   # Overwrite the MSW /etc/hosts file with the
+   # temporary file to which the changes have been made
+   os.system('sudo -u test scp -q /tmp/tmphosts root@mymsw:/etc/hosts')
+   ##################################################################################
+
+   print "post-install complete"
+
+except KeyboardInterrupt:
+   print '\nExiting post-install setup...'
+

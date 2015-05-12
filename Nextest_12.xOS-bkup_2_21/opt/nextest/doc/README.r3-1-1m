@@ -1,0 +1,115 @@
+NexTest 3.1.1m Release Notes
+----------------------------
+July 7, 2004
+
+Overview
+--------
+
+	This release contains bug fixes, new tests, and new features.
+
+NexTest Tickets
+---------------
+
+	6838 problem capturing packet traces
+
+	6904 create basic test suite(short duration serial tests) for 
+	     QA phase 1
+
+	6949 Automate NAT Traversal feature
+
+	7055 write test scripts to test mirror proxy
+
+	7072 Automate posting of test results
+
+	7109 NexTest not saving result data for failed tests
+
+	7140 Provide full result data from HTML presentation
+
+	7176 H323 Test Bug fixes
+
+Call Generator Tickets
+----------------------
+
+	6626 Sgens should support sip-privacy.
+
+	6786 Sgen prints out errors when running in registration mode.
+
+	6806 Sgen does not insert destTg in requri when run with 
+	     -X -O option
+	
+	6844 Interactive command should be added to Sgen to send
+	     ReInvite with changed sdp version and media address.
+
+	6908 Sgen should support initial invite on hold.
+
+	6963 Add interactive command to H323 gens and Sip gens to
+	     print out the number of currently connected calls.
+
+	6980 Sgens should support obp mode.
+
+	6981 Interactive command "reinvite-nosdp" should be configured 
+	     to pass a media addr.
+
+	7060 H323 gens should support manual accept scenario.
+
+SIP Outbound and Mirror Proxy Setup Notes
+-----------------------------------------
+
+	The mirrorproxy and obp suites require that a third-party SIP
+	proxy runs on the call generator.  Perform the following steps
+	at install time.
+
+	1. Define sipproxy address in /etc/hosts on the call generator
+
+	2. Respond affirmatively when the installer asks if you want 
+	   to run the SIP Express Router (ser).
+
+NAT Traversal Setup Notes
+-------------------------
+
+	Plumb interfaces e1000g2 and e1000g3 as follows:
+
+	      ifconfig e1000g2 plumb 192.168.0.100/24 up
+	      ifconfig e1000g3 plumb 192.168.1.100/24 up
+
+	Copy IP Filter package from
+
+	     10.1.0.62:/home/test/ipfilter_3.4.27_stock.pkg
+
+	Remove the old NSF package with
+
+	     pkgrm nsf
+
+	Add the new package with
+
+	     pkgadd -d ipfilter_3.4.27_stock.pkg
+
+	     Edit the ipnat configuration file /etc/opt/ipf/ipnat.conf
+	     and include the following two network address mappings:
+
+   map e1000g0 192.168.0.0/24 -> 10.1.0.62/32 portmap udp 20001:30000
+   map e1000g1 192.168.1.0/24 -> 10.1.1.62/32 portmap udp 30001:40000
+
+      	Note: Replace the NAT IP address 10.1.0.62 and 10.1.1.62 with 
+	correct IP address of the Solaris machine
+
+	Stop and start ipfilter with
+
+     		/etc/init.d/ipfboot stop
+     	/etc/init.d/ipfboot start
+
+	Check the IP address mappings with
+
+      		ipnat -l
+
+	The output would be like the following:
+
+    List of active MAP/Redirect filters:
+    map e1000g0 192.168.0.0/24 -> 10.1.0.62/32 portmap udp 20001:30000
+    map e1000g1 192.168.1.0/24 -> 10.1.1.62/32 portmap udp 30001:40000
+
+    List of active sessions:
+
+	The NAT setup should not negatively impact other tests.  It
+	simply replaces the NSF driver with the original Solaris
+	version. 

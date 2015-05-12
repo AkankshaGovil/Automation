@@ -1,0 +1,480 @@
+#!/bin/bash
+
+# suiteExe_modified 
+#This script executes all the testsuites of production_components one by one.
+#It also copies the result.qmr, created after execution of each testsuite, to <suitename>.qmr in the path from where this script is executed
+#Also the nextest.log is copied to /tmp/<suitename>.log.It is emptied before each testsuite execution.
+#Before executing this script,production_components.provision should be executed and also the opened ports should be verified
+#This script is to be run from the commandline by ./<scriptname>.Please change the permissions for the script before executing it.
+
+# define the path where you want to store your results
+RESULTS_PATH=/home/test/
+MEMLOG_PATH=/home/test/
+
+#-------------------------Executing Basic Test Suites------------------
+
+
+
+echo "Executing----------- production_components.obp------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_obp.qmr production_components.obp
+qmtest summarize -f full results_obp.qmr>results_obp.txt
+mv results_obp.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/obp.log
+
+echo "Executing----------- production_components.sanity------------"
+> /tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_sanity.qmr production_components.sanity
+qmtest summarize -f full results_sanity.qmr>results_sanity.txt
+mv results_sanity.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/sanity.log
+
+echo "Executing----------- production_components.functional Basic------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_functional_basic.qmr production_components.functional_basic
+qmtest summarize -f full results_functional_basic.qmr>results_functional_basic.txt
+mv results_functional_basic.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/functional_basic.log
+
+echo "Executing----------- production_components.functional ------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_functional.qmr production_components.functional
+qmtest summarize -f full results_functional.qmr>results_functional.txt
+mv results_functional.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/functional.log
+
+echo "Executing----------- production_components.call_routing------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG   -cnextest.check_memory_leak=ON --watch mymsw -o results_call_routing.qmr production_components.call_routing
+qmtest summarize -f full results_call_routing.qmr>results_call_routing.txt
+mv results_call_routing.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/call.log
+
+echo "Executing----------- production_components.radius------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG    -cnextest.check_memory_leak=ON --watch mymsw -o results_radius.qmr production_components.radius
+qmtest summarize -f full results_radius.qmr>results_radius.txt
+mv results_radius.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/radius.log
+
+echo "Executing----------- production_components.nat------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON  --watch mymsw -o results_nat.qmr production_components.nat
+qmtest summarize -f full results_nat.qmr>results_nat.txt
+mv results_nat.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/nat.log
+
+echo "Executing----------- production_components.timerc------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG   -cnextest.check_memory_leak=ON --watch mymsw -o results_timerc.qmr  production_components.timerc
+qmtest summarize -f full results_timerc.qmr>results_timerc.txt
+mv results_timerc.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/timerc.log
+
+echo "Executing----------- production_components.perf------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_perf.qmr production_components.perf
+qmtest summarize -f full results_perf.qmr>results_perf.txt
+mv results_perf.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/perf.log
+
+echo "Executing----------- production_components.trunkgrp------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG   -cnextest.check_memory_leak=ON --watch mymsw -o results_trunkgroup.qmr production_components.trunkgroup
+qmtest summarize -f full results_trunkgroup.qmr>results_trunkgroup.txt
+mv results_trunkgroup.* $RESULTS_PATH
+mv  /tmp/nextest.log /tmp/trunkgroup.log
+
+echo "Executing----------- media_routing ------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON -cnextest.trace_level=DEBUG   -cnextest.check_memory_leak=ON --watch mymsw -o results_mediarouting.qmr  production_components.media_routing
+qmtest summarize -f full results_mediarouting.qmr>results_mediarouting.txt
+mv results_mediarouting.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/mediarouting.log
+
+echo "Executing-----------production_components.scm  ------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_scm.qmr  production_components.scm
+qmtest summarize -f full results_scm.qmr>results_scm.txt
+mv results_scm.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/scm.log
+
+echo "Executing----------- production_components.multiple_sip_ports-----------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON    -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_multiple_sip_ports.qmr  production_components.multiple_sip_ports
+qmtest summarize -f full results_multiple_sip_ports.qmr>results_multiple_sip_ports.txt
+mv results_multiple_sip_ports.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/multiple_sip_ports.log
+
+echo "Executing----------- production_components.cdr------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_cdr.qmr  production_components.cdr
+qmtest summarize -f full results_cdr.qmr>results_cdr.txt
+mv results_cdr.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/cdr.log
+
+echo "Executing----------- production_components.causecode------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_causecode.qmr production_components.causecode
+qmtest summarize -f full results_causecode.qmr>results_causecode.txt
+mv results_causecode.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/causecode.log
+
+#---------------End of Basic Test Suites---------------------------
+
+
+
+
+#----------------Generating Results for the basic test-------------
+
+cp /opt/nextest/bin/Nightly_Builds/generateResult.sh  $RESULTS_PATH
+cd $RESULTS_PATH
+./generateResult.sh
+mv NexTest_Results_*.csv NexTest_Results_basic.csv
+cd ..
+
+#-------------------------------------------------------------------
+
+
+
+#--------------------Executing Negative Test Suites-------------------
+
+echo "Executing----------- negative.sip_torture------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON -cnextest.check_memory_leak=ON --watch mymsw -o results_siptorture.qmr  negative.sip_torture
+qmtest summarize -f full results_siptorture.qmr>results_siptorture.txt
+mv results_siptorture.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/siptorture.log
+
+echo "Executing----------- negative.protos------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON -cnextest.check_memory_leak=ON --watch mymsw -o results_protos.qmr negative.protos
+qmtest summarize -f full results_protos.qmr>results_protos.txt
+mv results_protos.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/protos.log
+
+echo "Executing----------- negative.sipcallflow------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON -cnextest.check_memory_leak=ON --watch mymsw -o results_sipcallflow.qmr  negative.sipcallflow
+qmtest summarize -f full results_sipcallflow.qmr>results_sipcallflow.txt
+mv results_sipcallflow.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/sipcallflow.log
+
+#-------------------End of Negative Test Suites-------------------
+
+
+
+
+#-------------------Executing general Feature test Suites-----------------
+
+echo "Executing----------- tcst38_fax ------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON -cnextest.trace_level=DEBUG   -cnextest.check_memory_leak=ON --watch mymsw -o results_tcst38_fax.qmr  production_components.tcst38_fax
+qmtest summarize -f full results_tcst38_fax.qmr>results_tcst38_fax.txt
+mv results_tcst38_fax.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/tcst38_fax.log
+
+echo "Executing----------- production_components.tcs_rfc_2833------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_tcs_rfc_2833.qmr production_components.tcs_rfc_2833
+qmtest summarize -f full results_tcs_rfc_2833.qmr>results_tcs_rfc_2833.txt
+mv results_tcs_rfc_2833.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/tcs_rfc_2833.log
+
+echo "Executing----------- production_components.sipregistration------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG  -cnextest.check_memory_leak=ON --watch mymsw -o results_sipregistration.qmr production_components.sipregistration
+qmtest summarize -f full results_sipregistration.qmr>results_sipregistration.txt
+mv results_sipregistration.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/sipregistration.log
+
+echo "Executing----------- production_components.hunting_within_cp------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_hunting_within_cp.qmr production_components.hunting_within_cp
+qmtest summarize -f full results_hunting_within_cp.qmr>results_hunting_within_cp.txt
+mv results_hunting_within_cp.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/hunting_within_cp.log
+
+echo "Executing----------- production_components.restricted_ani----------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG   -cnextest.check_memory_leak=ON --watch mymsw -o results_restricted_ani.qmr production_components.restricted_ani
+qmtest summarize -f full results_restricted_ani.qmr>results_restricted_ani.txt
+mv results_restricted_ani.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/restricted_ani.log
+
+echo "Executing----------- realm_hopping  ------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON -c nextest.trace_level=DEBUG   -cnextest.check_memory_leak=ON --watch mymsw -o results_realm_hopping.qmr  production_components.realm_hopping
+qmtest summarize -f full results_realm_hopping.qmr>results_realm_hopping.txt
+mv results_realm_hopping.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/realm_hopping.log
+
+echo "Executing----------- production_components.ec911------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG   -cnextest.check_memory_leak=ON --watch mymsw -o results_ec911.qmr  production_components.ec911
+qmtest summarize -f full results_ec911.qmr>results_ec911.txt
+mv results_ec911.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/ec911.log
+
+echo "Executing----------- production_components.e164_numbering------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_e164_numbering.qmr production_components.e164_numbering
+qmtest summarize -f full results_e164_numbering.qmr>results_e164_numbering.txt
+mv results_e164_numbering.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/e164_numbering.log
+
+echo "Executing----------- production_components.q931------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_q931.qmr  production_components.q931
+qmtest summarize -f full results_q931.qmr>results_q931.txt
+mv results_q931.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/q931.log
+
+echo "Executing----------- production_components.qos------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_qos.qmr production_components.qos
+qmtest summarize -f full results_qos.qmr>results_qos.txt
+mv results_qos.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/qos.log
+
+echo "Executing----------- production_components.in-egress-maxcalls ------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_in-egress-maxcalls.qmr production_components.in-egress-maxcalls
+qmtest summarize -f full results_in-egress-maxcalls.qmr>results_in-egress-maxcalls.txt
+mv results_in-egress-maxcalls.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/in-egress-maxcalls.log
+
+echo "Executing----------- production_components.3xx------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw  -o results_3xx.qmr production_components.3xx
+qmtest summarize -f full results_3xx.qmr>results_3xx.txt
+mv results_3xx.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/3xx.log
+
+echo "Executing----------- outofband dtmf ------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON -cnextest.trace_level=DEBUG   -cnextest.check_memory_leak=ON --watch mymsw  -o results_outofband-dtmf.qmr production_components.outofband-dtmf
+qmtest summarize -f full results_outofband-dtmf.qmr>results_outofband-dtmf.txt
+mv results_outofband-dtmf.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/outofband-dtmf.log
+
+echo "Executing-----------reject_route ------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_reject_route.qmr  production_components.reject_route
+qmtest summarize -f full results_reject_route.qmr>results_reject_route.txt
+mv results_reject_route.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/reject_route.log
+
+echo "Executing----------- production_components.alternate_gk------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_alternate_gk.qmr production_components.alternate_gk
+qmtest summarize -f full results_alternate_gk.qmr>results_alternate_gk.txt
+mv results_alternate_gk.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/alternate_gk.log
+
+echo "Executing----------- adaptive_fax_routing------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON -cnextest.trace_level=DEBUG   -cnextest.check_memory_leak=ON --watch mymsw -o results_adaptive_fax_routing.qmr  production_components.adaptive_fax_routing
+qmtest summarize -f full results_adaptive_fax_routing.qmr>results_adaptive_fax_routing.txt
+mv results_adaptive_fax_routing.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/adaptive_fax_routing.log
+
+echo "Executing----------- mastergk------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON -cnextest.trace_level=DEBUG   -cnextest.check_memory_leak=ON --watch mymsw -o results_mastergk.qmr  production_components.mastergk
+qmtest summarize -f full results_mastergk.qmr>results_mastergk.txt
+mv results_mastergk.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/mastergk.log
+
+echo "Executing----------- production_components.allowdestarqall------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_allowdestarqall.qmr production_components.allowdestarqall
+qmtest summarize -f full results_allowdestarqall.qmr>results_allowdestarqall.txt
+mv results_allowdestarqall.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/allowdestarqall.log
+
+echo "Executing----------- production_components.causecode_2------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_causecode_2.qmr production_components.causecode_2
+qmtest summarize -f full results_causecode_2.qmr>results_causecode_2.txt
+mv results_causecode_2.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/causecode_2.log
+
+echo "Executing----------- cg_cd_party ------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON -cnextest.trace_level=DEBUG   -cnextest.check_memory_leak=ON --watch mymsw -o results_cg_cd_party.qmr  production_components.cg_cd_party
+qmtest summarize -f full results_cg_cd_party.qmr>results_cg_cd_party.txt
+mv results_cg_cd_party.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/cg_cd_party.log
+
+echo "Executing----------- ep_isdn_local ------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON -cnextest.trace_level=DEBUG   -cnextest.check_memory_leak=ON --watch mymsw -o results_ep_isdn_local.qmr production_components.ep_isdn_local
+qmtest summarize -f full results_ep_isdn_local.qmr>results_ep_isdn_local.txt
+mv results_ep_isdn_local.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/ep_isdn_local.log
+
+echo "Executing----------- h225messages------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -cnextest.scm_configuration=ON  -cnextest.trace_level=DEBUG   -cnextest.check_memory_leak=ON --watch mymsw  -o results_h225messages.qmr production_components.h225messages
+qmtest summarize -f full results_h225messages.qmr>results_h225messages.txt
+mv results_h225messages.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/h225messages.log
+
+echo "Executing----------- h245messages ------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON -cnextest.trace_level=DEBUG   -cnextest.check_memory_leak=ON --watch mymsw -o results_h245messages.qmr  production_components.h245messages
+qmtest summarize -f full results_h245messages.qmr>results_h245messages.txt
+mv results_h245messages.* $RESULTS_PATH     
+mv /tmp/nextest.log /tmp/h245messages.log
+
+echo "Executing----------- h323registration------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON -cnextest.trace_level=DEBUG   -cnextest.check_memory_leak=ON --watch mymsw -o results_h323registration.qmr production_components.h323registration
+qmtest summarize -f full results_h323registration.qmr>results_h323registration.txt
+mv results_h323registration.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/h323registration.log
+
+echo "Executing----------- production_components.hunt_isdn_cc_global------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_hunt_isdn_cc_global.qmr production_components.hunt_isdn_cc_global
+qmtest summarize -f full results_hunt_isdn_cc_global.qmr>results_hunt_isdn_cc_global.txt
+mv results_hunt_isdn_cc_global.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/hunt_isdn_cc_global.log
+
+echo "Executing----------- production_components.leadingplusremoval------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_leadingplusremoval.qmr production_components.leadingplusremoval
+qmtest summarize -f full results_leadingplusremoval.qmr>results_leadingplusremoval.txt
+mv results_leadingplusremoval.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/leadingplusremoval.log
+
+echo "Executing----------- media_intrarealm ------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON -cnextest.trace_level=DEBUG   -cnextest.check_memory_leak=ON --watch mymsw -o results_media_intrarealm.qmr  production_components.media_intrarealm
+qmtest summarize -f full results_media_intrarealm.qmr>results_media_intrarealm.txt
+mv results_media_intrarealm.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/media_intrarealm.log
+
+echo "Executing----------- media_interrealm ------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON -cnextest.trace_level=DEBUG   -cnextest.check_memory_leak=ON --watch mymsw -o results_media_interrealm.qmr production_components.media_interrealm
+qmtest summarize -f full results_media_interrealm.qmr>results_media_interrealm.txt
+mv results_media_interrealm.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/media_interrealm.log
+
+echo "Executing----------- production_components.mirrorproxy------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_mirrorproxy.qmr production_components.mirrorproxy
+qmtest summarize -f full results_mirrorproxy.qmr>results_mirrorproxy.txt
+mv results_mirrorproxy.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/mirror.log
+
+echo "Executing----------- sticky_route ------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON -cnextest.trace_level=DEBUG   -cnextest.check_memory_leak=ON --watch mymsw -o results_sticky_route.qmr production_components.sticky_route
+qmtest summarize -f full results_sticky_route.qmr>results_sticky_route.txt
+mv results_sticky_route.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/sticky_route.log
+
+echo "Executing----------- outgoing_prefix ------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON -cnextest.trace_level=DEBUG   -cnextest.check_memory_leak=ON --watch mymsw  -o results_outgoing_prefix.qmr production_components.outgoing_prefix
+qmtest summarize -f full results_outgoing_prefix.qmr>results_outgoing_prefix.txt
+mv results_outgoing_prefix.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/outgoing_prefix.log
+
+echo"Executing----------- production_components.privacy_iw-----------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -cnextest.trace_level=DEBUG   -cnextest.check_memory_leak=ON --watch mymsw -o results_privacyiw.qmr production_components.privacy_iw
+qmtest summarize -f full results_privacyiw.qmr>results_privacyiw.txt
+mv results_privacyiw.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/privacy_iw.log
+
+echo "Executing----------- production_components.priority_route_precedence ------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_priority_route_precedence.qmr  production_components.priority_route_precedence
+qmtest summarize -f full results_priority_route_precedence.qmr>results_priority_route_precedence.txt
+mv results_priority_route_precedence.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/priority_route_precedence.log
+
+echo "Executing----------- radius_pod  ------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON -cnextest.trace_level=DEBUG   -cnextest.check_memory_leak=ON --watch mymsw -o results_radius_pod.qmr  production_components.radius_pod
+qmtest summarize -f full results_radius_pod.qmr>results_radius_pod.txt
+mv results_radius_pod.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/radius_pod.log
+
+echo "Executing----------- production_components.radius_prepaid------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG  -cnextest.check_memory_leak=ON --watch mymsw -o results_radius_prepaid.qmr production_components.radius_prepaid
+qmtest summarize -f full results_radius_prepaid.qmr>results_radius_prepaid.txt
+mv results_radius_prepaid.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/radius_prepaid.log
+
+echo "Executing----------- production_components.sipt------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_sipt.qmr production_components.sipt
+qmtest summarize -f full results_sipt.qmr>results_sipt.txt
+mv results_sipt.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/sipt.log
+
+echo "Executing----------- production_components.src_port_selection ------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_src_port_selection.qmr production_components.src_port_selection
+qmtest summarize -f full results_src_port_selection.qmr>results_src_port_selection.txt
+mv results_src_port_selection.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/src_port_selection.log
+
+echo "Executing----------- zone ------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON -cnextest.trace_level=DEBUG   -cnextest.check_memory_leak=ON --watch mymsw -o results_zone.qmr production_components.zone
+qmtest summarize -f full results_zone.qmr>results_zone.txt
+mv results_zone.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/zone.log
+
+echo "Executing----------- production_components.licensing ------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG  -cnextest.check_memory_leak=ON --watch mymsw -o results_licensing.qmr production_components.licensing
+qmtest summarize -f full results_licensing.qmr>results_licensing.txt
+mv results_licensing.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/licensing.log
+
+echo "Executing----------- production_components.enum------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_enum.qmr production_components.enum
+qmtest summarize -f full results_enum.qmr>results_enum.txt
+mv results_enum.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/enum.log
+
+echo "Executing----------- production_components.subnet_cac------------"
+>/tmp/nextest.log
+/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_subnet_cac.qmr production_components.subnet_cac
+qmtest summarize -f full results_subnet_cac.qmr>results_subnet_cac.txt
+mv results_subnet_cac.* $RESULTS_PATH
+mv /tmp/nextest.log /tmp/subnet_cac.log
+
+#echo "Executing----------- production_components.rad_accounting------------"
+#>/tmp/nextest.log
+#/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG    -cnextest.check_memory_leak=ON --watch mymsw -o results_rad_accounting.qmr production_components.rad_accounting
+#qmtest summarize -f full results_rad_accounting.qmr>results_rad_accounting.txt
+#mv results_rad_accounting.* $RESULTS_PATH
+#mv /tmp/nextest.log /tmp/rad_accounting.log
+
+
+#echo "Executing----------- production_conponents.db_operation------------"
+#>/tmp/nextest.log
+#/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_db_operation.qmr  production_components.db_operation
+#qmtest summarize -f full results_db_operation.qmr>results_db_operation.txt
+#mv results_db_operation.* $RESULTS_PATH
+#mv /tmp/nextest.log /tmp/db_operation.log
+
+#echo "Executing----------- production_components.x-bulkvnet------------"
+#>/tmp/nextest.log
+#/opt/nextest/bin/qmtest run -c nextest.scm_configuration=ON  -c nextest.trace_level=DEBUG -cnextest.check_memory_leak=ON --watch mymsw -o results_x-bulkvnet.qmr production_components.x-bulkvnet
+#qmtest summarize -f full results_x-bulkvnet.qmr>results_x-bulkvnet.txt
+#mv results_x-bulkvnet.* $RESULTS_PATH
+#mv /tmp/nextest.log /tmp/x-bulkvnet.log
+
+
+mv gis.memlog.* $MEMLOG_PATH 

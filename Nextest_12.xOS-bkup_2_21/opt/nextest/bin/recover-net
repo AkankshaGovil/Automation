@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+#
+# This is a workaround script for ticket 8876 - recovers network aliases
+
+export PATH=/opt/nextest/bin:$PATH
+export PYTHONPATH=/opt/nextest/lib/python2.3/site-packages
+
+/opt/nextest/install/post-install

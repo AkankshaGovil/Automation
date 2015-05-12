@@ -1,0 +1,194 @@
+#!/usr/bin/env python
+#
+# prodtest - run production test suite and upload results to web
+#
+import getopt
+import logging
+import os
+import os.path
+import sys
+import time
+
+def usage():
+    dir, prog = os.path.split(sys.argv[0])
+    print"""
+Usage: %s [OPTION] LABEL [SUITE]
+
+Run a labeled test.  The LABEL indicates the version of the software being
+tested.  The SUITE is the name of the test suite to run.  The default
+is "production".  For example:
+
+       %s 3.1.1d11 big.suite
+
+Results are summarized in HTML format and set to a web server.
+
+  -h, --help                 show help
+  -n, --nopost               do not copy test results to web server
+                             (incompatible with -c)
+  -c, --cpost                copy test results to contractor dir on web server 
+                             (incompatible with -n)
+  -t, --trace                show trace output
+  -p, --pkt                  save packet trace pcap files
+""" % (prog, prog)
+
+def parseArgs(argv):
+    global log, nopost
+    try:
+        shortList = "hnctp"
+        longList = ["help", "nopost", "cpost", "trace", "pkt"]
+        opts, args=  getopt.getopt(argv, shortList, longList)
+    except:
+        usage()
+        sys.exit(2)
+
+    nopost = False
+    pt     = " "
+    post   = "INTERNAL"
+    
+    for o,a in opts:
+        if o in ("-h", "--help"):
+            usage()
+            sys.exit()
+        if o in ("-n", "--nopost"):
+            nopost = True
+            if post == "CONTRACTOR":
+                log.error("incompatible options")
+                usage()
+                sys.exit(3)
+        if o in ("-c", "--cpost"):
+            post = "CONTRACTOR"
+            if nopost == True:
+                log.error("incompatible options")
+                usage()
+                sys.exit(3)
+        if o in ("-t", "--trace"):
+            log.setLevel(logging.DEBUG)
+            log.debug("trace enabled")
+        if o in ("-p", "--pkt"):
+            pt = '-cnextest.pkttrace="ON" '
+
+    numargs = len(args)
+    if numargs == 0 or numargs > 2:
+        log.error("Incorrect number of arguments")
+        usage()
+        sys.exit(3)
+
+    label = args[0]
+    if numargs > 1:
+        suite = args[1]
+    else:
+        log.debug('setting suite name to default "production"')
+        suite = "production"
+    return label, suite, pt, post
+
+def getResultName(label):
+    global timestamp
+
+    # If we are too close to the minute boundary, the QMTest 
+    # timestamp can be one minute later than the prodtest timestamp, 
+    # which will break things. If we are near the minute boundary, sleep 
+    # over it to be sure that doesn't happen.
+    sec = time.strftime("%S")
+    if sec > '52':
+        print "Second=%s, too close to minute boundary, sleeping 10 sec..." % sec
+        time.sleep(10)
+
+    timestamp = time.strftime("%Y%m%d_%H%M")
+    name = "%s_%s" % (timestamp, label)
+    log.debug("result file: %s" % name)
+    return name
+
+######################################################################
+## MAIN
+######################################################################
+
+global timestamp
+
+# Set up message output
+
+log = logging.getLogger('prodtest')
+hdlr = logging.StreamHandler()
+fmtr = logging.Formatter('%(levelname)s %(message)s')
+hdlr.setFormatter(fmtr)
+log.addHandler(hdlr)
+log.setLevel(logging.WARNING)
+
+# Parse command line and get the label for this run
+
+label, suite, pkttrace, postmethod = parseArgs(sys.argv[1:])
+
+if postmethod == "CONTRACTOR":
+   postmethoddir = "velankani"
+   # assume a port-22 (SSH) tunnel to eng exists
+   htmlserver = "engtest@localhost"
+else: # postmethod == "INTERNAL"
+   postmethoddir = "results"
+   htmlserver = "engtest@eng"
+
+htmlresultroot = "public_html/%s" % postmethoddir
+
+# Find a place to stash the results
+
+path = os.environ['HOME'] + '/results'
+if not os.path.isdir(path):
+    log.debug('%s does not exist, will create' % path)
+    os.mkdir(path, 0644)
+resultname = getResultName(label)
+resultpath = "%s/%s.qmr" % (path, resultname)
+log.debug('result path: %s' % resultpath)
+
+# Run QMTest
+
+cmd = "qmtest run --watch mymsw %s -o %s %s" % (pkttrace, resultpath, suite)
+log.debug('test command: %s' % cmd)
+
+stat = os.system(cmd)
+log.debug('test complete: %s' % stat)
+
+# Summarize the results in HTML format
+
+cmd = "qmtest summarize --format=html %s" % resultpath
+log.debug('summarize cmd: %s' % cmd)
+
+stat = os.system(cmd)
+log.debug("summarize complete: %s" % stat)
+
+# Package up the results
+pkgname = "%s.tgz" % resultname
+pkgtmp = "/tmp/%s" % pkgname
+olddir = os.getcwd()
+os.chdir("/var/opt/nextest/tdb/results")
+cmd = "tar cfz %s %s" % (pkgtmp, timestamp)
+os.system(cmd)
+os.chdir(olddir)
+log.debug("packaging complete: %s" % pkgtmp)
+
+# Make the result directory on the web server and copy results
+
+if nopost:
+    log.debug("skipping result post - done")
+    log.info('HTML in /var/opt/nextest/tdb/results/%s' % timestamp)
+    print "\nnopost: HTML in /var/opt/nextest/tdb/results/%s \n" % timestamp
+    sys.exit(0)
+
+htmlresultdir = "%s/%s" % (htmlresultroot, label)
+htmldest = "%s:%s" % (htmlserver, htmlresultdir)
+
+cmd = 'ssh %s "mkdir -p %s"' % (htmlserver, htmlresultdir)
+stat = os.system(cmd)
+log.debug("directory complete: %s")
+
+cmd = "scp %s %s" % (pkgtmp, htmldest)
+stat = os.system(cmd)
+log.debug("copy complete: %s" % stat)
+
+# Unpack results on web server
+
+cmd = 'ssh %s "cd %s; tar xfz %s; rm -f %s"' % (htmlserver,
+                                                htmlresultdir,
+                                                pkgname, pkgname)
+
+os.system(cmd)
+urlmsg = "Unpacking complete to URL http://172.16.0.8/~engtest/%s/%s" % (postmethoddir, label)
+log.debug(urlmsg)
+print "\n%s\n" % urlmsg

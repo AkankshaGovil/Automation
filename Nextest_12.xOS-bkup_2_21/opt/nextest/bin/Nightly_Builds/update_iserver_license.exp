@@ -1,0 +1,7 @@
+#! /usr/bin/expect -f
+
+    set license_dir /usr/local/nextone/bin
+    set scriptsDir  /root/scripts/dailybuild
+
+    exec cp $license_dir/iserverlc.xml $license_dir/iserverlc.xml.orig
+    exec cp $scriptsDir/iserverlc.xml.dailybuild $license_dir/iserverlc.xml

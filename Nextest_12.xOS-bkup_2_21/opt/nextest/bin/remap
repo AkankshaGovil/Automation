@@ -1,0 +1,139 @@
+#!/usr/bin/env python
+# $Id: remap,v 1.3 2004/05/06 20:23:52 slowrey Exp $
+# Remap IP addresses for all tests and resources.
+
+import os
+import re
+import shutil
+import sys
+
+def usage():
+    print """
+    Usage: remap [help | prep | exec | revert]
+    
+    The remap command provides a way to quickly rewrite all the IP
+    addresses found in a QMTest database.  This process requires at
+    least 3 discrete steps:
+
+    1. Set up QMTEST_DB_PATH or change to the directory containing
+       the QMTest database.
+
+    2. Run 'remap prep'.  This will create a file called 'sedscr'
+       which contains sed commands.  Each distinct IP address found
+       in the database will be contained in this file.
+
+    3. Edit the file, placing new addresses between the final two
+       slashes '//'.  Each address on the left will be replaced by
+       the address you enter on the right.  For example:
+
+           s/10.1.0.132/10.1.0.112/g
+
+    4. Save your changes and run 'remap exec'.  This will make
+       backup copies of all the files and then apply the changes
+       to the originals.
+
+    5. Check your changes.  If they don't look right, you can use
+       'remap revert' to undo the changes.  Make a backup copy
+       of your database just in case!"""
+
+def backup(path):
+    "Make a backup copy of a file in the same directory."
+    shutil.copyfile(path, path + '.bak')
+
+def edit(path):
+    "Use sed to change the file."
+    print "editing", path
+    tmp = path + '.tmp'
+    err = os.system('sed -f sedscr %s > %s' % (path, tmp))
+    if err != 0:
+        raise Exception('error %d from sed command' % err)
+    os.rename(tmp, path)
+
+def revert(path):
+    "Undo changes by restoring the backup file."
+    print "restoring", path
+    bak = path + '.bak'
+    os.rename(bak, path)
+    
+def getFiles(path):
+    "Build a list of test and resource files."
+    i, o = os.popen2('find %s -follow -name "*.qm[ta]"' % path)
+    files = o.readlines()
+    i.close(); o.close()
+    return files
+
+def getAddrs(files):
+    "Build a list of unique IP addresses in the input files."
+    regex = re.compile('[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+')
+    addrList = []
+    for name in files:
+        f = open(name.rstrip(),'r')
+        text = f.readlines()
+        f.close()
+        for line in text:
+            m = regex.search(line)
+            if m:
+                addr = m.group()
+                if addr.find('255.') == 0: continue # skip net masks
+                if addr not in addrList:
+                    addrList.append(addr)
+    return addrList
+
+def writeRemap():
+    "Write the remap file - a sed script - for the user to edit."
+    f = open('sedscr', 'w')
+    f.write('# This file was created by NexTest remap command\n')
+    for addr in addrList:
+        f.write('s/%s//g\n' % addr)
+    f.close()
+    os.system('cat sedscr')
+    print """
+    Operation complete.  Edit 'sedscr' and then run 'remap exec' to
+    remap your database."""
+
+# Locate the QMTest database
+if 'QMTEST_DB_PATH' in os.environ:
+    dbPath = os.environ['QMTEST_DB_PATH']
+else:
+    # see if working dir contains the db
+    if 'QMTest' in os.listdir('.'):
+        dbPath = '.'
+    else:
+        print "Cannot locate QMTest database"
+        sys.exit(2)
+
+if len(sys.argv) < 2:
+    usage()
+    sys.exit(1)
+    
+files = getFiles(dbPath)
+
+if sys.argv[1] == 'prep':
+    addrList = getAddrs(files)
+    writeRemap()
+    sys.exit(0)
+
+if sys.argv[1] == 'exec':
+    for path in files:
+        path = path.rstrip()
+        backup(path)
+        edit(path)
+    sys.exit(0)
+    
+if sys.argv[1] == 'revert':
+    for f in files:
+        revert(f.rstrip())
+    sys.exit(0)
+    
+if sys.argv[1] == 'help':
+    usage()
+    
+print "%s: unknown command" % sys.argv[1]
+
+########################################################################
+# Local Variables:
+# mode: python
+# indent-tabs-mode: nil
+# fill-column: 78
+# auto-fill-function: do-auto-fill
+# End:

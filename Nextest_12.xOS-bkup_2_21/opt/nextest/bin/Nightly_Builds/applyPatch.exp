@@ -1,0 +1,144 @@
+#! /usr/bin/expect -f
+
+# FP 35028: This ticket is used to clean up the base code deleting deprecated lines of code
+set buildPath           /root/IserverBuilds/dailybuilds
+set nextone_bin_dir     /usr/local/nextone/bin
+set scriptsDir          /root/scripts/dailybuild
+set PATCH_INFO          0	
+
+set version             [lindex $argv 0]
+# Print usage message
+if {[llength $argv] == 0} {
+   puts "usage example: $argv0 4.0"
+   exit 1
+}
+
+set num 0
+#set patchFiles [exec cat $buildPath/noContent.txt]
+set patchFiles [exec cat $buildPath/patchFiles.txt]
+puts "patchFiles are :\n$patchFiles\n"
+foreach line $patchFiles {
+  #puts "line $num is: $line\n"
+  set rpmTest586 [lindex [split $line .] 1]
+  set fileToInstall [lindex [split $line .] 0]
+  if { $PATCH_INFO == 0 } {
+     set PATCH_INFO 1
+  }	
+  incr num
+
+     if {[string compare $fileToInstall "libBridgeServer"] == 0} {
+        # Make libBridgeServer to become libBridgeServer.so
+        set fileToInstall [concat $fileToInstall.so]
+     }
+    #puts "File to install is: $fileToInstall\n"
+    #sleep 3
+    if { [file exists $nextone_bin_dir/$fileToInstall] } {
+    # The file has been formated correctly, make a backup copy and apply the patch
+       exec cp $nextone_bin_dir/$fileToInstall $nextone_bin_dir/$fileToInstall.orig
+       #expect "*"
+       sleep 1
+       exec cp $buildPath/$line $nextone_bin_dir/$fileToInstall
+       #expect "*"
+       sleep 1
+    } else {
+    # The file has not been formated correctly, send e-mal about that & exit the program
+       set subject  "Nightly build can't be kicked-off"
+       set msg "\n$buildPath/$line patch has not been named correctly\n"
+       set sendMail [exec python2.3 $scriptsDir/mailwrapper.py $subject $msg]
+       puts "Exiting program\n"
+       exit
+    }
+}
+
+
+  # Apply radius RPM (if necessary)
+  set radStat [catch {exec rpm -qa | grep freeradius} freeRadius]
+  set radPackage [glob $scriptsDir/freeradius*rpm]
+  if {$radStat == 1} {
+     exec rpm -ivh $radPackage
+     sleep 1
+  }
+
+
+  # Apply libwrap flag to server.cfg (if there is no patch binary)
+  if { $PATCH_INFO == 0 } {
+     puts "There are no patches\n"
+     if {[string compare $version "4.0"] == 0} {
+        # Modify server.cfg file (set memwrapper on)
+        # Backup the server.cfg file
+        #log_user 0
+        set timeout 10
+        exec cp $nextone_bin_dir/server.cfg $nextone_bin_dir/server.cfg.bkup
+        # Update the server.cfg file with the memwrapper flag (for libwrap)
+        spawn vi $nextone_bin_dir/server.cfg
+        send "\n/gis local\no\tmemwrapper on\033:wq\r"
+        #puts "memwrapper flag updated for 4.0\n"
+	puts "memwrapper flag updated for $version\n"   ;# FP 41813
+        sleep 1
+        expect "#" 
+        #log_user 1
+     } else {
+        # Process specific items in 4.2, 4.3, 5.0 and beyond     ;# FP 41813, FP 46519
+        set timeout 10
+        exec $nextone_bin_dir/nxconfig.pl -e memwrapper -v 1
+	puts "memwrapper flag updated for $version\n"
+        sleep 1
+     }
+  }	
+
+# FP-36294 Begin
+# Add code to update release 4.2 license when it is expired
+# For now this licemse update only happens when there is a patcha
+# It is assumed that for regular regression runs the license will still be up to date
+  if { $PATCH_INFO == 1 } {
+     # FP 41813 Begin  Add code to update release 4.3 license
+     # Save the original license
+     exec cp $nextone_bin_dir/iserverlc.xml $nextone_bin_dir/iserverlc.xml.orig
+     # Copy over an unexpired license
+     sleep 1
+     if {[string compare $version "4.2"] == 0} {
+        exec cp $scriptsDir/iserverlc.4.2.xml $nextone_bin_dir/iserverlc.xml
+        # Update the 4.2 license since the 30 days license might have expired
+        sleep 1
+     }
+     if {[string compare $version "4.3"] == 0} {
+        exec cp $scriptsDir/iserverlc.4.3.xml $nextone_bin_dir/iserverlc.xml
+        # Update the 4.3 license since the 30 days license might have expired
+        sleep 1
+     }
+     # FP 46519; add licensing for 5.0
+     if {[string compare $version "5.0"] == 0} {	
+        exec cp $scriptsDir/iserverlc.5.0.xml $nextone_bin_dir/iserverlc.xml
+        # Update the 5.0 license since the 30 days license might have expired
+        sleep 1
+     }
+     # FP 46520; add licensing for 5.1
+     if {[string compare $version "5.1"] == 0} {
+        exec cp $scriptsDir/iserverlc.5.1.xml $nextone_bin_dir/iserverlc.xml
+        # Update the 5.1 license since the 30 days license might have expired
+        sleep 1
+     }
+     # Use nxconfig.pl to update the license in the database
+     exec $nextone_bin_dir/nxconfig.pl -l -P $nextone_bin_dir
+     sleep 1
+     # FP 41813 End
+  #FP-36294 End
+  }
+
+# FP 41831 Begin
+# This is a temporary fix for the ip-layer-dropped-pkts-log flag in rel 4.3
+# This value is normally set to 2 (but development believes that setting it to 0
+# will reduce or eliminate the incidence of NxLinux hanging after 'iserver all stop'
+# command has been executed by nextest. This fix will be removed when this problem
+# (reference: FP 39452) is resolved
+if {[string compare $version "4.3"] == 0} {
+   spawn $nextone_bin_dir/nxconfig.pl -e ip-layer-dropped-pkts-log -v 0
+   expect "iServer restart (y/n) \[n\]:"
+   # Do not restart the iserver since, it will be restarted after reboot    
+   send "\r"
+   expect "#"
+   puts "ip-layer-dropped-pkts-log flag updated for $version\n"
+   puts "ip-layer-dropped-pkts-log changes will take effect after rebbot\n"
+   sleep 1
+}
+# FP 41831 End

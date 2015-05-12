@@ -1,0 +1,131 @@
+NexTest 3.1.1n Release Notes
+----------------------------
+July 28, 2004
+
+Overview
+--------
+
+	This release contains bug fixes, new tests, and new features.
+
+NexTest Tickets
+---------------
+
+	7056 write test scripts to test SIP-T
+
+	7057 Update OBP test suite
+
+	7071 MSWInfo object should not do iserver restart
+
+	7267 Tests for QA Phase II requirements
+
+	7286 nat suite bug fixes
+
+	7293 basic.serial.seattle-sandiego has a prerequisite from 
+	     h323 suite
+
+	7306 Dmalloc: automate segs set/restore, eliminate manual 
+	     server.cfg manipulations
+
+	7479 fix provision script in mirrorproxy test suite
+
+	7550 Backporting NexTest to support iserver v2.06
+
+Call Generator Tickets
+----------------------
+	
+	unknown!
+
+SIP Outbound and Mirror Proxy Setup Notes
+-----------------------------------------
+
+	The mirrorproxy and obp suites require that a third-party SIP
+	proxy runs on the call generator.  Perform the following steps
+	at install time.
+
+	1. Define sipproxy address in /etc/hosts on the call generator
+
+	2. Respond affirmatively when the installer asks if you want 
+	   to run the SIP Express Router (ser).
+
+	The MSW must be in SIP OBP mode for the obp and mirrorproxy
+	tests.  For this release, you must run the 'sconfig' command
+	manually before running either suite.  You should run sconfig
+	again to return to 'stateful' mode afterward.
+
+	This function will be automated in the next release of
+	Nextest.
+
+
+NAT Traversal Setup Notes
+-------------------------
+
+	Plumb interfaces e1000g2 and e1000g3 as follows:
+
+	      ifconfig e1000g2 plumb 192.168.0.100/24 up
+	      ifconfig e1000g3 plumb 192.168.1.100/24 up
+
+	Change to the /opt/nextest/etc directory
+
+	     cd /opt/nextest/etc/
+
+	Remove the old NSF package with
+
+	     pkgrm nsf
+
+	Add the new package with
+
+	     pkgadd -d ipfilter_3.4.27_stock.pkg
+
+	     Edit the ipnat configuration file /etc/opt/ipf/ipnat.conf
+	     and include the following two network address mappings:
+
+   map e1000g0 192.168.0.0/24 -> 10.1.0.62/32 portmap udp 20001:30000
+   map e1000g1 192.168.1.0/24 -> 10.1.1.62/32 portmap udp 30001:40000
+
+      	Note: Replace the NAT IP address 10.1.0.62 and 10.1.1.62 with 
+	correct IP address of the Solaris machine
+
+	Stop and start ipfilter with
+
+     		/etc/init.d/ipfboot stop
+     	/etc/init.d/ipfboot start
+
+	Check the IP address mappings with
+
+      		ipnat -l
+
+	The output would be like the following:
+
+    List of active MAP/Redirect filters:
+    map e1000g0 192.168.0.0/24 -> 10.1.0.62/32 portmap udp 20001:30000
+    map e1000g1 192.168.1.0/24 -> 10.1.1.62/32 portmap udp 30001:40000
+
+    List of active sessions:
+
+	The NAT setup should not negatively impact other tests.  It
+	simply replaces the NSF driver with the original Solaris
+	version. 
+
+Functional Suite Setup Notes
+----------------------------
+
+   	The 'functional' test suite requires the following entry in the
+	/etc/hosts file on the call gen server.  (Assumes call
+	generator primary address is 10.1.3.112). 
+
+	10.1.3.112 sandiego
+	10.1.3.113 phoenix
+	10.1.3.114 atlanta
+	10.1.3.115 miami
+	10.1.3.118 dynamicrealm
+	10.1.2.112 seattle
+	10.1.2.113 portland
+	10.1.2.114 newyork
+	10.1.2.115 boston
+	10.1.2.118 staticrealm
+
+	Also, the following entries must exist on BOTH the call gen
+	and the msw:
+
+	10.1.3.118     qanextest.com.
+	10.1.3.118     qanextest.com

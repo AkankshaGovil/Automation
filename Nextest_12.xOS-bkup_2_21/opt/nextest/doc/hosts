@@ -1,0 +1,91 @@
+# NEXTEST SAMPLE /etc/hosts FILE
+################################
+
+# This file contains all the entries that NEED to be present in
+# the /etc/hosts file for proper functioning of Nextest. 
+
+# LOCAL HOST IP
+#--------------
+10.0.30.10      mygen gnuGK 
+
+# MSW INFORMATION
+#----------------
+10.0.28.145 mymsw
+10.0.28.194 bkupmsw 
+10.0.30.146 staticrealm pub_rsa
+10.0.28.146 prv_rsa qanextest.com dynamicrealm qanextest.com.
+10.0.30.148 enum_realm rh_realm_c
+10.0.28.126 rh_realm_psx
+#pub_test.com entry should also be added to the /etc/hosts file of MSX
+10.0.30.146 pub_test.com
+
+# IP ADDRESSES USED BY ENDPOINTS
+#-------------------------------
+# NOTE: The 11 IP Addresses((public1 to public5) and (private1 to private6)) have been SHARED 
+# to avoid shortage of IP Addresses. They CAN be unique if more ip addresses are available.
+10.0.30.111 public1 portland
+10.0.30.112 public2 seattle
+10.0.30.113 public3 newyork
+10.0.30.114 public4 boston
+10.0.30.115 public5 chicago
+10.0.30.116 public6 maryland
+10.0.30.117 public7
+10.0.30.118 public8 ast_sipproxy openser
+10.0.30.119 public9
+10.0.30.120 public10
+10.0.30.121 public11
+
+10.0.28.111 private1 miami
+10.0.28.112 private2 sandiego
+10.0.28.113 private3 atlanta
+10.0.28.114 private4 phoenix
+10.0.28.115 private5 texas
+10.0.28.116 private6 london
+10.0.28.117 private7
+10.0.28.118 private8
+10.0.28.119 private9
+10.0.28.120 private10
+10.0.28.121 private11
+10.0.28.122 private12
+10.0.28.123 codenomicon3
+10.0.28.124 codenomicon4
+10.0.28.125 codenomicon1
+10.0.28.126 codenomicon2
+10.0.28.127 maryland
+
+# IP ADDRESSES USED BY GNUGK, NXGEN(FOR MEDIA) AND SER
+------------------------------------------------------
+10.0.30.128 gatekeeper1
+10.0.30.129 nxgenIP1
+10.0.30.130 nxgenIP2
+#48768
+10.0.28.131 nxgenIP3
+10.0.30.110 sipproxy
+
+10.0.28.128 gatekeeper2
+
+# IP ADDRESSES USED BY RADIUS SERVER
+------------------------------------
+10.0.28.131 radiusprimary
+10.0.28.132 radiussecondary
+
+# IP ADDRESSES USED BY NAT - NOT TO BE CHANGED
+----------------------------------------------
+#51398
+192.168.0.102 nat_public4
+192.168.2.100 nat_public3
+192.168.0.101 nat_public2
+192.168.0.100 nat_public1
+192.168.1.101 nat_private2
+192.168.1.100 nat_private1
+#51005
+192.168.1.102 nat_private3
+#51398
+192.168.1.103 nat_private4
+
+# IP ADDRESSES USED BY NAT - SHOULD BE UNIQUE
+---------------------------------------------
+10.0.30.107 pub_nat
+10.0.28.107 prv_nat
+10.0.28.108 prv_nat1
+10.0.30.108 pub_nat1

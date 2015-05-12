@@ -1,0 +1,126 @@
+NexTest 3.2k Release Notes
+----------------------------
+November 17, 2005
+
+Overview
+--------
+
+	This release contains
+
+		* Heads Up
+
+		* NexTest tickets: Bug Fixes
+
+		* NexTest tickets: New Features
+
+		* Setup Notes
+
+		* NOTICE: As has been advised, the Solaris version of NexTest
+		  is deprecated. Moving forward, new development may or may 
+		  not be performed for dual-implementation. Also, automated 
+		  setup for new features, improvements in existing setup, and 
+		  stability upgrades may also not appear in NexTest for Solaris. 
+		  Some or most of existing functionality will likely continue to 
+		  function, but is not guarranteed to do so. For the next 
+		  several releases, we will explicitly note when backwards 
+		  compatibility is not provided, or when we know existing 
+		  functionality no longer works on Solaris.
+
+Heads Up
+--------
+    a. Nextest r3-2k requires ethereal 0.10.13 for proper conversion of ethereal
+       capture buffer into PDML format. By default, if you have suse 9.1 and have
+       online updates turned on, you will have this version running. If not, please
+       update ethereal rpm from components directory (rpm -U ethereal.rpm).
+
+    b. Nextest r3-2k onwards requires user to install nxgen software manually before
+       any SIP related test cases can be executed. This is a requirement because we
+       have replaced sgen and SIPP with nxgen. 
+       It should be noted that nxgen can be installed even if you dont have a hotknife 
+       card. In this case nxgen will not generate any media.
+
+ 
+Outstanding Bugs That May Affect You
+------------------------------------
+        17335   In release 4.1, media pool provision has changed completely
+                which broke nextest. Unfortunately, jserver did not
+                shield nextext from those changes. A quick fix and
+                temporary fix has been provided which will change in
+                future.
+	11694 -	CoreWatcher currently watches hardcoded 
+		directories. When MSW implements configurable 
+		path, it may break the current appproach and 
+		we will have to adapt.
+
+	13452 -	"Null text data??" may appear on stdout from SetiServerConfig 
+		command, and therefore in NexTest output any time that 
+		command is called. SetiServerConfig is used to update 
+		MSx system parameters not modifiable from cli. The 
+		errant message does not appear to have any functional 
+		effect.
+
+	12523 -	Several NAT tests fail
+		From 3-18 random NAT tests fail due to Media assertion, 
+		but pass on manual qmtr re-test. Analysis of this problem 
+		is ongoing.
+
+	13443 -	iView sets SIPQLEN to Zero
+		This also happens to NexTest, which uses the same jServer
+		utilities as iView. The man symptom is steady test failures
+		of calls from SIP endpoints citing registration failure, 
+		major test run disruption.
+
+	14414 -	Automate auto-setup of logical i/f on Linux.
+		All interfaces are now automatically provisioned,
+		including NAT. It is recommended that auto-setup 
+		files in /etc to do this be removed, e.g.:
+		* /etc/hostname.e1000g0:x11
+		* /etc/sysconfig/network/ifcfg-eth-id-<macaddr>
+
+	15887 -	MSx stops producing CDRs sometimes during automated test runs
+		Any test which asserts on CDRs will fail, major test run 
+		disruption.
+
+NexTest Tickets Fixed in this release
+-------------------------------------
+        New Features
+        ------------
+        12453	Test automation of Trunk Group based routing by Velankani
+        14489	Ingress-Egress Max Calls to CAC test suite
+        15141	Tests for verification of CDR fields
+        15988	Integrate NxGen to Nextest framework
+        16097	Create new suite for negative SIP testing
+        16407	TimerC Test Suite
+        16756	Packet inspection capability from ethereal packet capture.
+
+        Bug Fixes
+        ---------
+        12367	Enhance NexTest results output to include environment information
+        13448	Resource Checks Pre and Post test campaign to detect resource leakage
+        14090	Add prerequisite test cases for tests specified by user
+        15521	Integrate latest pexpect version to Nextest
+        15936	Update Linux install manual with correct CLASSPATH
+        16074	Update reference to slowrey to be engtest in NexTest web page
+        16180	Set certain default debug flags at test start
+        16184	GetLatestJava() should be called before getCDRDict()
+        16344	All suites should have pkttrace flag ON
+        16796	Move protos suite as subsuite into new "negative" suite
+        16997	Update installation manual
+        17011	Reorganize engtest web page
+        17012	remove Ethernet Interface Name from Endpoint Resources
+        17335   nextest does not provision 4.1 pools (mdevices.xml)  
+        17357	Fix Radius ticket integration problems
+        17394	Gis flags erroneously turned on in jserver and PM
+
+        Call Generator Tickets
+        ----------------------
+        None
+
+Installation Instruction
+------------------------
+To be added in later releases. Please see engtest in the meanwhile.
+
+TroubleShooting
+---------------
+To be added in later releases. Please see footprint knowledgebase in the meanwhile.
+

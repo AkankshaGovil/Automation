@@ -1,0 +1,20 @@
+
+
+Commands to replace the Mask
+the first one changes all the 24's in the mask field to 16's
+and seconde one changes all the 255.255.255.0 to 255.255.0.0
+
+Run both the commands  from /tdb/production_components.qms and /tdb/negative.qms
+
+find . | grep -i ".qma" | xargs sed -i 's/<argument name="mask"><text>24/<argument name="mask"><text>16/'
+
+find . | grep -i ".qma" | xargs sed -i 's/<argument name="mask"><text>255.255.255.0/<argument name="mask"><text>255.255.0.0/'
+
+RUN THESE FROM PRODUCTION_COMPONENTS.QMS AND NEGATIVE.QMS:
+find . | egrep -i ".qmt|.qma|.xml" | xargs sed -i 's/255.255.255.0/255.255.0.0/'
+
+RUN THIS FROM /OPT/NEXTEST/LIB
+find . | grep -i ".py" | xargs sed -i 's/255.255.255.0/255.255.0.0/'
+find . | grep -i ".py" | xargs sed -i 's/\/24/\/16/'
+
+

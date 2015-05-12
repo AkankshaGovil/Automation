@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+if [ $# -ne 2 ];then
+	echo "incomplete number of arguments"
+fi
+ipaddr=$1
+phone=$2
+set `cli iedge list|grep dynamic`
+LIMIT=$#
+if [ $LIMIT -eq 0 ];then
+	echo "no dynamic endpoints exists at all"
+	exit 1
+fi
+i=1
+for ep in $*
+do
+	if [ `expr $i % 3` -eq 0 ]
+	then
+		cli iedge lkup $ep 0|grep -w 'IpAddr'|grep $ipaddr >/dev/null
+		if [ $? -eq 1 ];then
+			let "i+=1"
+			continue
+		fi
+		cli iedge lkup $ep 0|grep -w 'Phone'|grep $phone>/dev/null
+		resultPhone=$?
+		cli iedge lkup $ep 0|grep -w 'Sip Uri'|grep $phone>/dev/null
+		resultURI=$?
+		if [ $resultPhone -ne 0 -a $resultURI -ne 0 ];then
+			let "i+=1"
+			continue
+		fi
+		echo "dynamic endpoint created"
+		exit 0
+	else
+		let 'i+=1'
+	fi
+		
+done
+echo "no such dynamic endpoint exists"
+exit 1

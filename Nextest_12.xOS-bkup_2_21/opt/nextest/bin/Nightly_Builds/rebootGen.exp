@@ -1,0 +1,17 @@
+#!/usr/bin/expect -f
+
+spawn $env(SHELL)       ; set shell $spawn_id
+
+# Become Root user 
+send "su\r"
+expect "Password: "
+
+send "shipped!!\r"
+expect "#"
+
+# Reboot the GEN
+set timeout 5
+send "/sbin/reboot\r"
+expect "#"
+
+sleep 4

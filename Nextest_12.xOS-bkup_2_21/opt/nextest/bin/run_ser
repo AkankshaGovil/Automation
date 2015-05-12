@@ -1,0 +1,72 @@
+#!/bin/sh
+
+start_ser(){
+    PYTHONPATH=/opt/nextest/lib/python2.3/site-packages
+    export PYTHONPATH
+    PATH=/opt/nextest/bin:$PATH
+    export PATH
+    LD_LIBRARY_PATH=/usr/local/nextone/lib:/usr/local/lib:/usr/lib
+    export LD_LIBRARY_PATH
+    /opt/nextest/bin/ser -f /opt/nextest/etc/ser.cfg -n 1 -l sipproxy > /dev/null 2> /dev/null
+    pgrep -x ser > /dev/null
+    if [ $? -ne 0 ];then
+        echo "\n****** SER NOT STARTED ******\n"
+        ser_error
+    fi
+}
+
+stop_ser(){
+    pkill -x ser 
+    pgrep -x ser > /dev/null
+    if [ $? -eq 0 ];then
+        echo "\n****** SER NOT KILLED ******\n"
+        ser_error
+    fi
+}
+
+ser_error(){
+	echo "****** SER ERROR ******\n"
+}
+
+validate_hosts(){
+	grep sipproxy /etc/hosts > /dev/null
+	if [ $? -gt 0 ];then
+			echo "\n**** /ETC/HOSTS FILE DOES NOT HAVE AN ENTRY FOR sipproxy ****\n"
+			ip=''
+	else
+		set `grep sipproxy /etc/hosts`
+		ip=$1
+	fi
+}
+
+#===============================================================================
+# Main Body
+#===============================================================================
+
+if [ $# -ne 1 ];then
+	echo "\n****** EXACTLY 1 ARGUMENT EXPECTED: [start|stop] ******\n"
+	ser_error
+	exit
+fi
+ACTION=$1
+
+if [ $ACTION = "stop" ];then
+	stop_ser
+	exit
+fi
+
+if [ $ACTION != "start" ];then
+	echo "\n****** UNRECOGNIZED ARGUMENT, EXPECTED: [start|stop] ******\n"
+	ser_error
+	exit
+fi
+
+# Else start ser
+
+validate_hosts	# validating /etc/hosts file to have an entry for sipproxy
+
+pgrep -x ser > /dev/null  #checking if SER is already running
+if [ $? -gt 0 ];then		# if no
+	start_ser
+fi
+exit

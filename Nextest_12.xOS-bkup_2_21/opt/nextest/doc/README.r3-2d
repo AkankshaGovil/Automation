@@ -1,0 +1,310 @@
+NexTest 3.2d Release Notes
+----------------------------
+March 14, 2005
+
+Overview
+--------
+
+	This release contains
+
+		* Bug fixes
+		* Revised Test Suite: Call Routing
+		* New Test Suite: production_components
+		* New TDB organisation
+		* Instructions for configure NAT on Linux NexTest 
+		  systems
+
+Outstanding Bugs That May Affect You
+------------------------------------
+
+        1102	MSW cores on certain calltransfer tests in MSW 
+		r3.1.2d6. Fix expected in r3.1.2d7.
+
+		Workaround: 
+		rename 
+		   tdb/production_components.qms/calltransfer.qms
+		to
+		   tdb/production_components.qms/calltransfer.qmsTMP
+
+	10332	Registrations by SIP URI fail in r3.1.2d6, possibly 
+		others. This is all functional tests where miami 
+		registers. Fix in r3.1.2d7.
+
+
+NexTest Tickets
+---------------
+	1187	"p*_nat, p*_ep addresses missing from NexTest software"
+		installation The installation script was modified to 
+		provision pub_nat, prv_nat, pub_ep and prv_ep during 
+		network configuration. These should translate to the 
+		same addresses as public1 and private1, respectively.
+		See "sample from a working test system", given in 
+		previous release notes.
+
+	10642	"Make NexTest production member suites share common provisioning"
+                See "New test Suites", below.
+
+	11191	Add an option to get next pool id to ease provision for Interroute.
+
+Call Generator Tickets
+----------------------
+
+New test Suites, TDB oganisation
+--------------------------------
+	The production_components directory suite is a reorganisation 
+	of these previous suites: 
+
+		* causecode
+		* functional
+		* nat
+		* sipt
+		* obp
+		* mirrorproxy
+
+	The reorganisation consisted of creating a new "directory"
+	suite: production_components, moving the above-mentioned
+	suites into it, and modifying all provisioning scripts to
+	use an environment common to all suites. The purpose of
+	this was to reduce the number of database cleanings and
+	iServer re-starts, thereby making the execution of the
+	production suite more stable. Moving forward, as new suites
+	are introduced, they must be written in such a way as to
+	make future integration with the production suite as easy as
+	possible. 
+
+	The logical suite: production was modified to invoke the new
+	common provisioning test, and all suites located in 
+	production_components directory.
+
+	Another new "directory" suite was created: obsolete. For 
+	clarity, all obsolete suites were moved there. These were 
+	the obsolete suites so located: 
+
+		* dmalloc.qms
+		* h323.qms
+		* iwf.qms
+		* perf.qms
+		* scm.qms
+		* sip.qms
+
+Here is the procedure to configure NAT on Linux:
+------------------------------------------------
+
+	1. Create the following interfaces
+
+		ip addr add dev eth0 192.168.0.100/24
+		ip addr add dev eth0 192.168.0.101/24
+		ip addr add dev eth1 192.168.1.100/24
+		ip addr add dev eth1 192.168.1.101/24
+
+	2. Add two host names into /etc/hosts file. (Usually it is best 
+	   to do this by configuring the network during NexTest 
+	   installation. Take defaults unless a specific alternative 
+	   configuration is sought.)
+
+		10.1.2.182 pub_nat # private nat ip address
+		10.1.3.182 prv_nat #  public nat ip address
+
+	3. Run the following command for setting on Source-NAT on Linux. 
+	   Thee iptables command must be run as root, not sudo. 
+	   Replace <public nat ip address> and <private nat ip address> 
+	   with public and private IP address of the Call Generator.
+
+		iptables -t nat -A POSTROUTING -p udp -s 192.168.0.100/24 -j SNAT --to-source <public nat ip address>:20000-29999
+		iptables -t nat -A POSTROUTING -p udp -s 192.168.1.100/24 -j SNAT --to-source <private nat ip address>:30000-39999
+
+
+
+----------------------------------------------------------------------
+NOTES FROM PREVIOUS RELEASES
+----------------------------------------------------------------------
+
+Outstanding Bugs That May Affect You
+------------------------------------
+
+	8876 	Network aliases disappear after reboot
+
+	(See ticket for workaround.)
+
+
+MSW Configuration Notes
+-----------------------
+
+	NexTest now requires that CDRs be stored in "fixed" file
+	format, rather than "daily".  If you did not install/upgrade
+	the MSW with this option set, do the following:
+
+		1) change to /usr/local/nextone/bin
+
+		2) run 'sconfig'
+
+		3) Billing -> CDR File Format -> "fixed"
+
+		4) run 'iserver all reconfig'
+
+	You MUST add an entry for qanextest.com in the /etc/hosts
+	file as follows.  The IP address should match that of
+	dynamicrealm and prv_rsa. The entry should include the 
+	dot-terminated FQDN. 
+
+	Example:
+
+		10.1.3.138  qanextest.com qanextest.com.
+
+Call Gen System Setup
+---------------------
+
+	The installation script does not prompt for the qanextest.com
+	address.  Enter the same line in the call gen /etc/hosts file
+	as described the MSW Configuration Notes above.
+
+NexTest Support for SuSE 9.1
+----------------------------
+
+	The NexTest framework and all tests developed for iServer
+	release 3.1.1 have been ported to the SuSE 9.1 Linux system.
+	Most of the code adapts to the underlying OS automatically and
+	requires no user action.  Because of install peculiarities,
+	however, two separate distributions will be maintained; the
+	system administrator should choose the "SunOS" or "Linux"
+	distro.
+
+	See the companion document README.SuSE91 for Linux
+	installation instructions.
+
+IP Address Resolution
+---------------------
+
+	The remap function is obsolete in version 3.1.1r.  This step
+	was necessary in past releases so that built-in IP addresses
+	could be changed to fit the test environment.
+
+	In 3.1.1r, the installation procedure prompts the installer
+	for all necessary IP addresses.  Local IP aliases (also known
+	as "logical interfaces") are set up at install time and are no
+	longer dynamically managed by the test framework.
+
+	In addition to setting up the aliases, the /etc/hosts file is
+	updated so that all names will be resolved correctly.  There
+	are no longer any IP addresses specified in the newer test
+	suites.
+
+	It is important that you define the "mymsw" IP address to that
+	of the management interface on your MSW.
+
+	You must define the "qanextest.com" and "qanextest.com."
+	addresses manually on the MSW.  These names and associated IP
+	addresses should be added to /etc/hosts so that the SIP
+	dial-by-URI tests work.
+
+	Some of the IP addresses are multiply defined - i.e., an IP
+	address may be mapped to multiple names.  This is normal.
+
+	Here is a sample from a working test system to guide you:
+
+	    #
+	    # Internet host table
+	    #
+	    127.0.0.1       localhost       loghost
+	    #
+	    # The MSW:
+	    10.1.2.130      mymsw pub_rsa staticrealm
+	    10.1.3.130      prv_rsa dynamicrealm qanextest.com qanextest.com.
+	    #
+	    # The gen:
+	    10.1.2.142      interface-e1000g0 
+	    10.1.3.142      interface-e1000g1 
+	    10.1.3.148      qanextest.com qanextest.com.
+	    #
+	    # Written by NexTest install:
+	    # (Except where shown, EP addresses should be unique)
+	    10.1.2.142      public1 mygen pub_nat pub_ep
+	    10.1.2.143      public2
+	    10.1.2.144      sipproxy
+	    10.1.2.145      seattle
+	    10.1.2.146      portland
+	    10.1.2.147      newyork
+	    10.1.2.148      boston
+	    10.1.3.142      private1 prv_nat prv_nat prv_ep
+	    10.1.3.143      private2
+	    10.1.3.144      sandiego
+	    10.1.3.145      phoenix
+	    10.1.3.146      atlanta
+	    10.1.3.147      miami
+	    #
+	    10.1.2.1        defaultrouter
+
+SIP Outbound and Mirror Proxy Setup Notes
+-----------------------------------------
+
+	The mirrorproxy and obp suites require that a third-party SIP
+	proxy runs on the call generator.  Perform the following steps
+	at install time.
+
+	1. Define sipproxy address in /etc/hosts on the call generator
+
+	2. Respond affirmatively when the installer asks if you want 
+	   to run the SIP Express Router (ser).
+
+	The MSW must be in SIP OBP mode for the obp and mirrorproxy
+	tests.  For this release, you must run the 'sconfig' command
+	manually before running either suite.  You should run sconfig
+	again to return to 'stateful' mode afterward.
+
+	This function is currently automated in nextest.
+
+
+NAT Traversal Setup Notes - SOLARIS ONLY
+----------------------------------------
+
+	NOTE: the nat suite has not been ported to work with a Linux call
+	gen in this release.
+
+	Plumb interfaces e1000g0 and e1000g1 as follows:
+
+	      ifconfig e1000g0 addif 192.168.0.100/24 up
+	      ifconfig e1000g0 addif 192.168.0.101/24 up
+	      ifconfig e1000g1 addif 192.168.1.100/24 up
+	      ifconfig e1000g1 addif 192.168.1.101/24 up
+
+	Change to the /opt/nextest/etc directory
+
+	     cd /opt/nextest/etc/
+
+	Remove the old NSF package with
+
+	     pkgrm nsf
+
+	Add the new package with
+
+	     pkgadd -d ipfilter_3.4.27_stock.pkg
+
+	Edit the ipnat configuration file /etc/opt/ipf/ipnat.conf 
+	and include the following two network address mappings:
+
+   		map e1000g0 192.168.0.0/24 -> 10.1.0.62/32 portmap udp 20001:30000
+   		map e1000g1 192.168.1.0/24 -> 10.1.1.62/32 portmap udp 30001:40000
+
+      	Note: Replace the NAT IP address 10.1.0.62 and 10.1.1.62 with 
+	correct IP address of the Solaris machine
+
+	Stop and start ipfilter with
+
+     		/etc/init.d/ipfboot stop
+     		/etc/init.d/ipfboot start
+
+	Check the IP address mappings with
+
+      		ipnat -l
+
+	The output would be like the following:
+
+    		List of active MAP/Redirect filters:
+    		map e1000g0 192.168.0.0/24 -> 10.1.0.62/32 portmap udp 20001:30000
+    		map e1000g1 192.168.1.0/24 -> 10.1.1.62/32 portmap udp 30001:40000
+
+    		List of active sessions:
+
+	The NAT setup should not negatively impact other tests.  It
+	simply replaces the NSF driver with the original Solaris
+	version. 

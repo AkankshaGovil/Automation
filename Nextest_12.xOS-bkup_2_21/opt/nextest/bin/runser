@@ -1,0 +1,75 @@
+#!/bin/sh
+echo "Do you want to start Sip Express Router (this is required if you plan to test OBP or Mirrorproxy) [y]|n :"
+read input
+case $input in
+	n|N) 
+		echo "Exiting without starting SER"
+		exit 0
+		;;
+	y|Y)
+		;;
+	*)
+		;;
+esac
+
+run_ser(){
+    /opt/nextest/bin/ser -f /opt/nextest/etc/ser.cfg -n 1 -l sipproxy > /dev/null
+    echo "---------------------------------------"
+    pgrep -x ser > /dev/null
+    if [ $? -eq 0 ];then
+        echo "SER started at $ip port 5060"
+        echo "Please don't use this ip and port combination to run any other application"
+    else
+        ser_error
+    fi
+    echo "---------------------------------------"
+}
+ser_error(){
+    echo "---------------------------------------"
+	echo "SER not started due to invalid ip/interface"
+    echo "to start SER later, use the following command (you should have an entry for \"sipproxy\" in your /etc/hosts file) :"
+    echo "    ser -f /opt/nextest/etc/ser.cfg -n 1 -l sipproxy"
+    echo "---------------------------------------"
+}
+validate_hosts(){
+	grep sipproxy /etc/hosts > /dev/null
+	if [ $? -gt 0 ];then
+			echo "**** Your /etc/hosts file does not have an entry for sipproxy. Please add one ****"
+			ip=''
+	else
+		set `grep sipproxy /etc/hosts`
+		ip=$1
+	fi
+}
+
+validate_hosts	# validating /etc/hosts file to have an entry for sipproxy
+
+echo ""
+pgrep -x ser > /dev/null  #checking if SER is already running
+if [ $? -gt 0 ];then		# if no 
+	if [ -n "$ip" ];then
+		ifconfig -a|grep $ip > /dev/null
+		if [ $? -eq 0 ];then
+			run_ser
+		else
+			OS=`uname`
+			echo "creating logical interface on $OS"
+			if [ "$OS" = "SunOS" ];then
+				ifconfig e1000g0 addif $ip/24 up > /dev/null 2>&1
+				ifconfig -a|grep $ip > /dev/null
+			elif [ "$OS" = "Linux" ];then
+				ip addr add $ip/24 dev eth0 > /dev/null 2>&1
+				ip addr|grep $ip > /dev/null
+			fi
+			if [ $? -eq 0 ];then
+				run_ser
+			else
+				ser_error
+			fi
+		fi
+	else
+		ser_error
+	fi
+else
+	echo "SER is already running"
+fi

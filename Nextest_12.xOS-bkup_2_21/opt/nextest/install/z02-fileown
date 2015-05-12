@@ -1,0 +1,31 @@
+#!/bin/bash
+#
+# Change file ownership for NexTest code and database
+
+prog=`basename $0`
+OS=`uname`
+VERSION=`cat $INSTALL_DIR/version`
+
+# Message logging function
+log () {
+    echo -e "\n$1\n"
+}
+
+testgroup=users
+if [ "$OS" = "SunOS" ]; then
+    testgroup=other
+fi
+
+log "Changing ownership of NexTest code..."
+cd /opt
+chown -R bin:bin nextest nextest/*
+
+log "Changing database owner..."
+cd /var/opt/nextest
+chown -R test:$testgroup tdb tdb-$VERSION tdb/*
+
+log "Changing ownership of components directory..."
+chown -R test:$testgroup $PREV/components
+
+log "Changing ownership of .nextest directory..."
+chown -R test:$testgroup $HOME/.nextest
